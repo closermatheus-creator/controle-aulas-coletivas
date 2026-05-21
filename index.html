@@ -321,13 +321,91 @@
         }
 
         function verificarVencimento(dueDate) {
-            if (!dueDate || !dueDate.includes('/')) return false;
-            const [diaVenc, mesVenc] = dueDate.split('/').map(Number);
-            if (isNaN(diaVenc) || isNaN(mesVenc)) return false;
+            if (!dueDate) return { vencido: false, dias: 0 };
+            
+            let diaVenc, mesVenc;
+            
+            if (typeof dueDate === 'string' && dueDate.includes('/') && !dueDate.includes('GMT')) {
+                const partes = dueDate.split('/');
+                diaVenc = parseInt(partes[0]);
+                mesVenc = parseInt(partes[1]);
+            }
+            else if (dueDate instanceof Date || (typeof dueDate === 'string' && dueDate.includes('GMT'))) {
+                const data = new Date(dueDate);
+                diaVenc = data.getDate();
+                mesVenc = data.getMonth() + 1;
+            }
+            else if (typeof dueDate === 'string' || typeof dueDate === 'number') {
+                const data = new Date(dueDate);
+                if (!isNaN(data.getTime())) {
+                    diaVenc = data.getDate();
+                    mesVenc = data.getMonth() + 1;
+                } else {
+                    return { vencido: false, dias: 0 };
+                }
+            }
+            else {
+                return { vencido: false, dias: 0 };
+            }
+            
+            if (isNaN(diaVenc) || isNaN(mesVenc)) return { vencido: false, dias: 0 };
+            
             const hoje = new Date();
-            const dataVencimento = new Date(hoje.getFullYear(), mesVenc - 1, diaVenc);
             const dataHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-            return dataVencimento < dataHoje;
+            let anoVenc = hoje.getFullYear();
+            
+            const dataVencimento = new Date(anoVenc, mesVenc - 1, diaVenc);
+            
+            const diffTime = dataVencimento - dataHoje;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            const vencido = diffDays < 0;
+            const dias = Math.abs(diffDays);
+            
+            return { vencido, dias };
+        }
+
+        function formatarVencimento(dueDate) {
+            if (!dueDate) return formatarDataPadrao();
+            
+            if (typeof dueDate === 'string' && dueDate.includes('/') && !dueDate.includes('GMT')) {
+                return dueDate;
+            }
+            else {
+                const data = new Date(dueDate);
+                if (!isNaN(data.getTime())) {
+                    const diaVenc = String(data.getDate()).padStart(2, '0');
+                    const mesVenc = String(data.getMonth() + 1).padStart(2, '0');
+                    return `${diaVenc}/${mesVenc}`;
+                }
+            }
+            
+            return dueDate;
+        }
+
+        function getStatusVencimento(dueDate) {
+            const resultado = verificarVencimento(dueDate);
+            const dataFormatada = formatarVencimento(dueDate);
+            
+            if (resultado.vencido) {
+                if (resultado.dias === 0) {
+                    return { texto: `⚠️ Vence hoje`, classe: 'badge-vencido', alerta: true };
+                } else if (resultado.dias === 1) {
+                    return { texto: `⚠️ Vencido há 1 dia`, classe: 'badge-vencido', alerta: true };
+                } else {
+                    return { texto: `⚠️ Vencido há ${resultado.dias} dias`, classe: 'badge-vencido', alerta: true };
+                }
+            } else {
+                if (resultado.dias === 0) {
+                    return { texto: `📅 Vence hoje`, classe: 'badge-em-dia', alerta: false };
+                } else if (resultado.dias === 1) {
+                    return { texto: `✓ Falta 1 dia`, classe: 'badge-em-dia', alerta: false };
+                } else if (resultado.dias <= 5) {
+                    return { texto: `✓ Falta ${resultado.dias} dias`, classe: 'badge-em-dia', alerta: false };
+                } else {
+                    return { texto: `📅 Venc: ${dataFormatada}`, classe: 'badge-em-dia', alerta: false };
+                }
+            }
         }
 
         async function carregarDadosDaNuvem() {
@@ -404,50 +482,42 @@
                 c.students.forEach(s => {
                     totalAlunos++;
                     alunosPorTurno[turno]++;
-                    if (verificarVencimento(s.dueDate)) vencidos++;
+                    if (verificarVencimento(s.dueDate).vencido) vencidos++;
                 });
             });
 
             let livres = totalCapacidade - totalAlunos;
             let pctOcupacao = totalCapacidade > 0 ? Math.round((totalAlunos / totalCapacidade) * 100) : 0;
 
-            // Atualizar cabeçalho
             document.getElementById('topGlobalAlunos').innerText = `${totalAlunos} alunos ativos`;
             document.getElementById('topGlobalVagas').innerText = `${livres} vagas livres`;
-
-            // Total geral
             document.getElementById('widgetTotalAlunos').innerText = totalAlunos;
             document.getElementById('widgetTotalCapacidade').innerText = `de ${totalCapacidade} vagas`;
 
-            // Manhã
             const pctManha = capacidadePorTurno.manha > 0 ? Math.round((alunosPorTurno.manha / capacidadePorTurno.manha) * 100) : 0;
             document.getElementById('widgetManha').innerText = alunosPorTurno.manha;
             document.getElementById('widgetManhaCapacidade').innerText = `de ${capacidadePorTurno.manha} vagas`;
             document.getElementById('progressManha').style.width = pctManha + '%';
             document.getElementById('progressManha').style.background = pctManha >= 90 ? 'var(--danger)' : (pctManha >= 70 ? 'var(--warning)' : 'var(--success)');
 
-            // Tarde
             const pctTarde = capacidadePorTurno.tarde > 0 ? Math.round((alunosPorTurno.tarde / capacidadePorTurno.tarde) * 100) : 0;
             document.getElementById('widgetTarde').innerText = alunosPorTurno.tarde;
             document.getElementById('widgetTardeCapacidade').innerText = `de ${capacidadePorTurno.tarde} vagas`;
             document.getElementById('progressTarde').style.width = pctTarde + '%';
             document.getElementById('progressTarde').style.background = pctTarde >= 90 ? 'var(--danger)' : (pctTarde >= 70 ? 'var(--warning)' : 'var(--success)');
 
-            // Noite
             const pctNoite = capacidadePorTurno.noite > 0 ? Math.round((alunosPorTurno.noite / capacidadePorTurno.noite) * 100) : 0;
             document.getElementById('widgetNoite').innerText = alunosPorTurno.noite;
             document.getElementById('widgetNoiteCapacidade').innerText = `de ${capacidadePorTurno.noite} vagas`;
             document.getElementById('progressNoite').style.width = pctNoite + '%';
             document.getElementById('progressNoite').style.background = pctNoite >= 90 ? 'var(--danger)' : (pctNoite >= 70 ? 'var(--warning)' : 'var(--success)');
 
-            // Sábado
             const pctSabado = capacidadePorTurno.sabado > 0 ? Math.round((alunosPorTurno.sabado / capacidadePorTurno.sabado) * 100) : 0;
             document.getElementById('widgetSabado').innerText = alunosPorTurno.sabado;
             document.getElementById('widgetSabadoCapacidade').innerText = `de ${capacidadePorTurno.sabado} vagas`;
             document.getElementById('progressSabado').style.width = pctSabado + '%';
             document.getElementById('progressSabado').style.background = pctSabado >= 90 ? 'var(--danger)' : (pctSabado >= 70 ? 'var(--warning)' : 'var(--success)');
 
-            // Vencidos e Ocupação geral
             document.getElementById('widgetVencidos').innerText = vencidos;
             document.getElementById('widgetOcupacao').innerText = `${pctOcupacao}%`;
             document.getElementById('progressGeral').style.width = pctOcupacao + '%';
@@ -502,16 +572,16 @@
                     const cleanPhone = s.phone.replace(/\D/g, '');
                     const outrasTurmas = obterTurmasDoAluno(s.name).filter(t => !t.includes(item.name));
                     const alertaOutras = outrasTurmas.length > 0 ? `<span class="student-other-classes">Simultâneo: ${outrasTurmas.join(', ')}</span>` : '';
-                    const estaVencido = verificarVencimento(s.dueDate);
-                    const vencidoClass = estaVencido ? ' vencido' : '';
-                    const badgeVencimento = estaVencido ? '<span class="badge-vencido">⚠️ VENCIDO</span>' : '<span class="badge-em-dia">✓ Em dia</span>';
+                    const statusVenc = getStatusVencimento(s.dueDate);
+                    const vencidoClass = statusVenc.alerta ? ' vencido' : '';
+                    const badgeVencimento = `<span class="${statusVenc.classe}">${statusVenc.texto}</span>`;
                     return `
                         <div class="student-item${vencidoClass}">
                             <div class="student-info-row">
                                 <span class="student-name">👤 ${s.name} ${badgeVencimento}</span>
                                 <a href="https://wa.me/${cleanPhone}" target="_blank" class="btn-whatsapp">WhatsApp</a>
                             </div>
-                            <span class="student-phone">📞 ${s.phone} <strong style="color:${estaVencido ? 'var(--danger)' : 'var(--warning)'}; margin-left:8px;">📅 Venc: ${s.dueDate || formatarDataPadrao()}</strong></span>
+                            <span class="student-phone">📞 ${s.phone}</span>
                             ${alertaOutras}
                         </div>`;
                 }).join('');
@@ -588,13 +658,13 @@
             else {
                 item.students.forEach(s => {
                     const matriculas = obterTurmasDoAluno(s.name);
-                    const estaVencido = verificarVencimento(s.dueDate);
-                    const vencidoClass = estaVencido ? ' vencido' : '';
-                    const badgeVencimento = estaVencido ? '<span class="badge-vencido">⚠️ VENCIDO</span>' : '<span class="badge-em-dia">✓ Em dia</span>';
+                    const statusVenc = getStatusVencimento(s.dueDate);
+                    const vencidoClass = statusVenc.alerta ? ' vencido' : '';
+                    const badgeVencimento = `<span class="${statusVenc.classe}">${statusVenc.texto}</span>`;
                     body.innerHTML += `
                         <div class="modal-student-row${vencidoClass}">
                             <div>
-                                <span class="modal-student-name">👤 ${s.name} ${badgeVencimento} <strong style="color:${estaVencido ? 'var(--danger)' : 'var(--warning)'}; margin-left:8px;">(Venc: ${s.dueDate || formatarDataPadrao()})</strong></span>
+                                <span class="modal-student-name">👤 ${s.name} ${badgeVencimento}</span>
                                 <span class="modal-student-phone">📞 Tel: ${s.phone}</span>
                                 <span style="font-size:11px; color:#64748b; display:block; margin-top:4px;"><strong>Matrículas ativas:</strong> ${matriculas.join(' | ')}</span>
                             </div>
@@ -658,14 +728,14 @@
                 if(!alunosUnicosProcessed.includes(s.name.toLowerCase())){
                     alunosUnicosProcessed.push(s.name.toLowerCase());
                     const todasAsMatriculas = obterTurmasDoAluno(s.name);
-                    const estaVencido = verificarVencimento(s.dueDate);
-                    const vencidoClass = estaVencido ? ' class="vencido"' : '';
-                    const situacao = estaVencido ? '<span class="badge-vencido">⚠️ VENCIDO</span>' : '<span class="badge-em-dia">✓ Em dia</span>';
+                    const statusVenc = getStatusVencimento(s.dueDate);
+                    const vencidoClass = statusVenc.alerta ? ' class="vencido"' : '';
+                    const situacao = `<span class="${statusVenc.classe}">${statusVenc.texto}</span>`;
                     body.innerHTML += `
                         <tr${vencidoClass}>
                             <td class="student-name">👤 ${s.name}</td>
                             <td class="student-phone">${s.phone}</td>
-                            <td><span class="badge" style="background:#fffbeb; color:${estaVencido ? 'var(--danger)' : 'var(--warning)'}; padding:4px 8px; border-radius:6px; font-weight:700; border:1px solid ${estaVencido ? '#fecaca' : '#fde68a'};">📅 ${s.dueDate}</span></td>
+                            <td><span class="badge" style="background:#fffbeb; color:${statusVenc.alerta ? 'var(--danger)' : 'var(--warning)'}; padding:4px 8px; border-radius:6px; font-weight:700; border:1px solid ${statusVenc.alerta ? '#fecaca' : '#fde68a'};">📅 ${formatarVencimento(s.dueDate)}</span></td>
                             <td>${situacao}</td>
                             <td><span style="font-size:11px; color:#475569; font-weight:600; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block;">${todasAsMatriculas.join(' | ')}</span></td>
                             <td><div style="display:flex; gap:6px; align-items:center;"><a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="btn-whatsapp" style="padding: 4px 8px;">WhatsApp</a><button class="btn-table-del" onclick="removerAlunoPelaTabela(${s.classId}, '${s.name}')">Excluir 🗑️</button></div></td>
@@ -678,7 +748,6 @@
             const container = document.getElementById('resumeListContainer'); container.innerHTML = '';
             const gruposDias = ["Segunda - Quarta e Sexta", "Terça e Quinta", "Sexta", "Sábado"];
             
-            // Resumo por turno
             let resumoTurnos = { manha: { alunos: 0, capacidade: 0 }, tarde: { alunos: 0, capacidade: 0 }, noite: { alunos: 0, capacidade: 0 }, sabado: { alunos: 0, capacidade: 0 } };
             classData.forEach(c => {
                 const turno = getTurno(c.time, c.days);
@@ -702,7 +771,6 @@
                     </div>`;
             });
             
-            // Resumo por dia
             container.innerHTML += `<div class="resume-section-title" style="margin-top:20px;">📅 RESUMO POR DIA</div>`;
             gruposDias.forEach(dia => {
                 let turmas = classData.filter(c => c.days === dia);
@@ -715,7 +783,7 @@
                     turmas.forEach(t => {
                         let pct = Math.round((t.current / t.max) * 100); 
                         let barColor = pct >= 100 ? 'var(--danger)' : (pct >= 80 ? 'var(--warning)' : 'var(--success)');
-                        let vencidosNaTurma = t.students.filter(s => verificarVencimento(s.dueDate)).length;
+                        let vencidosNaTurma = t.students.filter(s => verificarVencimento(s.dueDate).vencido).length;
                         let infoVencidos = vencidosNaTurma > 0 ? ` <span style="color:var(--danger); font-size:11px;">(${vencidosNaTurma} vencidos)</span>` : '';
                         container.innerHTML += `<div class="resume-row"><div><strong>${t.name}</strong> <span style="color:#64748b; margin-left:10px;">${t.time}</span>${infoVencidos}</div><div class="resume-meta"><span>${t.current}/${t.max} vagas</span><div class="resume-bar-bg"><div style="width:${pct}%; background:${barColor}; height:100%;"></div></div><span style="color:#64748b; font-weight:bold; width:35px; text-align:right;">${pct}%</span></div></div>`;
                     });
