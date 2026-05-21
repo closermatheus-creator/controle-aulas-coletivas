@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AquaControl - Controle de Turmas</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AquaControl">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2972/2972134.png">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2972/2972134.png">
+
     <style>
         :root {
             --primary: #0284c7;
@@ -40,7 +47,6 @@
         .btn-logout { background: rgba(255,255,255,0.15); border: none; color: white; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; }
         .btn-logout:hover { background: rgba(255,255,255,0.25); }
 
-        /* ABAS DE NAVEGAÇÃO ATUALIZADAS (4 ABAS AGORA) */
         .nav-tabs {
             background: var(--card-bg);
             border-bottom: 1px solid var(--border);
@@ -153,7 +159,6 @@
         .resume-meta { display: flex; align-items: center; gap: 15px; }
         .resume-bar-bg { width: 100px; background: #e2e8f0; height: 6px; border-radius: 3px; overflow: hidden; }
 
-        /* ESTILO EXCLUSIVO DA NOVA ABA HISTÓRICO */
         .history-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; padding: 15px; }
         .history-list { font-size: 13px; }
         .history-item { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
@@ -320,8 +325,7 @@
                     <div class="fast-form">
                         <input type="text" id="addStudentName" class="form-input" style="flex-grow: 2;" placeholder="Nome do Novo Aluno">
                         <input type="text" id="addStudentPhone" class="form-input" style="flex-grow: 1;" placeholder="Telefone (somente números)">
-                        <select id="addStudentClassTarget" class="form-select">
-                        </select>
+                        <select id="addStudentClassTarget" class="form-select"></select>
                         <button class="btn-submit-form" onclick="cadastrarAlunoPelaTabela()">+ Matricular Aluno</button>
                     </div>
                     <div class="search-container" style="margin-bottom:0;">
@@ -438,36 +442,6 @@
         let historyData = [];
         let activeFilters = { day: 'TODOS', modality: 'TODAS', turno: 'TODOS', status: 'TODOS' };
 
-        window.onload = function() {
-            if (localStorage.getItem("aqua_authenticated") === "true") liberarSistema();
-            povoarSelectDeTurmas();
-        };
-
-        function checkPassword() {
-            if (document.getElementById("passwordInput").value === MASTER_PASSWORD) {
-                localStorage.setItem("aqua_authenticated", "true");
-                liberarSistema();
-            } else { document.getElementById("loginError").style.display = "block"; }
-        }
-        function handleKeyPress(e) { if (e.key === "Enter") checkPassword(); }
-        function logout() { localStorage.removeItem("aqua_authenticated"); location.reload(); }
-
-        function liberarSistema() {
-            document.getElementById("loginScreen").style.display = "none";
-            document.getElementById("appContainer").style.display = "block";
-            carregarDadosDaNuvem();
-        }
-
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-link').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            if (tabName === 'alunos') renderStudentTable();
-            if (tabName === 'resumo') renderResumeTab();
-            if (tabName === 'historico') renderHistory();
-        }
-
         async function carregarDadosDaNuvem() {
             mostrarLoading(true);
             try {
@@ -487,7 +461,6 @@
                 mostrarLoading(false);
                 calcularEAtualizarWidgets();
                 filtrarETrabalhar();
-                renderHistory();
             }
         }
 
@@ -645,8 +618,7 @@
             item.current++;
 
             let log = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${item.name} (${item.time})` };
-            atualizarHistoricoLocal(log);
-            await salvarHistoricoNaNuvem(log);
+            atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
 
             nomeInput.value = ""; foneInput.value = ""; selectTurma.value = "";
             calcularEAtualizarWidgets(); filtrarETrabalhar(); renderStudentTable(); await salvarNaNuvem();
@@ -708,33 +680,16 @@
 
         function atualizarHistoricoLocal(logItem) { historyData.unshift(logItem); }
 
-        /* REGRA ATUALIZADA: FILTRA E EXIBE OS ÚLTIMOS 30 DIAS NA NOVA TELA EXCLUSIVA */
         function renderHistory() {
-            const list = document.getElementById('historyList'); 
-            list.innerHTML = '';
+            const list = document.getElementById('historyList'); list.innerHTML = '';
+            const trintaDiasAtras = new Date(); trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
             
-            const trintaDiasAtras = new Date(); 
-            trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
-            
-            // Mantém os logs na memória dentro da janela de 30 dias
             historyData = historyData.filter(h => new Date(h.date) >= trintaDiasAtras);
-
-            if (historyData.length === 0) { 
-                list.innerHTML = '<p style="color:#94a3b8; text-align:center; padding:30px; font-size:14px;">Nenhuma movimentação registrada nos últimos 30 dias.</p>'; 
-                return; 
-            }
+            if (historyData.length === 0) { list.innerHTML = '<p style="color:#94a3b8; text-align:center; padding:30px; font-size:14px;">Nenhuma movimentação registrada nos últimos 30 dias.</p>'; return; }
 
             historyData.forEach(h => {
-                let d = new Date(h.date).toLocaleString('pt-BR');
-                let isAdd = h.type === 'ADD';
-                list.innerHTML += `
-                    <div class="history-item">
-                        <div>
-                            <span class="history-badge ${isAdd ? 'badge-add' : 'badge-rem'}">${isAdd ? 'Matrícula' : 'Remoção'}</span>
-                            <span>O aluno <strong>${h.student}</strong> foi ${isAdd ? 'vinculado à' : 'removido da'} turma <strong>${h.className}</strong></span>
-                        </div>
-                        <span style="color:#94a3b8; font-weight:500;">📅 ${d}</span>
-                    </div>`;
+                let d = new Date(h.date).toLocaleString('pt-BR'); let isAdd = h.type === 'ADD';
+                list.innerHTML += `<div class="history-item"><div><span class="history-badge ${isAdd ? 'badge-add' : 'badge-rem'}">${isAdd ? 'Matrícula' : 'Remoção'}</span><span>O aluno <strong>${h.student}</strong> foi ${isAdd ? 'vinculado à' : 'removido da'} turma <strong>${h.className}</strong></span></div><span style="color:#94a3b8; font-weight:500;">📅 ${d}</span></div>`;
             });
         }
 
@@ -745,19 +700,7 @@
             if (search) total = total.filter(s => s.name.toLowerCase().includes(search) || s.phone.includes(search));
             if (total.length === 0) { body.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8;">Nenhum aluno cadastrado.</td></tr>`; return; }
             total.forEach(s => {
-                body.innerHTML += `
-                    <tr>
-                        <td class="student-name">👤 ${s.name}</td>
-                        <td class="student-phone">${s.phone}</td>
-                        <td>${s.className}</td>
-                        <td><span style="background:#e0f2fe; color:var(--primary); padding:3px 8px; border-radius:6px; font-weight:600;">${s.time.split(' ')[0]}</span></td>
-                        <td>
-                            <div style="display:flex; gap:6px; align-items:center;">
-                                <a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="btn-whatsapp" style="padding: 4px 8px;">WhatsApp</a>
-                                <button class="btn-table-del" onclick="removerAlunoPelaTabela(${s.classId}, '${s.name}')">Excluir 🗑️</button>
-                            </div>
-                        </td>
-                    </tr>`;
+                body.innerHTML += `<tr><td class="student-name">👤 ${s.name}</td><td class="student-phone">${s.phone}</td><td>${s.className}</td><td><span style="background:#e0f2fe; color:var(--primary); padding:3px 8px; border-radius:6px; font-weight:600;">${s.time.split(' ')[0]}</span></td><td><div style="display:flex; gap:6px; align-items:center;"><a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="btn-whatsapp" style="padding: 4px 8px;">WhatsApp</a><button class="btn-table-del" onclick="removerAlunoPelaTabela(${s.classId}, '${s.name}')">Excluir 🗑️</button></div></td></tr>`;
             });
         }
 
