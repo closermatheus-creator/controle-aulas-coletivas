@@ -65,7 +65,6 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* CONTADORES (WIDGETS) NO TOPO */
         .summary-widgets {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -73,22 +72,17 @@
             margin-bottom: 25px;
         }
         .widget {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            border: 1px solid var(--border);
+            background: var(--card-bg); padding: 20px; border-radius: 12px; text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid var(--border);
         }
         .widget .val { font-size: 26px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
         .widget .lbl { font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; }
 
-        /* PAINEL DE FILTROS */
         .filter-panel {
             background: var(--card-bg); padding: 18px; border-radius: 12px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid var(--border); margin-bottom: 20px;
         }
-        .search-container { max-width: 400px; margin-bottom: 15px; }
+        .search-container { max-width: 400px; margin-bottom: 15px; display: flex; gap: 10px; }
         .search-bar { width: 100%; padding: 10px 18px; border: 1px solid var(--border); border-radius: 20px; font-size: 14px; outline: none; }
         .search-bar:focus { border-color: var(--primary); }
         
@@ -96,15 +90,8 @@
         .filter-group:last-child { margin-bottom: 0; }
         .filter-label { font-size: 11px; font-weight: 700; color: #64748b; min-width: 90px; text-transform: uppercase; }
         
-        /* FILTROS COM DESLIZAMENTO HORIZONTAL MÓVEL */
         .filter-options { 
-            display: flex; 
-            gap: 6px; 
-            overflow-x: auto; 
-            white-space: nowrap;
-            padding-bottom: 4px;
-            flex-grow: 1;
-            -webkit-overflow-scrolling: touch;
+            display: flex; gap: 6px; overflow-x: auto; white-space: nowrap; padding-bottom: 4px; flex-grow: 1; -webkit-overflow-scrolling: touch;
         }
         .filter-options::-webkit-scrollbar { display: none; }
         .filter-options { -ms-overflow-style: none; scrollbar-width: none; }
@@ -112,9 +99,19 @@
         .btn-select { background: #f1f5f9; border: 1px solid var(--border); padding: 6px 14px; border-radius: 15px; cursor: pointer; font-size: 12px; font-weight: 600; color: #475569; flex-shrink: 0; }
         .btn-select.active, .btn-select:hover { background: var(--primary); color: white; border-color: var(--primary); }
 
+        /* FORMULÁRIO DE CADASTRO DE ALUNO RÁPIDO */
+        .fast-form { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+        .form-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; background: white; }
+        .form-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; background: white; max-width: 300px; }
+        .btn-submit-form { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; }
+
         .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border); border-top: 5px solid var(--primary); display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.01); }
         .card.empty-class { border-top-color: #cbd5e1; }
+        
+        .card-clickable-header { cursor: pointer; }
+        .card-clickable-header:hover { opacity: 0.8; }
+        
         .card-header h3 { color: #0f172a; font-size: 16px; font-weight: 700; }
         .card-header .day { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-top: 2px; }
         .card-header .time { font-size: 13px; color: var(--primary); margin: 8px 0; display: inline-block; background: #e0f2fe; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
@@ -136,6 +133,8 @@
         .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
         .btn-add { background: #dcfce7; color: #15803d; }
         .btn-remove { background: #fee2e2; color: #b91c1c; }
+        .btn-view { background: #f1f5f9; color: #475569; max-width: 45px; padding: 10px 0; font-size: 14px; }
+        .btn-table-del { background: #fee2e2; color: #b91c1c; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px; }
 
         .status-badge { float: right; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; }
         .status-full { background: #fee2e2; color: #b91c1c; }
@@ -158,53 +157,54 @@
 
         .loading-banner { text-align: center; background: #e0f2fe; color: #0369a1; padding: 8px; font-size: 12px; font-weight: bold; border-radius: 6px; margin-bottom: 15px; display: none; }
 
-        /* ================= TELA DE LOGIN ================= */
-        .login-screen {
+        /* MODAL EXPANDIDO */
+        .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--background); display: flex; align-items: center; justify-content: center; z-index: 10000;
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 20000; visibility: hidden; opacity: 0; transition: all 0.25s ease;
         }
-        .login-card {
-            background: var(--card-bg); padding: 40px; border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border);
-            width: 100%; max-width: 400px; text-align: center;
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-card {
+            background: var(--card-bg); width: 90%; max-width: 550px; border-radius: 16px; border-top: 6px solid var(--primary);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); transform: scale(0.9); transition: transform 0.25s ease;
+            overflow: hidden; display: flex; flex-direction: column;
         }
+        .modal-overlay.active .modal-card { transform: scale(1); }
+        .modal-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; }
+        .modal-header-info h2 { font-size: 18px; font-weight: 700; color: #0f172a; }
+        .modal-close-btn { background: #f1f5f9; border: none; font-size: 18px; width: 32px; height: 32px; border-radius: 5px; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; }
+        .modal-body { padding: 20px; max-height: 60vh; overflow-y: auto; }
+        .modal-student-row { padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-student-name { font-weight: 600; font-size: 14px; color: #0f172a; }
+        .modal-student-phone { font-size: 13px; color: #64748b; font-family: monospace; }
+        .modal-btn-zap { background: #25d366; color: white; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+
+        /* TELA DE LOGIN */
+        .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--background); display: flex; align-items: center; justify-content: center; z-index: 10000; }
+        .login-card { background: var(--card-bg); padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%; max-width: 400px; text-align: center; }
         .login-logo { font-size: 48px; margin-bottom: 15px; }
         .login-card h2 { font-size: 22px; color: #0f172a; margin-bottom: 5px; }
         .login-card p { font-size: 13px; color: #64748b; margin-bottom: 25px; }
-        .login-input {
-            width: 100%; padding: 12px 20px; border: 1px solid var(--border);
-            border-radius: 8px; font-size: 14px; outline: none; margin-bottom: 15px; text-align: center;
-        }
+        .login-input { width: 100%; padding: 12px 20px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; margin-bottom: 15px; text-align: center; }
         .login-input:focus { border-color: var(--primary); }
-        .btn-login {
-            width: 100%; background: var(--primary-gradient); color: white;
-            border: none; padding: 12px; border-radius: 8px; font-weight: bold;
-            font-size: 14px; cursor: pointer;
-        }
+        .btn-login { width: 100%; background: var(--primary-gradient); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; }
         .login-error { color: var(--danger); font-size: 12px; font-weight: 600; margin-top: 10px; display: none; }
         #appContainer { display: none; }
 
-        /* ================= AJUSTES RESPONSIVOS MOBILE OTIMIZADOS ================= */
         @media(max-width: 768px) {
             header { flex-direction: column; text-align: center; gap: 10px; padding: 15px; }
             .global-stats { text-align: center; }
             .nav-tabs { padding: 0 15px; gap: 15px; justify-content: center; }
-            
-            /* Contadores compactos em grade 2x2 no telemóvel */
-            .summary-widgets {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-                margin-bottom: 15px;
-            }
-            .widget { padding: 12px 8px; border-radius: 10px; }
+            .summary-widgets { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+            .widget { padding: 12px 8px; }
             .widget .val { font-size: 20px; }
-            .widget .lbl { font-size: 10px; letter-spacing: 0; }
-
-            /* Alinhamento horizontal fixo para filtros em linha única */
+            .widget .lbl { font-size: 10px; }
             .filter-group { flex-direction: row; align-items: center; justify-content: flex-start; width: 100%; }
             .filter-label { min-width: 70px; font-size: 10px; }
-            
             .grid-container { grid-template-columns: 1fr; }
+            .fast-form { flex-direction: column; align-items: stretch; }
+            .form-select { max-width: 100%; }
         }
     </style>
 </head>
@@ -313,7 +313,14 @@
 
             <div id="tab-alunos" class="tab-content">
                 <div class="filter-panel">
-                    <div class="search-container">
+                    <div class="fast-form">
+                        <input type="text" id="addStudentName" class="form-input" style="flex-grow: 2;" placeholder="Nome do Novo Aluno">
+                        <input type="text" id="addStudentPhone" class="form-input" style="flex-grow: 1;" placeholder="Telefone (somente números)">
+                        <select id="addStudentClassTarget" class="form-select">
+                            </select>
+                        <button class="btn-submit-form" onclick="cadastrarAlunoPelaTabela()">+ Matricular Aluno</button>
+                    </div>
+                    <div class="search-container" style="margin-bottom:0;">
                         <input type="text" id="studentTableSearch" class="search-bar" placeholder="🔍 Filtrar aluno cadastrado..." oninput="renderStudentTable()">
                     </div>
                 </div>
@@ -339,10 +346,24 @@
         </div>
     </div>
 
+    <div id="modalOverlay" class="modal-overlay" onclick="closeModal()">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-header-info">
+                    <h2 id="modalTitle">Nome da Turma</h2>
+                    <span id="modalTime" style="color: var(--primary); font-weight:600; font-size:13px; background:#e0f2fe; padding:2px 8px; border-radius:4px; display:inline-block; margin-top:5px;">Horário</span>
+                </div>
+                <button class="modal-close-btn" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
     <script>
         const MASTER_PASSWORD = "aqua123";
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwqn80lMxJZ_RIYT6eubAQxOWLGVRN7GxaSjegqQiqlUzukn_hjj-Qh2geDWJjN_GBD/exec";
 
+        // Mapeamento exato das 58 turmas do PDF original
         const fullDatabase = [
             { id: 1, name: "Natação Adulto", days: "Segunda - Quarta e Sexta", time: "06:00 às 06:40", max: 10, current: 0, students: [] },
             { id: 2, name: "Natação Adulto", days: "Segunda - Quarta e Sexta", time: "13:30 às 14:10", max: 10, current: 0, students: [] },
@@ -410,17 +431,15 @@
 
         window.onload = function() {
             if (localStorage.getItem("aqua_authenticated") === "true") liberarSistema();
+            povoarSelectDeTurmas();
         };
 
         function checkPassword() {
             if (document.getElementById("passwordInput").value === MASTER_PASSWORD) {
                 localStorage.setItem("aqua_authenticated", "true");
                 liberarSistema();
-            } else {
-                document.getElementById("loginError").style.display = "block";
-            }
+            } else { document.getElementById("loginError").style.display = "block"; }
         }
-
         function handleKeyPress(e) { if (e.key === "Enter") checkPassword(); }
         function logout() { localStorage.removeItem("aqua_authenticated"); location.reload(); }
 
@@ -562,9 +581,11 @@
                 const card = document.createElement('div');
                 card.className = cardClass;
                 card.innerHTML = `
-                    <div class="card-header"><span class="status-badge ${badgeClass}">${badgeText}</span><h3>${item.name}</h3><div class="day">${item.days}</div><div class="time">${item.time}</div></div>
+                    <div class="card-clickable-header" onclick="openModal(${item.id})">
+                        <div class="card-header"><span class="status-badge ${badgeClass}">${badgeText}</span><h3>${item.name}</h3><div class="day">${item.days}</div><div class="time">${item.time}</div></div>
+                    </div>
                     <div>
-                        <div class="vacancy-info">
+                        <div class="vacancy-info" onclick="openModal(${item.id})" style="cursor:pointer">
                             <div class="counter-row"><span>Alunos:</span><strong>${item.current} / ${item.max}</strong></div>
                             <div class="counter-row"><span>Disponível:</span><strong style="color: ${available <= 0 ? 'var(--danger)' : 'var(--success)'}">${available}</strong></div>
                             <div class="progress-bar"><div class="progress-fill" style="width: ${percentage}%; background-color: ${barColor}"></div></div>
@@ -573,21 +594,108 @@
                         <div class="actions">
                             <button class="btn btn-remove" onclick="alterarVaga(${item.id}, -1)">- Aluno</button>
                             <button class="btn btn-add" onclick="alterarVaga(${item.id}, 1)" ${available <= 0 ? 'disabled style="opacity:0.5;"' : ''}>+ Aluno</button>
+                            <button class="btn btn-view" onclick="openModal(${item.id})">🔍</button>
                         </div>
                     </div>`;
                 grid.appendChild(card);
             });
         }
 
+        function povoarSelectDeTurmas() {
+            const select = document.getElementById("addStudentClassTarget");
+            select.innerHTML = '<option value="" disabled selected>Selecione a Turma/Horário</option>';
+            classData.forEach(c => {
+                select.innerHTML += `<option value="${c.id}">${c.name} - ${c.days.split(' ')[0]} às ${c.time.split(' ')[0]}</option>`;
+            });
+        }
+
+        /* CADASTRO DE ALUNO DIRETAMENTE PELA TABELA DE ALUNOS */
+        async function cadastrarAlunoPelaTabela() {
+            const nomeInput = document.getElementById("addStudentName");
+            const foneInput = document.getElementById("addStudentPhone");
+            const selectTurma = document.getElementById("addStudentClassTarget");
+
+            let nome = nomeInput.value.trim();
+            let fone = foneInput.value.trim();
+            let turmaId = parseInt(selectTurma.value);
+
+            if (!nome || !fone || isNaN(turmaId)) {
+                alert("Por favor, preencha todos os campos do formulário de matrícula!");
+                return;
+            }
+
+            const item = classData.find(c => c.id === turmaId);
+            if (!item) return;
+
+            if (item.current >= item.max) {
+                alert("Desculpe, esta turma já atingiu o limite de capacidade máxima!");
+                return;
+            }
+
+            item.students.push({ name: nome, phone: fone });
+            item.current++;
+
+            let log = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${item.name} (${item.time})` };
+            atualizarHistoricoLocal(log);
+            await salvarHistoricoNaNuvem(log);
+
+            // Limpa o formulário rápido
+            nomeInput.value = "";
+            foneInput.value = "";
+            selectTurma.value = "";
+
+            calcularEAtualizarWidgets();
+            filtrarETrabalhar();
+            renderStudentTable();
+            await salvarNaNuvem();
+        }
+
+        /* EXCLUSÃO DIRETA DE ALUNO PELA TABELA */
+        async function removerAlunoPelaTabela(classId, studentName) {
+            if (!confirm(`Tem certeza de que deseja desmatricular o aluno ${studentName}?`)) return;
+
+            const item = classData.find(c => c.id === classId);
+            if (!item) return;
+
+            const idx = item.students.findIndex(s => s.name === studentName);
+            if (idx !== -1) {
+                item.students.splice(idx, 1);
+                item.current = Math.max(0, item.current - 1);
+
+                let log = { date: new Date().toISOString(), type: 'REM', student: studentName, className: `${item.name} (${item.time})` };
+                atualizarHistoricoLocal(log);
+                await salvarHistoricoNaNuvem(log);
+
+                calcularEAtualizarWidgets();
+                filtrarETrabalhar();
+                renderStudentTable();
+                await salvarNaNuvem();
+            }
+        }
+
+        function openModal(id) {
+            const item = classData.find(c => c.id === id);
+            if (!item) return;
+            document.getElementById("modalTitle").innerText = item.name;
+            document.getElementById("modalTime").innerText = `🕒 ${item.days} | ${item.time} (${item.current}/${item.max})`;
+            const body = document.getElementById("modalBody"); body.innerHTML = "";
+            if (item.students.length === 0) { body.innerHTML = `<p style="text-align:center; color:#64748b; font-size:13px;">Sem alunos matriculados.</p>`; }
+            else {
+                item.students.forEach(s => {
+                    body.innerHTML += `<div class="modal-student-row"><div><span class="modal-student-name">👤 ${s.name}</span><span class="modal-student-phone">📞 ${s.phone}</span></div><a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="modal-btn-zap">💬 WhatsApp</a></div>`;
+                });
+            }
+            document.getElementById("modalOverlay").classList.add("active");
+        }
+        function closeModal() { document.getElementById("modalOverlay").classList.remove("active"); }
+
         async function alterarVaga(id, mudança) {
             const item = classData.find(c => c.id === id);
             if (!item) return;
-
             if (mudança === 1) {
                 let nome = prompt("Nome do Aluno:"); if (!nome) return;
-                let fone = prompt("WhatsApp com DDD (somente números):") || "Sem Fone";
-                item.students.push({ name: nome, phone: fone });
-                item.current++;
+                let fone = prompt("WhatsApp com DDD:") || "Sem Fone";
+                item.students.push({ name: nome, phone: fone }); item.current++;
                 let log = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${item.name} (${item.time})` };
                 atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
             } else {
@@ -599,6 +707,7 @@
                 item.current = Math.max(0, item.current - 1);
             }
             calcularEAtualizarWidgets(); filtrarETrabalhar(); await salvarNaNuvem();
+            if (document.getElementById("modalOverlay").classList.contains("active")) openModal(id);
         }
 
         function atualizarHistoricoLocal(logItem) { historyData.unshift(logItem); renderHistory(); }
@@ -615,11 +724,23 @@
         function renderStudentTable() {
             const body = document.getElementById('studentTableBody'); const search = document.getElementById('studentTableSearch').value.toLowerCase();
             body.innerHTML = ''; let total = [];
-            classData.forEach(c => { c.students.forEach(s => { total.push({ name: s.name, phone: s.phone, className: c.name, time: c.time }); }); });
+            classData.forEach(c => { c.students.forEach(s => { total.push({ name: s.name, phone: s.phone, className: c.name, time: c.time, classId: c.id }); }); });
             if (search) total = total.filter(s => s.name.toLowerCase().includes(search) || s.phone.includes(search));
-            if (total.length === 0) { body.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8;">Nenhum aluno encontrado.</td></tr>`; return; }
+            if (total.length === 0) { body.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8;">Nenhum aluno cadastrado.</td></tr>`; return; }
             total.forEach(s => {
-                body.innerHTML += `<tr><td class="student-name">👤 ${s.name}</td><td class="student-phone">${s.phone}</td><td>${s.className}</td><td><span style="background:#e0f2fe; color:var(--primary); padding:3px 8px; border-radius:6px; font-weight:600;">${s.time}</span></td><td><a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="btn-whatsapp">WhatsApp</a></td></tr>`;
+                body.innerHTML += `
+                    <tr>
+                        <td class="student-name">👤 ${s.name}</td>
+                        <td class="student-phone">${s.phone}</td>
+                        <td>${s.className}</td>
+                        <td><span style="background:#e0f2fe; color:var(--primary); padding:3px 8px; border-radius:6px; font-weight:600;">${s.time.split(' ')[0]}</span></td>
+                        <td>
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="btn-whatsapp" style="padding: 4px 8px;">WhatsApp</a>
+                                <button class="btn-table-del" onclick="removerAlunoPelaTabela(${s.classId}, '${s.name}')">Excluir 🗑️</button>
+                            </div>
+                        </td>
+                    </tr>`;
             });
         }
 
