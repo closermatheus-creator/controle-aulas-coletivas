@@ -61,6 +61,7 @@
         .form-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; background: white; }
         .form-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; background: white; max-width: 260px; }
         .btn-submit-form { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; }
+        .btn-add-another { background: var(--success); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; }
         
         .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border); border-top: 5px solid var(--primary); display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.01); }
@@ -117,17 +118,24 @@
         .loading-banner { text-align: center; background: #e0f2fe; color: #0369a1; padding: 8px; font-size: 12px; font-weight: bold; border-radius: 6px; margin-bottom: 15px; display: none; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 20000; visibility: hidden; opacity: 0; transition: all 0.25s ease; }
         .modal-overlay.active { visibility: visible; opacity: 1; }
-        .modal-card { background: var(--card-bg); width: 90%; max-width: 550px; border-radius: 16px; border-top: 6px solid var(--primary); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); transform: scale(0.9); transition: transform 0.25s ease; overflow: hidden; display: flex; flex-direction: column; }
+        .modal-card { background: var(--card-bg); width: 95%; max-width: 900px; border-radius: 16px; border-top: 6px solid var(--primary); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); transform: scale(0.9); transition: transform 0.25s ease; overflow: hidden; display: flex; flex-direction: column; }
         .modal-overlay.active .modal-card { transform: scale(1); }
         .modal-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; }
         .modal-header-info h2 { font-size: 18px; font-weight: 700; color: #0f172a; }
         .modal-close-btn { background: #f1f5f9; border: none; font-size: 18px; width: 32px; height: 32px; border-radius: 5px; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; }
-        .modal-body { padding: 20px; max-height: 60vh; overflow-y: auto; }
-        .modal-student-row { padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; max-height: 70vh; overflow-y: auto; }
+        
+        /* Novo estilo para linha única no modal */
+        .modal-student-row { padding: 10px 15px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; }
         .modal-student-row.vencido { background-color: #fef2f2; border-left: 3px solid var(--danger); }
-        .modal-student-name { font-weight: 600; font-size: 14px; color: #0f172a; }
-        .modal-student-phone { font-size: 13px; color: #64748b; font-family: monospace; }
-        .modal-btn-zap { background: #25d366; color: white; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+        .modal-student-info { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; flex: 1; }
+        .modal-student-name { font-weight: 600; font-size: 14px; color: #0f172a; white-space: nowrap; }
+        .modal-student-vencimento { font-size: 12px; font-weight: 600; white-space: nowrap; }
+        .modal-student-phone { font-size: 12px; color: #64748b; font-family: monospace; white-space: nowrap; }
+        .modal-student-matriculas { font-size: 11px; color: #64748b; background: #f1f5f9; padding: 3px 8px; border-radius: 4px; white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
+        .modal-student-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .modal-btn-zap { background: #25d366; color: white; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .modal-btn-del { background: #fee2e2; color: #b91c1c; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
         
         .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--background); display: flex; align-items: center; justify-content: center; z-index: 10000; }
         .login-card { background: var(--card-bg); padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%; max-width: 400px; text-align: center; }
@@ -150,6 +158,9 @@
             .filter-label { min-width: 70px; font-size: 10px; } .grid-container { grid-template-columns: 1fr; }
             .fast-form { flex-direction: column; align-items: stretch; } .form-select { max-width: 100%; }
             .history-item { flex-direction: column; align-items: flex-start; gap: 6px; }
+            .modal-student-row { flex-direction: column; align-items: flex-start; }
+            .modal-student-info { flex-direction: column; align-items: flex-start; gap: 5px; }
+            .modal-student-actions { width: 100%; justify-content: flex-end; }
         }
     </style>
 </head>
@@ -282,6 +293,7 @@
         let classData = rawClasses.map(c => ({ id: c[0], name: c[1], days: c[2], time: c[3], max: c[4], current: 0, students: [] }));
         let historyData = [];
         let activeFilters = { day: 'TODOS', modality: 'TODAS', turno: 'TODOS', status: 'TODOS' };
+        let currentModalClassId = null;
 
         window.onload = function() {
             if (localStorage.getItem("aqua_authenticated") === "true") liberarSistema();
@@ -572,7 +584,7 @@
                 let studentRows = item.students.map(s => {
                     const cleanPhone = s.phone.replace(/\D/g, '');
                     const outrasTurmas = obterTurmasDoAluno(s.name).filter(t => !t.includes(item.name));
-                    const alertaOutras = outrasTurmas.length > 0 ? `<span class="student-other-classes">Simultâneo: ${outrasTurmas.join(', ')}</span>` : '';
+                    const alertaOutras = outrasTurmas.length > 0 ? `<span class="student-other-classes">✅ Também em: ${outrasTurmas.join(', ')}</span>` : '';
                     const statusVenc = getStatusVencimento(s.dueDate);
                     const vencidoClass = statusVenc.alerta ? ' vencido' : '';
                     const badgeVencimento = `<span class="${statusVenc.classe}">${statusVenc.texto}</span>`;
@@ -616,6 +628,13 @@
             classData.forEach(c => { select.innerHTML += `<option value="${c.id}">${c.name} - ${c.days.split(' ')[0]} às ${c.time.split(' ')[0]}</option>`; });
         }
 
+        function povoarSelectModal(selectElement) {
+            selectElement.innerHTML = '<option value="" disabled selected>Selecione a Turma</option>';
+            classData.forEach(c => { 
+                selectElement.innerHTML += `<option value="${c.id}">${c.name} - ${c.days.split(' ')[0]} às ${c.time.split(' ')[0]}</option>`; 
+            });
+        }
+
         async function cadastrarAlunoPelaTabela() {
             const nomeInput = document.getElementById("addStudentName");
             const foneInput = document.getElementById("addStudentPhone");
@@ -634,12 +653,46 @@
             let log = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${item.name} (${item.time})` };
             atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
 
-            nomeInput.value = ""; foneInput.value = ""; dueInput.value = ""; selectTurma.value = "";
+            if (confirm(`✅ ${nome} matriculado em ${item.name} (${item.time})!\n\nDeseja matricular ${nome} em OUTRA turma também?`)) {
+                nomeInput.value = nome;
+                foneInput.value = fone;
+                dueInput.value = vencimento;
+                selectTurma.value = "";
+                selectTurma.focus();
+            } else {
+                nomeInput.value = ""; foneInput.value = ""; dueInput.value = ""; selectTurma.value = "";
+            }
             calcularEAtualizarWidgets(); filtrarETrabalhar(); renderStudentTable(); await salvarNaNuvem();
         }
 
+        async function adicionarAlunoEmOutraTurma() {
+            const select = document.getElementById('modalAddClassSelect');
+            const turmaId = parseInt(select.value);
+            
+            if (isNaN(turmaId)) { alert("Selecione uma turma!"); return; }
+            
+            const item = classData.find(c => c.id === turmaId);
+            if (!item) return;
+            if (item.current >= item.max) { alert("Turma lotada!"); return; }
+            
+            const turmaAtual = classData.find(c => c.id === currentModalClassId);
+            if (!turmaAtual || turmaAtual.students.length === 0) return;
+            
+            const primeiroAluno = turmaAtual.students[0];
+            item.students.push({ name: primeiroAluno.name, phone: primeiroAluno.phone, dueDate: primeiroAluno.dueDate });
+            item.current++;
+            
+            let log = { date: new Date().toISOString(), type: 'ADD', student: primeiroAluno.name, className: `${item.name} (${item.time})` };
+            atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
+            
+            alert(`✅ ${primeiroAluno.name} adicionado em ${item.name} (${item.time})!`);
+            
+            calcularEAtualizarWidgets(); filtrarETrabalhar(); renderStudentTable(); await salvarNaNuvem();
+            openModal(currentModalClassId);
+        }
+
         async function removerAlunoPelaTabela(classId, studentName) {
-            if (!confirm(`Remover o aluno ${studentName}?`)) return;
+            if (!confirm(`Remover o aluno ${studentName} desta turma?`)) return;
             const item = classData.find(c => c.id === classId); if (!item) return;
             const idx = item.students.findIndex(s => s.name === studentName);
             if (idx !== -1) {
@@ -652,30 +705,68 @@
 
         function openModal(id) {
             const item = classData.find(c => c.id === id); if (!item) return;
+            currentModalClassId = id;
             document.getElementById("modalTitle").innerText = item.name;
             document.getElementById("modalTime").innerText = `🕒 ${item.days} | ${item.time} (${item.current}/${item.max})`;
             const body = document.getElementById("modalBody"); body.innerHTML = "";
-            if (item.students.length === 0) { body.innerHTML = `<p style="text-align:center; color:#64748b; font-size:13px;">Sem alunos matriculados.</p>`; }
+            
+            if (item.students.length === 0) { 
+                body.innerHTML = `<p style="text-align:center; color:#64748b; font-size:13px;">Sem alunos matriculados.</p>`; 
+            }
             else {
+                // Cabeçalho da tabela
+                body.innerHTML += `
+                    <div style="display:flex; padding:8px 15px; background:#f1f5f9; border-radius:8px; margin-bottom:5px; font-weight:700; font-size:12px; color:#64748b;">
+                        <span style="flex:2;">👤 ALUNO</span>
+                        <span style="flex:1;">📅 VENCIMENTO</span>
+                        <span style="flex:1;">📞 TELEFONE</span>
+                        <span style="flex:2;">📚 MATRÍCULAS</span>
+                        <span style="width:130px; text-align:right;">AÇÕES</span>
+                    </div>`;
+                
                 item.students.forEach(s => {
                     const matriculas = obterTurmasDoAluno(s.name);
                     const statusVenc = getStatusVencimento(s.dueDate);
                     const vencidoClass = statusVenc.alerta ? ' vencido' : '';
-                    const badgeVencimento = `<span class="${statusVenc.classe}">${statusVenc.texto}</span>`;
+                    const badgeVencimento = `<span class="${statusVenc.classe}" style="font-size:11px;">${statusVenc.texto}</span>`;
+                    
                     body.innerHTML += `
                         <div class="modal-student-row${vencidoClass}">
-                            <div>
-                                <span class="modal-student-name">👤 ${s.name} ${badgeVencimento}</span>
-                                <span class="modal-student-phone">📞 Tel: ${s.phone}</span>
-                                <span style="font-size:11px; color:#64748b; display:block; margin-top:4px;"><strong>Matrículas ativas:</strong> ${matriculas.join(' | ')}</span>
+                            <div class="modal-student-info">
+                                <span class="modal-student-name">👤 ${s.name}</span>
+                                <span class="modal-student-vencimento">${badgeVencimento}</span>
+                                <span class="modal-student-phone">📞 ${s.phone}</span>
+                                <span class="modal-student-matriculas" title="${matriculas.join(' | ')}">📚 ${matriculas.join(' | ')}</span>
                             </div>
-                            <a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="modal-btn-zap">💬 WhatsApp</a>
+                            <div class="modal-student-actions">
+                                <a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="modal-btn-zap">💬 WhatsApp</a>
+                                <button class="modal-btn-del" onclick="removerAlunoPelaTabela(${item.id}, '${s.name}'); openModal(${item.id});">🗑️</button>
+                            </div>
                         </div>`;
                 });
             }
+            
+            // Seção para adicionar em outra turma
+            body.innerHTML += `
+                <div style="margin-top:20px; padding:15px; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0;">
+                    <h4 style="margin-bottom:10px; color:#15803d;">➕ Matricular Aluno em Outra Turma</h4>
+                    <div style="display:flex; gap:10px;">
+                        <select id="modalAddClassSelect" class="form-select" style="flex-grow:1;">
+                            <option value="" disabled selected>Selecione a Turma</option>
+                        </select>
+                        <button class="btn-submit-form" onclick="adicionarAlunoEmOutraTurma()">+ Adicionar</button>
+                    </div>
+                    <small style="color:#64748b; display:block; margin-top:5px;">O aluno será adicionado com os mesmos dados (nome, telefone e vencimento)</small>
+                </div>`;
+            
+            povoarSelectModal(document.getElementById('modalAddClassSelect'));
             document.getElementById("modalOverlay").classList.add("active");
         }
-        function closeModal() { document.getElementById("modalOverlay").classList.remove("active"); }
+        
+        function closeModal() { 
+            document.getElementById("modalOverlay").classList.remove("active");
+            currentModalClassId = null;
+        }
 
         async function alterarVaga(id, mudança) {
             const item = classData.find(c => c.id === id); if (!item) return;
@@ -686,6 +777,20 @@
                 item.students.push({ name: nome, phone: fone, dueDate: vcto }); item.current++;
                 let log = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${item.name} (${item.time})` };
                 atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
+                
+                if (confirm(`✅ ${nome} adicionado!\n\nDeseja adicionar em outra turma também?`)) {
+                    const outraTurma = prompt("ID da outra turma (veja nos cards):");
+                    if (outraTurma) {
+                        const outroItem = classData.find(c => c.id === parseInt(outraTurma));
+                        if (outroItem && outroItem.current < outroItem.max) {
+                            outroItem.students.push({ name: nome, phone: fone, dueDate: vcto });
+                            outroItem.current++;
+                            let log2 = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${outroItem.name} (${outroItem.time})` };
+                            atualizarHistoricoLocal(log2); await salvarHistoricoNaNuvem(log2);
+                            alert(`✅ Também adicionado em ${outroItem.name}!`);
+                        }
+                    }
+                }
             } else {
                 if (item.students.length > 0) {
                     let r = item.students.pop();
