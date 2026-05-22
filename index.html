@@ -61,7 +61,7 @@
         .form-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; background: white; }
         .form-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; background: white; max-width: 260px; }
         .btn-submit-form { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; }
-        .btn-add-another { background: var(--success); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; margin-top: 10px; width: 100%; }
+        .btn-edit { background: var(--warning); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px; }
         
         .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border); border-top: 5px solid var(--primary); display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.01); }
@@ -82,6 +82,8 @@
         .student-info-row { display: flex; justify-content: space-between; align-items: center; }
         .student-name { font-weight: 600; color: var(--text); }
         .student-phone { color: #64748b; font-family: monospace; }
+        .student-code { color: #94a3b8; font-size: 10px; }
+        .student-days { font-size: 10px; color: var(--primary); font-weight: 600; }
         .student-other-classes { font-size: 10px; color: #94a3b8; font-style: italic; display: block; margin-top: 1px; }
         .btn-whatsapp { background-color: #25d366; color: white; text-decoration: none; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .badge-vencido { background: #fee2e2; color: #dc2626; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; }
@@ -125,7 +127,6 @@
         .modal-close-btn { background: #f1f5f9; border: none; font-size: 18px; width: 32px; height: 32px; border-radius: 5px; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; }
         .modal-body { padding: 20px; max-height: 70vh; overflow-y: auto; }
         
-        /* Novo estilo para linha única no modal */
         .modal-student-row { padding: 10px 15px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; }
         .modal-student-row.vencido { background-color: #fef2f2; border-left: 3px solid var(--danger); }
         .modal-student-info { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; flex: 1; }
@@ -136,6 +137,16 @@
         .modal-student-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
         .modal-btn-zap { background: #25d366; color: white; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; white-space: nowrap; }
         .modal-btn-del { background: #fee2e2; color: #b91c1c; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .modal-btn-edit { background: var(--warning); color: white; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        
+        .edit-form { background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 15px; }
+        .edit-form h4 { color: #92400e; margin-bottom: 10px; }
+        .checkbox-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .checkbox-group label { display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
+        
+        .vencidos-list { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); padding: 15px; margin-top: 20px; }
+        .vencidos-list h3 { color: var(--danger); margin-bottom: 15px; font-size: 16px; }
+        .vencido-card { background: #fef2f2; border-left: 4px solid var(--danger); padding: 12px 15px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         
         .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--background); display: flex; align-items: center; justify-content: center; z-index: 10000; }
         .login-card { background: var(--card-bg); padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%; max-width: 400px; text-align: center; }
@@ -196,45 +207,13 @@
             <div id="loadingBanner" class="loading-banner">🔄 Sincronizando com o Google Sheets...</div>
             
             <div class="summary-widgets">
-                <div class="widget">
-                    <div class="val" id="widgetTotalAlunos">0</div>
-                    <div class="lbl">👤 Total Alunos</div>
-                    <div class="sub" id="widgetTotalCapacidade">de 1137 vagas</div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetManha">0</div>
-                    <div class="lbl">☀️ Manhã</div>
-                    <div class="sub" id="widgetManhaCapacidade">de 0 vagas</div>
-                    <div class="progress-mini"><div class="progress-mini-fill" id="progressManha" style="width: 0%"></div></div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetTarde">0</div>
-                    <div class="lbl">🌤️ Tarde</div>
-                    <div class="sub" id="widgetTardeCapacidade">de 0 vagas</div>
-                    <div class="progress-mini"><div class="progress-mini-fill" id="progressTarde" style="width: 0%"></div></div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetNoite">0</div>
-                    <div class="lbl">🌙 Noite</div>
-                    <div class="sub" id="widgetNoiteCapacidade">de 0 vagas</div>
-                    <div class="progress-mini"><div class="progress-mini-fill" id="progressNoite" style="width: 0%"></div></div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetSabado">0</div>
-                    <div class="lbl">📅 Sábados</div>
-                    <div class="sub" id="widgetSabadoCapacidade">de 0 vagas</div>
-                    <div class="progress-mini"><div class="progress-mini-fill" id="progressSabado" style="width: 0%"></div></div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetVencidos" style="color: var(--danger)">0</div>
-                    <div class="lbl">⚠️ Vencidos</div>
-                    <div class="sub">pagamentos atrasados</div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetOcupacao">0%</div>
-                    <div class="lbl">🎯 Ocupação Geral</div>
-                    <div class="progress-mini"><div class="progress-mini-fill" id="progressGeral" style="width: 0%"></div></div>
-                </div>
+                <div class="widget"><div class="val" id="widgetTotalAlunos">0</div><div class="lbl">👤 Total Alunos</div><div class="sub" id="widgetTotalCapacidade">de 1137 vagas</div></div>
+                <div class="widget"><div class="val" id="widgetManha">0</div><div class="lbl">☀️ Manhã</div><div class="sub" id="widgetManhaCapacidade">de 0 vagas</div><div class="progress-mini"><div class="progress-mini-fill" id="progressManha" style="width: 0%"></div></div></div>
+                <div class="widget"><div class="val" id="widgetTarde">0</div><div class="lbl">🌤️ Tarde</div><div class="sub" id="widgetTardeCapacidade">de 0 vagas</div><div class="progress-mini"><div class="progress-mini-fill" id="progressTarde" style="width: 0%"></div></div></div>
+                <div class="widget"><div class="val" id="widgetNoite">0</div><div class="lbl">🌙 Noite</div><div class="sub" id="widgetNoiteCapacidade">de 0 vagas</div><div class="progress-mini"><div class="progress-mini-fill" id="progressNoite" style="width: 0%"></div></div></div>
+                <div class="widget"><div class="val" id="widgetSabado">0</div><div class="lbl">📅 Sábados</div><div class="sub" id="widgetSabadoCapacidade">de 0 vagas</div><div class="progress-mini"><div class="progress-mini-fill" id="progressSabado" style="width: 0%"></div></div></div>
+                <div class="widget"><div class="val" id="widgetVencidos" style="color: var(--danger)">0</div><div class="lbl">⚠️ Vencidos</div><div class="sub">pagamentos atrasados</div></div>
+                <div class="widget"><div class="val" id="widgetOcupacao">0%</div><div class="lbl">🎯 Ocupação Geral</div><div class="progress-mini"><div class="progress-mini-fill" id="progressGeral" style="width: 0%"></div></div></div>
             </div>
 
             <div id="tab-turmas" class="tab-content active">
@@ -243,23 +222,38 @@
                     <div class="filter-group"><div class="filter-label">Dias:</div><div class="filter-options" id="filterDays"><button class="btn-select active" onclick="setFilter('day', 'TODOS')">Todos</button><button class="btn-select" onclick="setFilter('day', 'Segunda - Quarta e Sexta')">Seg/Qua/Sex</button><button class="btn-select" onclick="setFilter('day', 'Terça e Quinta')">Ter/Qui</button><button class="btn-select" onclick="setFilter('day', 'Sábado')">Sábado</button><button class="btn-select" onclick="setFilter('day', 'Sexta')">Sexta</button></div></div>
                     <div class="filter-group"><div class="filter-label">Modalidade:</div><div class="filter-options" id="filterModalities"><button class="btn-select active" onclick="setFilter('modality', 'TODAS')">Todas</button><button class="btn-select" onclick="setFilter('modality', 'Natação Adulto')">Adulto</button><button class="btn-select" onclick="setFilter('modality', 'Hidroginástica')">Hidro</button><button class="btn-select" onclick="setFilter('modality', 'Natação Infantil Nível 1')">Infantil N1</button><button class="btn-select" onclick="setFilter('modality', 'Natação Infantil Nível 2')">Infantil N2</button><button class="btn-select" onclick="setFilter('modality', 'Natação Infantil Nível 3')">Infantil N3</button><button class="btn-select" onclick="setFilter('modality', 'Natação Baby')">Baby</button><button class="btn-select" onclick="setFilter('modality', 'Personal Class')">Personal</button></div></div>
                     <div class="filter-group"><div class="filter-label">Turno:</div><div class="filter-options" id="filterTurnos"><button class="btn-select active" onclick="setFilter('turno', 'TODOS')">Todos</button><button class="btn-select" onclick="setFilter('turno', 'Manhã')">Manhã</button><button class="btn-select" onclick="setFilter('turno', 'Tarde')">Tarde</button><button class="btn-select" onclick="setFilter('turno', 'Noite')">Noite</button></div></div>
-                    <div class="filter-group"><div class="filter-label">Ocupação:</div><div class="filter-options" id="filterOcupacao"><button class="btn-select active" onclick="setFilter('status', 'TODOS')">Todos</button><button class="btn-select" onclick="setFilter('status', 'COM_ALUNOS')">Com Alunos</button><button class="btn-select" onclick="setFilter('status', 'VACANCY')">Com Vagas</button><button class="btn-select" onclick="setFilter('status', 'FULL')">Lotadas</button><button class="btn-select" onclick="setFilter('status', 'EMPTY')">Vazias</button></div></div>
+                    <div class="filter-group"><div class="filter-label">Ocupação:</div><div class="filter-options" id="filterOcupacao"><button class="btn-select active" onclick="setFilter('status', 'TODOS')">Todos</button><button class="btn-select" onclick="setFilter('status', 'COM_ALUNOS')">Com Alunos</button><button class="btn-select" onclick="setFilter('status', 'VENCIDOS')">🔴 Vencidos</button><button class="btn-select" onclick="setFilter('status', 'VACANCY')">Com Vagas</button><button class="btn-select" onclick="setFilter('status', 'FULL')">Lotadas</button><button class="btn-select" onclick="setFilter('status', 'EMPTY')">Vazias</button></div></div>
                 </div>
                 <div class="grid-container" id="cardsGrid"></div>
             </div>
 
             <div id="tab-alunos" class="tab-content">
                 <div class="filter-panel">
-                    <div class="fast-form">
+                    <div class="fast-form" id="cadastroForm">
+                        <input type="hidden" id="editStudentId" value="">
                         <input type="text" id="addStudentName" class="form-input" style="flex-grow: 2;" placeholder="Nome do Novo Aluno">
                         <input type="text" id="addStudentPhone" class="form-input" style="flex-grow: 1;" placeholder="Telefone (DDD + Número)">
                         <input type="text" id="addStudentDueDate" class="form-input" style="width: 150px;" placeholder="Vencimento (Ex: 15/12)">
                         <select id="addStudentClassTarget" class="form-select"></select>
-                        <button class="btn-submit-form" onclick="cadastrarAlunoPelaTabela()">+ Matricular Aluno</button>
+                        <div class="checkbox-group" id="diasCheckboxGroup" style="display:none;">
+                            <label><input type="checkbox" class="dia-checkbox" value="Segunda"> Seg</label>
+                            <label><input type="checkbox" class="dia-checkbox" value="Terça"> Ter</label>
+                            <label><input type="checkbox" class="dia-checkbox" value="Quarta"> Qua</label>
+                            <label><input type="checkbox" class="dia-checkbox" value="Quinta"> Qui</label>
+                            <label><input type="checkbox" class="dia-checkbox" value="Sexta"> Sex</label>
+                            <label><input type="checkbox" class="dia-checkbox" value="Sábado"> Sáb</label>
+                        </div>
+                        <button class="btn-submit-form" onclick="cadastrarAlunoPelaTabela()" id="btnCadastrar">+ Matricular Aluno</button>
+                        <button class="btn-submit-form" onclick="cancelarEdicao()" id="btnCancelar" style="display:none; background:#94a3b8;">Cancelar</button>
                     </div>
-                    <div class="search-container" style="margin-bottom:0;"><input type="text" id="studentTableSearch" class="search-bar" placeholder="🔍 Filtrar aluno cadastrado..." oninput="renderStudentTable()"></div>
+                    <div class="search-container" style="margin-bottom:15px;"><input type="text" id="studentTableSearch" class="search-bar" placeholder="🔍 Filtrar aluno cadastrado..." oninput="renderStudentTable()"></div>
+                    <div class="filter-group"><div class="filter-label">Status:</div><div class="filter-options" id="filterAlunoStatus"><button class="btn-select active" onclick="setFilterAluno('TODOS')">Todos</button><button class="btn-select" onclick="setFilterAluno('VENCIDOS')">🔴 Vencidos</button><button class="btn-select" onclick="setFilterAluno('EM_DIA')">🟢 Em Dia</button></div></div>
                 </div>
-                <div class="table-container"><table class="data-table"><thead><tr><th>NOME DO ALUNO</th><th>TELEFONE</th><th>VENCIMENTO</th><th>SITUAÇÃO</th><th>TURMAS DO ALUNO</th><th>AÇÕES</th></tr></thead><tbody id="studentTableBody"></tbody></table></div>
+                <div class="table-container"><table class="data-table"><thead><tr><th>CÓD</th><th>NOME DO ALUNO</th><th>TELEFONE</th><th>VENCIMENTO</th><th>DIAS</th><th>SITUAÇÃO</th><th>AÇÕES</th></tr></thead><tbody id="studentTableBody"></tbody></table></div>
+                <div class="vencidos-list" id="vencidosListContainer">
+                    <h3>⚠️ ALUNOS VENCIDOS (Últimos 30 dias)</h3>
+                    <div id="vencidosList"></div>
+                </div>
             </div>
 
             <div id="tab-resumo" class="tab-content"><div id="resumeListContainer"></div></div>
@@ -273,6 +267,15 @@
                 <button class="modal-close-btn" onclick="closeModal()">✕</button>
             </div>
             <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+    <div id="editModalOverlay" class="modal-overlay" onclick="closeEditModal()">
+        <div class="modal-card" onclick="event.stopPropagation()" style="max-width:550px;">
+            <div class="modal-header">
+                <div class="modal-header-info"><h2>✏️ Editar Aluno</h2></div>
+                <button class="modal-close-btn" onclick="closeEditModal()">✕</button>
+            </div>
+            <div class="modal-body" id="editModalBody"></div>
         </div>
     </div>
     <script>
@@ -293,12 +296,16 @@
         let classData = rawClasses.map(c => ({ id: c[0], name: c[1], days: c[2], time: c[3], max: c[4], current: 0, students: [] }));
         let historyData = [];
         let activeFilters = { day: 'TODOS', modality: 'TODAS', turno: 'TODOS', status: 'TODOS' };
-        let currentModalClassId = null;
+        let alunoFilterStatus = 'TODOS';
+        let editingStudent = null;
+        let studentIdCounter = 1000;
 
         window.onload = function() {
             if (localStorage.getItem("aqua_authenticated") === "true") liberarSistema();
             povoarSelectDeTurmas();
         };
+
+        function gerarCodigoAluno() { return ++studentIdCounter; }
 
         function checkPassword() {
             if (document.getElementById("passwordInput").value === MASTER_PASSWORD) {
@@ -320,104 +327,70 @@
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById(`tab-${tabName}`).classList.add('active');
-            if (tabName === 'alunos') renderStudentTable();
+            if (tabName === 'alunos') { renderStudentTable(); renderVencidosList(); }
             if (tabName === 'resumo') renderResumeTab();
             if (tabName === 'historico') renderHistory();
         }
 
+        function setFilterAluno(value) {
+            alunoFilterStatus = value;
+            let buttons = document.getElementById('filterAlunoStatus').querySelectorAll('.btn-select');
+            buttons.forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            renderStudentTable();
+            renderVencidosList();
+        }
+
         function formatarDataPadrao() {
             const hoje = new Date();
-            const dia = String(hoje.getDate()).padStart(2, '0');
-            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-            return `${dia}/${mes}`;
+            return `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}`;
         }
 
         function verificarVencimento(dueDate) {
             if (!dueDate) return { vencido: false, dias: 0 };
-            
             let diaVenc, mesVenc;
-            
             if (typeof dueDate === 'string' && dueDate.includes('/') && !dueDate.includes('GMT')) {
                 const partes = dueDate.split('/');
-                diaVenc = parseInt(partes[0]);
-                mesVenc = parseInt(partes[1]);
-            }
-            else if (dueDate instanceof Date || (typeof dueDate === 'string' && dueDate.includes('GMT'))) {
+                diaVenc = parseInt(partes[0]); mesVenc = parseInt(partes[1]);
+            } else if (dueDate instanceof Date || (typeof dueDate === 'string' && dueDate.includes('GMT'))) {
                 const data = new Date(dueDate);
-                diaVenc = data.getDate();
-                mesVenc = data.getMonth() + 1;
-            }
-            else if (typeof dueDate === 'string' || typeof dueDate === 'number') {
+                diaVenc = data.getDate(); mesVenc = data.getMonth() + 1;
+            } else if (typeof dueDate === 'string' || typeof dueDate === 'number') {
                 const data = new Date(dueDate);
-                if (!isNaN(data.getTime())) {
-                    diaVenc = data.getDate();
-                    mesVenc = data.getMonth() + 1;
-                } else {
-                    return { vencido: false, dias: 0 };
-                }
-            }
-            else {
-                return { vencido: false, dias: 0 };
-            }
-            
+                if (!isNaN(data.getTime())) { diaVenc = data.getDate(); mesVenc = data.getMonth() + 1; }
+                else return { vencido: false, dias: 0 };
+            } else return { vencido: false, dias: 0 };
             if (isNaN(diaVenc) || isNaN(mesVenc)) return { vencido: false, dias: 0 };
-            
             const hoje = new Date();
             const dataHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-            let anoVenc = hoje.getFullYear();
-            
-            const dataVencimento = new Date(anoVenc, mesVenc - 1, diaVenc);
-            
-            const diffTime = dataVencimento - dataHoje;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            const vencido = diffDays < 0;
-            const dias = Math.abs(diffDays);
-            
-            return { vencido, dias };
+            const dataVencimento = new Date(hoje.getFullYear(), mesVenc - 1, diaVenc);
+            const diffDays = Math.ceil((dataVencimento - dataHoje) / (1000 * 60 * 60 * 24));
+            return { vencido: diffDays < 0, dias: Math.abs(diffDays) };
         }
 
         function formatarVencimento(dueDate) {
             if (!dueDate) return formatarDataPadrao();
-            
-            if (typeof dueDate === 'string' && dueDate.includes('/') && !dueDate.includes('GMT')) {
-                return dueDate;
-            }
-            else {
-                const data = new Date(dueDate);
-                if (!isNaN(data.getTime())) {
-                    const diaVenc = String(data.getDate()).padStart(2, '0');
-                    const mesVenc = String(data.getMonth() + 1).padStart(2, '0');
-                    return `${diaVenc}/${mesVenc}`;
-                }
-            }
-            
+            if (typeof dueDate === 'string' && dueDate.includes('/') && !dueDate.includes('GMT')) return dueDate;
+            const data = new Date(dueDate);
+            if (!isNaN(data.getTime())) return `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth() + 1).padStart(2, '0')}`;
             return dueDate;
         }
 
         function getStatusVencimento(dueDate) {
-            const resultado = verificarVencimento(dueDate);
-            const dataFormatada = formatarVencimento(dueDate);
-            
-            if (resultado.vencido) {
-                if (resultado.dias === 0) {
-                    return { texto: `⚠️ Vence hoje`, classe: 'badge-vencido', alerta: true };
-                } else if (resultado.dias === 1) {
-                    return { texto: `⚠️ Vencido há 1 dia`, classe: 'badge-vencido', alerta: true };
-                } else {
-                    return { texto: `⚠️ Vencido há ${resultado.dias} dias`, classe: 'badge-vencido', alerta: true };
-                }
-            } else {
-                if (resultado.dias === 0) {
-                    return { texto: `📅 Vence hoje`, classe: 'badge-em-dia', alerta: false };
-                } else if (resultado.dias === 1) {
-                    return { texto: `✓ Falta 1 dia`, classe: 'badge-em-dia', alerta: false };
-                } else if (resultado.dias <= 5) {
-                    return { texto: `✓ Falta ${resultado.dias} dias`, classe: 'badge-em-dia', alerta: false };
-                } else {
-                    return { texto: `📅 Venc: ${dataFormatada}`, classe: 'badge-em-dia', alerta: false };
-                }
+            const r = verificarVencimento(dueDate);
+            if (r.vencido) {
+                if (r.dias === 0) return { texto: `⚠️ Vence hoje`, classe: 'badge-vencido', alerta: true };
+                if (r.dias === 1) return { texto: `⚠️ Vencido há 1 dia`, classe: 'badge-vencido', alerta: true };
+                return { texto: `⚠️ Vencido há ${r.dias} dias`, classe: 'badge-vencido', alerta: true };
             }
+            if (r.dias === 0) return { texto: `📅 Vence hoje`, classe: 'badge-em-dia', alerta: false };
+            if (r.dias === 1) return { texto: `✓ Falta 1 dia`, classe: 'badge-em-dia', alerta: false };
+            if (r.dias <= 5) return { texto: `✓ Falta ${r.dias} dias`, classe: 'badge-em-dia', alerta: false };
+            return { texto: `📅 Venc: ${formatarVencimento(dueDate)}`, classe: 'badge-em-dia', alerta: false };
+        }
+
+        function getDiasDaTurma(daysString) {
+            return daysString.split(' - ').join(' ').split(' e ').join(' ').split(' ');
         }
 
         async function carregarDadosDaNuvem() {
@@ -433,6 +406,7 @@
                             localItem.students = itemNuvem.students || [];
                         }
                     });
+                    if (nuvemData[0].studentIdCounter) studentIdCounter = nuvemData[0].studentIdCounter;
                 }
             } catch (error) { console.error(error); }
             finally { mostrarLoading(false); calcularEAtualizarWidgets(); filtrarETrabalhar(); }
@@ -440,21 +414,14 @@
 
         async function salvarNaNuvem() {
             try {
-                await fetch(GOOGLE_SCRIPT_URL, {
-                    method: "POST", mode: "no-cors",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ type: "SAVE_DATA", payload: classData })
-                });
+                const payload = [...classData, { studentIdCounter }];
+                await fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "SAVE_DATA", payload }) });
             } catch (error) { console.error(error); }
         }
 
         async function salvarHistoricoNaNuvem(logItem) {
             try {
-                await fetch(GOOGLE_SCRIPT_URL, {
-                    method: "POST", mode: "no-cors",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ type: "SAVE_HISTORY", payload: logItem })
-                });
+                await fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "SAVE_HISTORY", payload: logItem }) });
             } catch (error) { console.error(error); }
         }
 
@@ -471,7 +438,6 @@
         }
 
         function extrairHora(timeString) { return parseInt(timeString.substring(0, 2)); }
-
         function getTurno(timeString, days) {
             if (days.includes("Sábado")) return 'sabado';
             const h = extrairHora(timeString);
@@ -481,55 +447,33 @@
         }
 
         function calcularEAtualizarWidgets() {
-            let totalAlunos = 0; let totalCapacidade = 0;
+            let totalAlunos = 0, totalCapacidade = 0, vencidos = 0;
             let alunosPorTurno = { manha: 0, tarde: 0, noite: 0, sabado: 0 };
             let capacidadePorTurno = { manha: 0, tarde: 0, noite: 0, sabado: 0 };
-            let vencidos = 0;
-
             classData.forEach(c => {
                 totalCapacidade += c.max;
                 const turno = getTurno(c.time, c.days);
                 capacidadePorTurno[turno] += c.max;
-                
                 c.students.forEach(s => {
-                    totalAlunos++;
-                    alunosPorTurno[turno]++;
+                    totalAlunos++; alunosPorTurno[turno]++;
                     if (verificarVencimento(s.dueDate).vencido) vencidos++;
                 });
             });
-
             let livres = totalCapacidade - totalAlunos;
             let pctOcupacao = totalCapacidade > 0 ? Math.round((totalAlunos / totalCapacidade) * 100) : 0;
-
             document.getElementById('topGlobalAlunos').innerText = `${totalAlunos} alunos ativos`;
             document.getElementById('topGlobalVagas').innerText = `${livres} vagas livres`;
             document.getElementById('widgetTotalAlunos').innerText = totalAlunos;
             document.getElementById('widgetTotalCapacidade').innerText = `de ${totalCapacidade} vagas`;
-
-            const pctManha = capacidadePorTurno.manha > 0 ? Math.round((alunosPorTurno.manha / capacidadePorTurno.manha) * 100) : 0;
-            document.getElementById('widgetManha').innerText = alunosPorTurno.manha;
-            document.getElementById('widgetManhaCapacidade').innerText = `de ${capacidadePorTurno.manha} vagas`;
-            document.getElementById('progressManha').style.width = pctManha + '%';
-            document.getElementById('progressManha').style.background = pctManha >= 90 ? 'var(--danger)' : (pctManha >= 70 ? 'var(--warning)' : 'var(--success)');
-
-            const pctTarde = capacidadePorTurno.tarde > 0 ? Math.round((alunosPorTurno.tarde / capacidadePorTurno.tarde) * 100) : 0;
-            document.getElementById('widgetTarde').innerText = alunosPorTurno.tarde;
-            document.getElementById('widgetTardeCapacidade').innerText = `de ${capacidadePorTurno.tarde} vagas`;
-            document.getElementById('progressTarde').style.width = pctTarde + '%';
-            document.getElementById('progressTarde').style.background = pctTarde >= 90 ? 'var(--danger)' : (pctTarde >= 70 ? 'var(--warning)' : 'var(--success)');
-
-            const pctNoite = capacidadePorTurno.noite > 0 ? Math.round((alunosPorTurno.noite / capacidadePorTurno.noite) * 100) : 0;
-            document.getElementById('widgetNoite').innerText = alunosPorTurno.noite;
-            document.getElementById('widgetNoiteCapacidade').innerText = `de ${capacidadePorTurno.noite} vagas`;
-            document.getElementById('progressNoite').style.width = pctNoite + '%';
-            document.getElementById('progressNoite').style.background = pctNoite >= 90 ? 'var(--danger)' : (pctNoite >= 70 ? 'var(--warning)' : 'var(--success)');
-
-            const pctSabado = capacidadePorTurno.sabado > 0 ? Math.round((alunosPorTurno.sabado / capacidadePorTurno.sabado) * 100) : 0;
-            document.getElementById('widgetSabado').innerText = alunosPorTurno.sabado;
-            document.getElementById('widgetSabadoCapacidade').innerText = `de ${capacidadePorTurno.sabado} vagas`;
-            document.getElementById('progressSabado').style.width = pctSabado + '%';
-            document.getElementById('progressSabado').style.background = pctSabado >= 90 ? 'var(--danger)' : (pctSabado >= 70 ? 'var(--warning)' : 'var(--success)');
-
+            ['manha', 'tarde', 'noite', 'sabado'].forEach(turno => {
+                const cap = capacidadePorTurno[turno], alu = alunosPorTurno[turno];
+                const pct = cap > 0 ? Math.round((alu / cap) * 100) : 0;
+                const nomes = { manha: 'Manha', tarde: 'Tarde', noite: 'Noite', sabado: 'Sabado' };
+                document.getElementById(`widget${nomes[turno]}`).innerText = alu;
+                document.getElementById(`widget${nomes[turno]}Capacidade`).innerText = `de ${cap} vagas`;
+                document.getElementById(`progress${nomes[turno]}`).style.width = pct + '%';
+                document.getElementById(`progress${nomes[turno]}`).style.background = pct >= 90 ? 'var(--danger)' : (pct >= 70 ? 'var(--warning)' : 'var(--success)');
+            });
             document.getElementById('widgetVencidos').innerText = vencidos;
             document.getElementById('widgetOcupacao').innerText = `${pctOcupacao}%`;
             document.getElementById('progressGeral').style.width = pctOcupacao + '%';
@@ -539,8 +483,7 @@
         function setFilter(type, value) {
             activeFilters[type] = value;
             let containerId = type === 'day' ? 'filterDays' : (type === 'modality' ? 'filterModalities' : (type === 'turno' ? 'filterTurnos' : 'filterOcupacao'));
-            let buttons = document.getElementById(containerId).querySelectorAll('.btn-select');
-            buttons.forEach(b => b.classList.remove('active'));
+            document.getElementById(containerId).querySelectorAll('.btn-select').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
             filtrarETrabalhar();
         }
@@ -549,7 +492,6 @@
             const grid = document.getElementById('cardsGrid');
             const searchQuery = document.getElementById('searchBar').value.toLowerCase();
             grid.innerHTML = '';
-
             let filtered = classData.filter(item => {
                 if (activeFilters.day !== 'TODOS' && item.days !== activeFilters.day) return false;
                 if (activeFilters.modality !== 'TODAS' && item.name !== activeFilters.modality) return false;
@@ -561,63 +503,36 @@
                 }
                 if (activeFilters.status !== 'TODOS') {
                     if (activeFilters.status === 'COM_ALUNOS' && item.current === 0) return false;
+                    if (activeFilters.status === 'VENCIDOS' && !item.students.some(s => verificarVencimento(s.dueDate).vencido)) return false;
                     if (activeFilters.status === 'EMPTY' && item.current !== 0) return false;
                     if (activeFilters.status === 'FULL' && (item.max - item.current) > 0) return false;
                     if (activeFilters.status === 'VACANCY' && (item.max - item.current) <= 0) return false;
                 }
                 if (searchQuery) {
-                    let m = item.name.toLowerCase().includes(searchQuery) || item.time.toLowerCase().includes(searchQuery) ||
-                            item.students.some(s => s.name.toLowerCase().includes(searchQuery) || s.phone.includes(searchQuery));
+                    let m = item.name.toLowerCase().includes(searchQuery) || item.time.toLowerCase().includes(searchQuery) || item.students.some(s => s.name.toLowerCase().includes(searchQuery) || s.phone.includes(searchQuery));
                     if (!m) return false;
                 }
                 return true;
             });
-
             filtered.forEach(item => {
                 const available = item.max - item.current;
                 const percentage = (item.current / item.max) * 100;
-                let badgeText = "Disponível"; let badgeClass = "status-open"; let cardClass = "card";
+                let badgeText = "Disponível", badgeClass = "status-open", cardClass = "card";
                 if (item.current === 0) { badgeText = "Vazia"; badgeClass = "status-empty"; cardClass = "card empty-class"; }
                 else if (available <= 0) { badgeText = "Lotada"; badgeClass = "status-full"; }
                 let barColor = percentage >= 100 ? 'var(--danger)' : (percentage >= 80 ? 'var(--warning)' : 'var(--success)');
-
                 let studentRows = item.students.map(s => {
                     const cleanPhone = s.phone.replace(/\D/g, '');
                     const outrasTurmas = obterTurmasDoAluno(s.name).filter(t => !t.includes(item.name));
                     const alertaOutras = outrasTurmas.length > 0 ? `<span class="student-other-classes">✅ Também em: ${outrasTurmas.join(', ')}</span>` : '';
                     const statusVenc = getStatusVencimento(s.dueDate);
                     const vencidoClass = statusVenc.alerta ? ' vencido' : '';
-                    const badgeVencimento = `<span class="${statusVenc.classe}">${statusVenc.texto}</span>`;
-                    return `
-                        <div class="student-item${vencidoClass}">
-                            <div class="student-info-row">
-                                <span class="student-name">👤 ${s.name} ${badgeVencimento}</span>
-                                <a href="https://wa.me/${cleanPhone}" target="_blank" class="btn-whatsapp">WhatsApp</a>
-                            </div>
-                            <span class="student-phone">📞 ${s.phone}</span>
-                            ${alertaOutras}
-                        </div>`;
+                    const diasAluno = s.days && s.days.length > 0 ? `<span class="student-days">📅 ${s.days.join('/')}</span>` : '';
+                    return `<div class="student-item${vencidoClass}"><div class="student-info-row"><span class="student-name">👤 ${s.name} <span class="student-code">#${s.code || '----'}</span> ${diasAluno} ${statusVenc.alerta ? `<span class="${statusVenc.classe}">${statusVenc.texto}</span>` : ''}</span><a href="https://wa.me/${cleanPhone}" target="_blank" class="btn-whatsapp">WhatsApp</a></div><span class="student-phone">📞 ${s.phone}</span>${alertaOutras}</div>`;
                 }).join('');
-
                 const card = document.createElement('div');
                 card.className = cardClass;
-                card.innerHTML = `
-                    <div class="card-clickable-header" onclick="openModal(${item.id})">
-                        <div class="card-header"><span class="status-badge ${badgeClass}">${badgeText}</span><h3>${item.name}</h3><div class="day">${item.days}</div><div class="time">${item.time}</div></div>
-                    </div>
-                    <div>
-                        <div class="vacancy-info" onclick="openModal(${item.id})">
-                            <div class="counter-row"><span>Alunos:</span><strong>${item.current} / ${item.max}</strong></div>
-                            <div class="counter-row"><span>Disponível:</span><strong style="color: ${available <= 0 ? 'var(--danger)' : 'var(--success)'}">${available}</strong></div>
-                            <div class="progress-bar"><div class="progress-fill" style="width: ${percentage}%; background-color: ${barColor}"></div></div>
-                        </div>
-                        <div class="student-list">${studentRows || '<p style="font-size:11px; color:#94a3b8; text-align:center;">Nenhum aluno ativo</p>'}</div>
-                        <div class="actions">
-                            <button class="btn btn-remove" onclick="alterarVaga(${item.id}, -1)">- Aluno</button>
-                            <button class="btn btn-add" onclick="alterarVaga(${item.id}, 1)" ${available <= 0 ? 'disabled style="opacity:0.5;"' : ''}>+ Aluno</button>
-                            <button class="btn btn-view" onclick="openModal(${item.id})">🔍</button>
-                        </div>
-                    </div>`;
+                card.innerHTML = `<div class="card-clickable-header" onclick="openModal(${item.id})"><div class="card-header"><span class="status-badge ${badgeClass}">${badgeText}</span><h3>${item.name}</h3><div class="day">${item.days}</div><div class="time">${item.time}</div></div></div><div><div class="vacancy-info" onclick="openModal(${item.id})"><div class="counter-row"><span>Alunos:</span><strong>${item.current} / ${item.max}</strong></div><div class="counter-row"><span>Disponível:</span><strong style="color: ${available <= 0 ? 'var(--danger)' : 'var(--success)'}">${available}</strong></div><div class="progress-bar"><div class="progress-fill" style="width: ${percentage}%; background-color: ${barColor}"></div></div></div><div class="student-list">${studentRows || '<p style="font-size:11px; color:#94a3b8; text-align:center;">Nenhum aluno ativo</p>'}</div><div class="actions"><button class="btn btn-remove" onclick="alterarVaga(${item.id}, -1)">- Aluno</button><button class="btn btn-add" onclick="alterarVaga(${item.id}, 1)" ${available <= 0 ? 'disabled style="opacity:0.5;"' : ''}>+ Aluno</button><button class="btn btn-view" onclick="openModal(${item.id})">🔍</button></div></div>`;
                 grid.appendChild(card);
             });
         }
@@ -626,13 +541,24 @@
             const select = document.getElementById("addStudentClassTarget");
             select.innerHTML = '<option value="" disabled selected>Selecione a Turma/Horário</option>';
             classData.forEach(c => { select.innerHTML += `<option value="${c.id}">${c.name} - ${c.days.split(' ')[0]} às ${c.time.split(' ')[0]}</option>`; });
+            select.onchange = function() {
+                const item = classData.find(c => c.id === parseInt(this.value));
+                const diasDiv = document.getElementById('diasCheckboxGroup');
+                if (item) {
+                    diasDiv.style.display = 'flex';
+                    const dias = getDiasDaTurma(item.days);
+                    document.querySelectorAll('.dia-checkbox').forEach(cb => {
+                        cb.checked = dias.includes(cb.value);
+                        cb.disabled = false;
+                    });
+                } else {
+                    diasDiv.style.display = 'none';
+                }
+            };
         }
 
-        function povoarSelectModal(selectElement) {
-            selectElement.innerHTML = '<option value="" disabled selected>Selecione a Turma</option>';
-            classData.forEach(c => { 
-                selectElement.innerHTML += `<option value="${c.id}">${c.name} - ${c.days.split(' ')[0]} às ${c.time.split(' ')[0]}</option>`; 
-            });
+        function getDiasSelecionados() {
+            return Array.from(document.querySelectorAll('.dia-checkbox:checked')).map(cb => cb.value);
         }
 
         async function cadastrarAlunoPelaTabela() {
@@ -640,157 +566,134 @@
             const foneInput = document.getElementById("addStudentPhone");
             const dueInput = document.getElementById("addStudentDueDate");
             const selectTurma = document.getElementById("addStudentClassTarget");
+            let nome = nomeInput.value.trim(), fone = foneInput.value.trim(), vencimento = dueInput.value.trim() || formatarDataPadrao(), turmaId = parseInt(selectTurma.value);
+            const diasSelecionados = getDiasSelecionados();
             
-            let nome = nomeInput.value.trim(); let fone = foneInput.value.trim(); 
-            let vencimento = dueInput.value.trim() || formatarDataPadrao(); 
-            let turmaId = parseInt(selectTurma.value);
-
             if (!nome || !fone || isNaN(turmaId)) { alert("Preencha todos os campos!"); return; }
             const item = classData.find(c => c.id === turmaId); if (!item) return;
             if (item.current >= item.max) { alert("Turma lotada!"); return; }
 
-            item.students.push({ name: nome, phone: fone, dueDate: vencimento }); item.current++;
-            let log = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${item.name} (${item.time})` };
-            atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
-
-            if (confirm(`✅ ${nome} matriculado em ${item.name} (${item.time})!\n\nDeseja matricular ${nome} em OUTRA turma também?`)) {
-                nomeInput.value = nome;
-                foneInput.value = fone;
-                dueInput.value = vencimento;
-                selectTurma.value = "";
-                selectTurma.focus();
+            if (editingStudent) {
+                // Modo edição
+                const oldItem = classData.find(c => c.id === editingStudent.classId);
+                if (oldItem) {
+                    const idx = oldItem.students.findIndex(s => s.code === editingStudent.code);
+                    if (idx !== -1) {
+                        oldItem.students[idx].name = nome;
+                        oldItem.students[idx].phone = fone;
+                        oldItem.students[idx].dueDate = vencimento;
+                        oldItem.students[idx].days = diasSelecionados;
+                        if (oldItem.id !== turmaId) {
+                            const novoItem = classData.find(c => c.id === turmaId);
+                            if (novoItem.current >= novoItem.max) { alert("Turma de destino lotada!"); return; }
+                            const student = oldItem.students.splice(idx, 1)[0];
+                            oldItem.current = Math.max(0, oldItem.current - 1);
+                            novoItem.students.push(student);
+                            novoItem.current++;
+                        }
+                    }
+                }
+                cancelarEdicao();
             } else {
+                // Novo cadastro
+                item.students.push({ code: gerarCodigoAluno(), name: nome, phone: fone, dueDate: vencimento, days: diasSelecionados });
+                item.current++;
+                let log = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${item.name} (${item.time})` };
+                atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
+                if (confirm(`✅ ${nome} matriculado!\n\nDeseja matricular em OUTRA turma?`)) {
+                    nomeInput.value = nome; foneInput.value = fone; dueInput.value = vencimento; selectTurma.value = ""; selectTurma.focus();
+                    return;
+                }
                 nomeInput.value = ""; foneInput.value = ""; dueInput.value = ""; selectTurma.value = "";
             }
-            calcularEAtualizarWidgets(); filtrarETrabalhar(); renderStudentTable(); await salvarNaNuvem();
+            calcularEAtualizarWidgets(); filtrarETrabalhar(); renderStudentTable(); renderVencidosList(); await salvarNaNuvem();
         }
 
-        async function adicionarAlunoEmOutraTurma() {
-            const select = document.getElementById('modalAddClassSelect');
-            const turmaId = parseInt(select.value);
-            
-            if (isNaN(turmaId)) { alert("Selecione uma turma!"); return; }
-            
-            const item = classData.find(c => c.id === turmaId);
+        function cancelarEdicao() {
+            editingStudent = null;
+            document.getElementById("editStudentId").value = "";
+            document.getElementById("addStudentName").value = "";
+            document.getElementById("addStudentPhone").value = "";
+            document.getElementById("addStudentDueDate").value = "";
+            document.getElementById("addStudentClassTarget").value = "";
+            document.getElementById("diasCheckboxGroup").style.display = 'none';
+            document.getElementById("btnCadastrar").innerText = "+ Matricular Aluno";
+            document.getElementById("btnCancelar").style.display = 'none';
+        }
+
+        function editarAluno(code, classId) {
+            const item = classData.find(c => c.id === classId);
             if (!item) return;
-            if (item.current >= item.max) { alert("Turma lotada!"); return; }
+            const student = item.students.find(s => s.code === code);
+            if (!student) return;
             
-            const turmaAtual = classData.find(c => c.id === currentModalClassId);
-            if (!turmaAtual || turmaAtual.students.length === 0) return;
+            editingStudent = { code, classId };
+            document.getElementById("editStudentId").value = code;
+            document.getElementById("addStudentName").value = student.name;
+            document.getElementById("addStudentPhone").value = student.phone;
+            document.getElementById("addStudentDueDate").value = formatarVencimento(student.dueDate);
+            document.getElementById("addStudentClassTarget").value = classId;
             
-            const primeiroAluno = turmaAtual.students[0];
-            item.students.push({ name: primeiroAluno.name, phone: primeiroAluno.phone, dueDate: primeiroAluno.dueDate });
-            item.current++;
+            const diasDiv = document.getElementById('diasCheckboxGroup');
+            diasDiv.style.display = 'flex';
+            document.querySelectorAll('.dia-checkbox').forEach(cb => {
+                cb.checked = student.days && student.days.includes(cb.value);
+            });
             
-            let log = { date: new Date().toISOString(), type: 'ADD', student: primeiroAluno.name, className: `${item.name} (${item.time})` };
-            atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
+            document.getElementById("btnCadastrar").innerText = "💾 Salvar Alterações";
+            document.getElementById("btnCancelar").style.display = 'inline-block';
             
-            alert(`✅ ${primeiroAluno.name} adicionado em ${item.name} (${item.time})!`);
-            
-            calcularEAtualizarWidgets(); filtrarETrabalhar(); renderStudentTable(); await salvarNaNuvem();
-            openModal(currentModalClassId);
+            document.getElementById("addStudentName").focus();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         async function removerAlunoPelaTabela(classId, studentName) {
-            if (!confirm(`Remover o aluno ${studentName} desta turma?`)) return;
+            if (!confirm(`Remover ${studentName} desta turma?`)) return;
             const item = classData.find(c => c.id === classId); if (!item) return;
             const idx = item.students.findIndex(s => s.name === studentName);
             if (idx !== -1) {
                 item.students.splice(idx, 1); item.current = Math.max(0, item.current - 1);
                 let log = { date: new Date().toISOString(), type: 'REM', student: studentName, className: `${item.name} (${item.time})` };
                 atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
-                calcularEAtualizarWidgets(); filtrarETrabalhar(); renderStudentTable(); await salvarNaNuvem();
+                calcularEAtualizarWidgets(); filtrarETrabalhar(); renderStudentTable(); renderVencidosList(); await salvarNaNuvem();
             }
         }
 
         function openModal(id) {
             const item = classData.find(c => c.id === id); if (!item) return;
-            currentModalClassId = id;
             document.getElementById("modalTitle").innerText = item.name;
             document.getElementById("modalTime").innerText = `🕒 ${item.days} | ${item.time} (${item.current}/${item.max})`;
             const body = document.getElementById("modalBody"); body.innerHTML = "";
-            
             if (item.students.length === 0) { 
                 body.innerHTML = `<p style="text-align:center; color:#64748b; font-size:13px;">Sem alunos matriculados.</p>`; 
-            }
-            else {
-                // Cabeçalho da tabela
-                body.innerHTML += `
-                    <div style="display:flex; padding:8px 15px; background:#f1f5f9; border-radius:8px; margin-bottom:5px; font-weight:700; font-size:12px; color:#64748b;">
-                        <span style="flex:2;">👤 ALUNO</span>
-                        <span style="flex:1;">📅 VENCIMENTO</span>
-                        <span style="flex:1;">📞 TELEFONE</span>
-                        <span style="flex:2;">📚 MATRÍCULAS</span>
-                        <span style="width:130px; text-align:right;">AÇÕES</span>
-                    </div>`;
-                
+            } else {
+                body.innerHTML += `<div style="display:flex; padding:8px 15px; background:#f1f5f9; border-radius:8px; margin-bottom:5px; font-weight:700; font-size:12px; color:#64748b;"><span style="width:60px;">CÓD</span><span style="flex:2;">👤 ALUNO</span><span style="flex:1;">📅 VENC</span><span style="flex:1;">📞 TEL</span><span style="flex:1;">📅 DIAS</span><span style="width:150px; text-align:right;">AÇÕES</span></div>`;
                 item.students.forEach(s => {
-                    const matriculas = obterTurmasDoAluno(s.name);
                     const statusVenc = getStatusVencimento(s.dueDate);
                     const vencidoClass = statusVenc.alerta ? ' vencido' : '';
-                    const badgeVencimento = `<span class="${statusVenc.classe}" style="font-size:11px;">${statusVenc.texto}</span>`;
-                    
-                    body.innerHTML += `
-                        <div class="modal-student-row${vencidoClass}">
-                            <div class="modal-student-info">
-                                <span class="modal-student-name">👤 ${s.name}</span>
-                                <span class="modal-student-vencimento">${badgeVencimento}</span>
-                                <span class="modal-student-phone">📞 ${s.phone}</span>
-                                <span class="modal-student-matriculas" title="${matriculas.join(' | ')}">📚 ${matriculas.join(' | ')}</span>
-                            </div>
-                            <div class="modal-student-actions">
-                                <a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="modal-btn-zap">💬 WhatsApp</a>
-                                <button class="modal-btn-del" onclick="removerAlunoPelaTabela(${item.id}, '${s.name}'); openModal(${item.id});">🗑️</button>
-                            </div>
-                        </div>`;
+                    const diasAluno = s.days && s.days.length > 0 ? s.days.join('/') : 'Todos';
+                    body.innerHTML += `<div class="modal-student-row${vencidoClass}"><div class="modal-student-info"><span style="font-size:11px; color:#94a3b8; width:60px;">#${s.code || '----'}</span><span class="modal-student-name">👤 ${s.name}</span><span class="modal-student-vencimento"><span class="${statusVenc.classe}" style="font-size:11px;">${statusVenc.texto}</span></span><span class="modal-student-phone">📞 ${s.phone}</span><span style="font-size:11px; color:var(--primary); font-weight:600;">📅 ${diasAluno}</span></div><div class="modal-student-actions"><button class="modal-btn-edit" onclick="editarAluno(${s.code}, ${item.id}); closeModal();">✏️ Editar</button><a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="modal-btn-zap">💬</a><button class="modal-btn-del" onclick="removerAlunoPelaTabela(${item.id}, '${s.name}'); openModal(${item.id});">🗑️</button></div></div>`;
                 });
             }
-            
-            // Seção para adicionar em outra turma
-            body.innerHTML += `
-                <div style="margin-top:20px; padding:15px; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0;">
-                    <h4 style="margin-bottom:10px; color:#15803d;">➕ Matricular Aluno em Outra Turma</h4>
-                    <div style="display:flex; gap:10px;">
-                        <select id="modalAddClassSelect" class="form-select" style="flex-grow:1;">
-                            <option value="" disabled selected>Selecione a Turma</option>
-                        </select>
-                        <button class="btn-submit-form" onclick="adicionarAlunoEmOutraTurma()">+ Adicionar</button>
-                    </div>
-                    <small style="color:#64748b; display:block; margin-top:5px;">O aluno será adicionado com os mesmos dados (nome, telefone e vencimento)</small>
-                </div>`;
-            
-            povoarSelectModal(document.getElementById('modalAddClassSelect'));
             document.getElementById("modalOverlay").classList.add("active");
         }
         
-        function closeModal() { 
-            document.getElementById("modalOverlay").classList.remove("active");
-            currentModalClassId = null;
-        }
+        function closeModal() { document.getElementById("modalOverlay").classList.remove("active"); }
+        function closeEditModal() { document.getElementById("editModalOverlay").classList.remove("active"); }
 
         async function alterarVaga(id, mudança) {
             const item = classData.find(c => c.id === id); if (!item) return;
             if (mudança === 1) {
                 let nome = prompt("Nome do Aluno:"); if (!nome) return;
-                let fone = prompt("WhatsApp com DDD (somente números):");
-                let vcto = prompt("Data de Vencimento (ex: 15/12):") || formatarDataPadrao();
-                item.students.push({ name: nome, phone: fone, dueDate: vcto }); item.current++;
+                let fone = prompt("WhatsApp:");
+                let vcto = prompt("Vencimento (ex: 15/12):") || formatarDataPadrao();
+                const diasTurma = getDiasDaTurma(item.days);
+                let dias = prompt(`Dias (${diasTurma.join(', ')}):`, diasTurma.join(','));
+                const diasArray = dias ? dias.split(',').map(d => d.trim()).filter(d => diasTurma.includes(d)) : diasTurma;
+                item.students.push({ code: gerarCodigoAluno(), name: nome, phone: fone, dueDate: vcto, days: diasArray });
+                item.current++;
                 let log = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${item.name} (${item.time})` };
                 atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
-                
-                if (confirm(`✅ ${nome} adicionado!\n\nDeseja adicionar em outra turma também?`)) {
-                    const outraTurma = prompt("ID da outra turma (veja nos cards):");
-                    if (outraTurma) {
-                        const outroItem = classData.find(c => c.id === parseInt(outraTurma));
-                        if (outroItem && outroItem.current < outroItem.max) {
-                            outroItem.students.push({ name: nome, phone: fone, dueDate: vcto });
-                            outroItem.current++;
-                            let log2 = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${outroItem.name} (${outroItem.time})` };
-                            atualizarHistoricoLocal(log2); await salvarHistoricoNaNuvem(log2);
-                            alert(`✅ Também adicionado em ${outroItem.name}!`);
-                        }
-                    }
-                }
             } else {
                 if (item.students.length > 0) {
                     let r = item.students.pop();
@@ -809,10 +712,10 @@
             const list = document.getElementById('historyList'); list.innerHTML = '';
             const trintaDiasAtras = new Date(); trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
             historyData = historyData.filter(h => new Date(h.date) >= trintaDiasAtras);
-            if (historyData.length === 0) { list.innerHTML = '<p style="color:#94a3b8; text-align:center; padding:30px; font-size:14px;">Nenhuma movimentação registrada nos últimos 30 dias.</p>'; return; }
+            if (historyData.length === 0) { list.innerHTML = '<p style="color:#94a3b8; text-align:center; padding:30px;">Nenhuma movimentação nos últimos 30 dias.</p>'; return; }
             historyData.forEach(h => {
-                let d = new Date(h.date).toLocaleString('pt-BR'); let isAdd = h.type === 'ADD';
-                list.innerHTML += `<div class="history-item"><div><span class="history-badge ${isAdd ? 'badge-add' : 'badge-rem'}">${isAdd ? 'Matrícula' : 'Remoção'}</span><span>O aluno <strong>${h.student}</strong> foi ${isAdd ? 'vinculado à' : 'removido da'} turma <strong>${h.className}</strong></span></div><span style="color:#94a3b8; font-weight:500;">📅 ${d}</span></div>`;
+                let d = new Date(h.date).toLocaleString('pt-BR');
+                list.innerHTML += `<div class="history-item"><div><span class="history-badge ${h.type === 'ADD' ? 'badge-add' : 'badge-rem'}">${h.type === 'ADD' ? 'Matrícula' : 'Remoção'}</span><span>O aluno <strong>${h.student}</strong> foi ${h.type === 'ADD' ? 'vinculado à' : 'removido da'} turma <strong>${h.className}</strong></span></div><span style="color:#94a3b8;">📅 ${d}</span></div>`;
             });
         }
 
@@ -823,60 +726,60 @@
             let total = [];
             classData.forEach(c => { 
                 c.students.forEach(s => { 
-                    total.push({ name: s.name, phone: s.phone, dueDate: s.dueDate || formatarDataPadrao(), className: c.name, time: c.time, classId: c.id }); 
+                    total.push({ code: s.code, name: s.name, phone: s.phone, dueDate: s.dueDate || formatarDataPadrao(), days: s.days, className: c.name, time: c.time, classId: c.id }); 
                 }); 
             });
             if (search) total = total.filter(s => s.name.toLowerCase().includes(search) || s.phone.includes(search));
-            if (total.length === 0) { body.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#94a3b8;">Nenhum aluno cadastrado.</td></tr>`; return; }
+            if (alunoFilterStatus === 'VENCIDOS') total = total.filter(s => verificarVencimento(s.dueDate).vencido);
+            else if (alunoFilterStatus === 'EM_DIA') total = total.filter(s => !verificarVencimento(s.dueDate).vencido);
+            if (total.length === 0) { body.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#94a3b8;">Nenhum aluno encontrado.</td></tr>`; return; }
             
-            let alunosUnicosProcessed = [];
             total.forEach(s => {
-                if(!alunosUnicosProcessed.includes(s.name.toLowerCase())){
-                    alunosUnicosProcessed.push(s.name.toLowerCase());
-                    const todasAsMatriculas = obterTurmasDoAluno(s.name);
-                    const statusVenc = getStatusVencimento(s.dueDate);
-                    const vencidoClass = statusVenc.alerta ? ' class="vencido"' : '';
-                    const situacao = `<span class="${statusVenc.classe}">${statusVenc.texto}</span>`;
-                    body.innerHTML += `
-                        <tr${vencidoClass}>
-                            <td class="student-name">👤 ${s.name}</td>
-                            <td class="student-phone">${s.phone}</td>
-                            <td><span class="badge" style="background:#fffbeb; color:${statusVenc.alerta ? 'var(--danger)' : 'var(--warning)'}; padding:4px 8px; border-radius:6px; font-weight:700; border:1px solid ${statusVenc.alerta ? '#fecaca' : '#fde68a'};">📅 ${formatarVencimento(s.dueDate)}</span></td>
-                            <td>${situacao}</td>
-                            <td><span style="font-size:11px; color:#475569; font-weight:600; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block;">${todasAsMatriculas.join(' | ')}</span></td>
-                            <td><div style="display:flex; gap:6px; align-items:center;"><a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="btn-whatsapp" style="padding: 4px 8px;">WhatsApp</a><button class="btn-table-del" onclick="removerAlunoPelaTabela(${s.classId}, '${s.name}')">Excluir 🗑️</button></div></td>
-                        </tr>`;
-                }
+                const statusVenc = getStatusVencimento(s.dueDate);
+                const vencidoClass = statusVenc.alerta ? ' class="vencido"' : '';
+                const diasAluno = s.days && s.days.length > 0 ? s.days.join('/') : 'Todos';
+                body.innerHTML += `<tr${vencidoClass}><td><span style="color:#94a3b8; font-size:11px;">#${s.code || '----'}</span></td><td class="student-name">👤 ${s.name}</td><td class="student-phone">${s.phone}</td><td><span class="badge" style="background:#fffbeb; color:${statusVenc.alerta ? 'var(--danger)' : 'var(--warning)'}; padding:4px 8px; border-radius:6px; font-weight:700;">📅 ${formatarVencimento(s.dueDate)}</span></td><td><span style="font-size:11px; color:var(--primary); font-weight:600;">📅 ${diasAluno}</span></td><td><span class="${statusVenc.classe}">${statusVenc.texto}</span></td><td><div style="display:flex; gap:4px;"><button class="btn-edit" onclick="editarAluno(${s.code}, ${s.classId})">✏️</button><a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="btn-whatsapp">WhatsApp</a><button class="btn-table-del" onclick="removerAlunoPelaTabela(${s.classId}, '${s.name}')">🗑️</button></div></td></tr>`;
+            });
+        }
+
+        function renderVencidosList() {
+            const container = document.getElementById('vencidosList');
+            container.innerHTML = '';
+            let todosVencidos = [];
+            classData.forEach(c => {
+                c.students.forEach(s => {
+                    const resultado = verificarVencimento(s.dueDate);
+                    if (resultado.vencido && resultado.dias <= 30) {
+                        todosVencidos.push({ code: s.code, name: s.name, phone: s.phone, dueDate: s.dueDate, dias: resultado.dias, turma: `${c.name} (${c.time.split(' ')[0]})`, classId: c.id });
+                    }
+                });
+            });
+            let unicos = [], nomesProcessados = [];
+            todosVencidos.forEach(v => { if (!nomesProcessados.includes(v.name.toLowerCase())) { nomesProcessados.push(v.name.toLowerCase()); unicos.push(v); } });
+            unicos.sort((a, b) => b.dias - a.dias);
+            if (alunoFilterStatus === 'EM_DIA') { container.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:20px;">✅ Filtro Em Dia ativo.</p>'; return; }
+            if (unicos.length === 0) { container.innerHTML = '<p style="text-align:center; color:#16a34a; padding:20px; font-weight:600;">✅ Todos os alunos estão em dia!</p>'; return; }
+            unicos.forEach(v => {
+                container.innerHTML += `<div class="vencido-card"><div><strong>#${v.code || '----'} 👤 ${v.name}</strong> - <span style="color:var(--danger); font-weight:700;">⚠️ Vencido há ${v.dias} dias</span><span style="color:#64748b; margin-left:10px;">📞 ${v.phone}</span><span style="color:#64748b; margin-left:10px;">📅 Venc: ${formatarVencimento(v.dueDate)}</span><div style="font-size:11px; color:#64748b;">📚 ${obterTurmasDoAluno(v.name).join(' | ')}</div></div><a href="https://wa.me/${v.phone.replace(/\D/g, '')}" target="_blank" class="btn-whatsapp" style="padding:6px 12px;">💬 Cobrar</a></div>`;
             });
         }
 
         function renderResumeTab() {
             const container = document.getElementById('resumeListContainer'); container.innerHTML = '';
-            const gruposDias = ["Segunda - Quarta e Sexta", "Terça e Quinta", "Sexta", "Sábado"];
-            
             let resumoTurnos = { manha: { alunos: 0, capacidade: 0 }, tarde: { alunos: 0, capacidade: 0 }, noite: { alunos: 0, capacidade: 0 }, sabado: { alunos: 0, capacidade: 0 } };
             classData.forEach(c => {
                 const turno = getTurno(c.time, c.days);
                 resumoTurnos[turno].capacidade += c.max;
                 resumoTurnos[turno].alunos += c.current;
             });
-            
             container.innerHTML += `<div class="resume-section-title">📊 RESUMO POR TURNO</div>`;
             ['manha', 'tarde', 'noite', 'sabado'].forEach(turno => {
                 const t = resumoTurnos[turno];
                 const pct = t.capacidade > 0 ? Math.round((t.alunos / t.capacidade) * 100) : 0;
                 const nomes = { manha: '☀️ Manhã', tarde: '🌤️ Tarde', noite: '🌙 Noite', sabado: '📅 Sábado' };
-                container.innerHTML += `
-                    <div class="resume-row">
-                        <div><strong>${nomes[turno]}</strong></div>
-                        <div class="resume-meta">
-                            <span>${t.alunos}/${t.capacidade} vagas</span>
-                            <div class="resume-bar-bg"><div style="width:${pct}%; background:${pct >= 90 ? 'var(--danger)' : (pct >= 70 ? 'var(--warning)' : 'var(--success)')}; height:100%;"></div></div>
-                            <span style="color:#64748b; font-weight:bold; width:35px; text-align:right;">${pct}%</span>
-                        </div>
-                    </div>`;
+                container.innerHTML += `<div class="resume-row"><div><strong>${nomes[turno]}</strong></div><div class="resume-meta"><span>${t.alunos}/${t.capacidade} vagas</span><div class="resume-bar-bg"><div style="width:${pct}%; background:${pct >= 90 ? 'var(--danger)' : (pct >= 70 ? 'var(--warning)' : 'var(--success)')}; height:100%;"></div></div><span style="color:#64748b; font-weight:bold;">${pct}%</span></div></div>`;
             });
-            
+            const gruposDias = ["Segunda - Quarta e Sexta", "Terça e Quinta", "Sexta", "Sábado"];
             container.innerHTML += `<div class="resume-section-title" style="margin-top:20px;">📅 RESUMO POR DIA</div>`;
             gruposDias.forEach(dia => {
                 let turmas = classData.filter(c => c.days === dia);
@@ -884,14 +787,13 @@
                     let totalAlunosDia = turmas.reduce((sum, t) => sum + t.current, 0);
                     let totalCapacidadeDia = turmas.reduce((sum, t) => sum + t.max, 0);
                     let pctDia = totalCapacidadeDia > 0 ? Math.round((totalAlunosDia / totalCapacidadeDia) * 100) : 0;
-                    
                     container.innerHTML += `<div class="resume-section-title">${dia} (${totalAlunosDia}/${totalCapacidadeDia} - ${pctDia}%)</div>`;
                     turmas.forEach(t => {
                         let pct = Math.round((t.current / t.max) * 100); 
                         let barColor = pct >= 100 ? 'var(--danger)' : (pct >= 80 ? 'var(--warning)' : 'var(--success)');
                         let vencidosNaTurma = t.students.filter(s => verificarVencimento(s.dueDate).vencido).length;
                         let infoVencidos = vencidosNaTurma > 0 ? ` <span style="color:var(--danger); font-size:11px;">(${vencidosNaTurma} vencidos)</span>` : '';
-                        container.innerHTML += `<div class="resume-row"><div><strong>${t.name}</strong> <span style="color:#64748b; margin-left:10px;">${t.time}</span>${infoVencidos}</div><div class="resume-meta"><span>${t.current}/${t.max} vagas</span><div class="resume-bar-bg"><div style="width:${pct}%; background:${barColor}; height:100%;"></div></div><span style="color:#64748b; font-weight:bold; width:35px; text-align:right;">${pct}%</span></div></div>`;
+                        container.innerHTML += `<div class="resume-row"><div><strong>${t.name}</strong> <span style="color:#64748b;">${t.time}</span>${infoVencidos}</div><div class="resume-meta"><span>${t.current}/${t.max} vagas</span><div class="resume-bar-bg"><div style="width:${pct}%; background:${barColor}; height:100%;"></div></div><span style="color:#64748b; font-weight:bold;">${pct}%</span></div></div>`;
                     });
                 }
             });
