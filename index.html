@@ -17,16 +17,25 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background-color: var(--background); color: var(--text); padding-bottom: 40px; }
-        header { background: var(--primary-gradient); color: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        header { background: var(--primary-gradient); color: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); flex-wrap: wrap; gap: 12px; }
         .brand-container { display: flex; align-items: center; gap: 12px; }
         .brand-logo { background: rgba(255,255,255,0.2); padding: 8px; border-radius: 8px; font-size: 20px; }
         .brand-title h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
         .brand-title p { font-size: 12px; opacity: 0.8; }
-        .header-actions { display: flex; align-items: center; gap: 20px; }
+        .header-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
         .global-stats { text-align: right; }
         .global-stats div { font-size: 13px; font-weight: 600; }
         .global-stats .vagas { opacity: 0.8; font-size: 12px; font-weight: 400; }
         .btn-logout { background: rgba(255,255,255,0.15); border: none; color: white; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; }
+        .btn-logout:hover { background: rgba(255,255,255,0.25); }
+        .search-box-header { background: rgba(255,255,255,0.15); border-radius: 30px; padding: 6px 15px; display: flex; align-items: center; gap: 8px; }
+        .search-box-header input { background: transparent; border: none; outline: none; color: white; font-size: 13px; width: 180px; }
+        .search-box-header input::placeholder { color: rgba(255,255,255,0.7); }
+        .btn-icon { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; font-weight: 600; }
+        .btn-icon:hover { background: rgba(255,255,255,0.3); }
+        .google-status { font-size: 10px; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 20px; display: inline-block; }
+        .google-status.connected { background: #16a34a; }
+
         .nav-tabs { background: var(--card-bg); border-bottom: 1px solid var(--border); padding: 0 40px; display: flex; gap: 30px; overflow-x: auto; white-space: nowrap; }
         .nav-tabs::-webkit-scrollbar { display: none; }
         .tab-link { padding: 15px 5px; font-size: 14px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
@@ -35,10 +44,13 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        .summary-widgets { display: flex; gap: 15px; margin-bottom: 25px; overflow-x: auto; white-space: nowrap; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
+        .summary-widgets { display: flex; gap: 15px; margin-bottom: 25px; overflow-x: auto; white-space: nowrap; padding-bottom: 8px; -webkit-overflow-scrolling: touch; -ms-overflow-style: none; scrollbar-width: none; }
         .summary-widgets::-webkit-scrollbar { display: none; }
-        .summary-widgets { -ms-overflow-style: none; scrollbar-width: none; }
         .widget { background: var(--card-bg); padding: 15px 25px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid var(--border); flex-shrink: 0; min-width: 180px; }
+        @media(min-width: 1000px) and (max-width: 1180px) {
+            .summary-widgets { display: grid; grid-template-columns: repeat(2, 1fr); overflow-x: visible; white-space: normal; }
+            .widget { min-width: unset; }
+        }
         .widget .val { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
         .widget .lbl { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; }
         .widget .sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
@@ -56,13 +68,14 @@
         .filter-options::-webkit-scrollbar { display: none; }
         .btn-select { background: #f1f5f9; border: 1px solid var(--border); padding: 6px 14px; border-radius: 15px; cursor: pointer; font-size: 12px; font-weight: 600; color: #475569; flex-shrink: 0; }
         .btn-select.active, .btn-select:hover { background: var(--primary); color: white; border-color: var(--primary); }
-        
+
         .fast-form { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
         .form-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; background: white; }
+        .form-input:focus { border-color: var(--primary); }
         .form-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; background: white; max-width: 260px; }
         .btn-submit-form { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; }
-        .btn-edit { background: var(--warning); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px; }
-        
+        .btn-submit-form:hover { opacity: 0.9; }
+
         .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border); border-top: 5px solid var(--primary); display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.01); }
         .card.empty-class { border-top-color: #cbd5e1; }
@@ -75,79 +88,126 @@
         .counter-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
         .progress-bar { background: #e2e8f0; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 6px; }
         .progress-fill { height: 100%; background: var(--success); width: 0%; }
-        
+
         .student-list { max-height: 150px; overflow-y: auto; margin-bottom: 12px; border-top: 1px dashed var(--border); padding-top: 8px; }
         .student-item { font-size: 12px; padding: 6px 0; border-bottom: 1px dashed #f1f5f9; display: flex; flex-direction: column; gap: 2px; }
         .student-item.vencido { background-color: #fef2f2; border-left: 3px solid var(--danger); padding-left: 8px; }
         .student-info-row { display: flex; justify-content: space-between; align-items: center; }
         .student-name { font-weight: 600; color: var(--text); }
         .student-phone { color: #64748b; font-family: monospace; }
-        .student-code { color: #94a3b8; font-size: 10px; }
-        .student-days { font-size: 10px; color: var(--primary); font-weight: 600; }
         .student-other-classes { font-size: 10px; color: #94a3b8; font-style: italic; display: block; margin-top: 1px; }
         .btn-whatsapp { background-color: #25d366; color: white; text-decoration: none; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .badge-vencido { background: #fee2e2; color: #dc2626; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; }
         .badge-em-dia { background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; }
-        
+
         .actions { display: flex; gap: 8px; }
         .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
         .btn-add { background: #dcfce7; color: #15803d; }
         .btn-remove { background: #fee2e2; color: #b91c1c; }
         .btn-view { background: #f1f5f9; color: #475569; max-width: 45px; padding: 10px 0; font-size: 14px; }
         .btn-table-del { background: #fee2e2; color: #b91c1c; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px; }
+        .btn-edit { background: #e0f2fe; color: #0369a1; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px; }
         .status-badge { float: right; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; }
         .status-full { background: #fee2e2; color: #b91c1c; }
         .status-open { background: #dcfce7; color: #15803d; }
         .status-empty { background: #f1f5f9; color: #64748b; }
-        
+
         .table-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; padding: 10px; }
         .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
         .data-table th { background: #f8fafc; padding: 12px; font-weight: 700; color: #64748b; border-bottom: 1px solid var(--border); }
         .data-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
         .data-table tr.vencido { background-color: #fef2f2; }
-        
+
         .resume-section-title { font-size: 14px; font-weight: 700; color: #475569; margin: 20px 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px; }
         .resume-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: var(--card-bg); border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border); font-size: 13px; }
         .resume-meta { display: flex; align-items: center; gap: 15px; }
         .resume-bar-bg { width: 100px; background: #e2e8f0; height: 6px; border-radius: 3px; overflow: hidden; }
-        
+
         .history-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; padding: 15px; }
         .history-item { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
         .history-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-right: 10px; }
         .badge-add { background: #dcfce7; color: #15803d; }
         .badge-rem { background: #fee2e2; color: #b91c1c; }
-        
+
+        .vencidos-list { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); padding: 15px; margin-top: 20px; }
+        .vencidos-list h3 { font-size: 14px; font-weight: 700; color: var(--danger); margin-bottom: 12px; }
+        .vencido-card { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #fef2f2; border-radius: 8px; border-left: 4px solid var(--danger); margin-bottom: 8px; gap: 10px; font-size: 13px; }
+
         .loading-banner { text-align: center; background: #e0f2fe; color: #0369a1; padding: 8px; font-size: 12px; font-weight: bold; border-radius: 6px; margin-bottom: 15px; display: none; }
+
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 20000; visibility: hidden; opacity: 0; transition: all 0.25s ease; }
         .modal-overlay.active { visibility: visible; opacity: 1; }
-        .modal-card { background: var(--card-bg); width: 95%; max-width: 900px; border-radius: 16px; border-top: 6px solid var(--primary); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); transform: scale(0.9); transition: transform 0.25s ease; overflow: hidden; display: flex; flex-direction: column; }
+        .modal-card { background: var(--card-bg); width: 90%; max-width: 580px; border-radius: 16px; border-top: 6px solid var(--primary); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); transform: scale(0.9); transition: transform 0.25s ease; overflow: hidden; display: flex; flex-direction: column; }
         .modal-overlay.active .modal-card { transform: scale(1); }
         .modal-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; }
         .modal-header-info h2 { font-size: 18px; font-weight: 700; color: #0f172a; }
         .modal-close-btn { background: #f1f5f9; border: none; font-size: 18px; width: 32px; height: 32px; border-radius: 5px; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; }
-        .modal-body { padding: 20px; max-height: 70vh; overflow-y: auto; }
-        
-        .modal-student-row { padding: 10px 15px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; }
+        .modal-body { padding: 20px; max-height: 60vh; overflow-y: auto; }
+        .modal-student-row { padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
         .modal-student-row.vencido { background-color: #fef2f2; border-left: 3px solid var(--danger); }
-        .modal-student-info { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; flex: 1; }
-        .modal-student-name { font-weight: 600; font-size: 14px; color: #0f172a; white-space: nowrap; }
-        .modal-student-vencimento { font-size: 12px; font-weight: 600; white-space: nowrap; }
-        .modal-student-phone { font-size: 12px; color: #64748b; font-family: monospace; white-space: nowrap; }
-        .modal-student-matriculas { font-size: 11px; color: #64748b; background: #f1f5f9; padding: 3px 8px; border-radius: 4px; white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
-        .modal-student-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-        .modal-btn-zap { background: #25d366; color: white; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-        .modal-btn-del { background: #fee2e2; color: #b91c1c; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .modal-btn-edit { background: var(--warning); color: white; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        
-        .edit-form { background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 15px; }
-        .edit-form h4 { color: #92400e; margin-bottom: 10px; }
-        .checkbox-group { display: flex; gap: 10px; flex-wrap: wrap; }
-        .checkbox-group label { display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
-        
-        .vencidos-list { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); padding: 15px; margin-top: 20px; }
-        .vencidos-list h3 { color: var(--danger); margin-bottom: 15px; font-size: 16px; }
-        .vencido-card { background: #fef2f2; border-left: 4px solid var(--danger); padding: 12px 15px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        
+        .modal-student-info { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+        .modal-student-name { font-weight: 600; font-size: 14px; color: #0f172a; }
+        .modal-student-phone { font-size: 13px; color: #64748b; font-family: monospace; }
+        .modal-student-vencimento { font-size: 11px; }
+        .modal-student-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+        .modal-btn-zap { background: #25d366; color: white; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+        .modal-btn-edit { background: #e0f2fe; color: #0369a1; border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .modal-btn-del { background: #fee2e2; color: #b91c1c; border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+        .modal-section-title { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 0 6px 0; border-bottom: 2px solid var(--border); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .modal-section-count { background: #e0f2fe; color: var(--primary); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+        .modal-exp-row { padding: 12px; background: #fffbeb; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .exp-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+        .exp-badge-agendado { background: #fef3c7; color: #92400e; }
+        .exp-badge-compareceu { background: #dcfce7; color: #15803d; }
+        .exp-badge-faltou { background: #fee2e2; color: #b91c1c; }
+
+        /* Modal de cadastro rápido pelo card */
+        .modal-tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
+        .modal-tab-btn { flex: 1; padding: 10px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+        .modal-tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .modal-tab-pane { display: none; }
+        .modal-tab-pane.active { display: block; }
+        .quick-form-field { margin-bottom: 12px; }
+        .quick-form-field label { display: block; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 5px; }
+        .quick-form-field input, .quick-form-field select { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; }
+        .quick-form-field input:focus, .quick-form-field select:focus { border-color: var(--primary); }
+        .quick-dias-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .quick-dia-label { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: #475569; cursor: pointer; padding: 4px 10px; border-radius: 12px; border: 1px solid var(--border); background: #f8fafc; user-select: none; }
+        .quick-dia-label:has(input:checked) { background: var(--primary); color: white; border-color: var(--primary); }
+        .quick-dia-label input { display: none; }
+        .btn-quick-submit { width: 100%; background: var(--primary-gradient); color: white; border: none; padding: 11px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 6px; }
+        .btn-quick-submit:hover { opacity: 0.9; }
+        .btn-quick-submit.green { background: linear-gradient(135deg, #10b981, #059669); }
+
+        /* Sidebar experimentais do dia */
+        .exp-today-item { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+        .exp-today-item:last-child { border-bottom: none; }
+        .exp-today-name { font-weight: 700; color: #0f172a; }
+        .exp-today-sub { color: #64748b; font-size: 11px; }
+
+        /* Sidebar ranking */
+        .dashboard-layout { display: flex; gap: 20px; align-items: flex-start; }
+        .turmas-grid { flex: 3; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .ranking-sidebar { flex: 1; min-width: 220px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); padding: 20px; position: sticky; top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .ranking-sidebar h3 { font-size: 13px; font-weight: 700; color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 8px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
+        .ranking-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 12px; gap: 8px; }
+        .ranking-item .ocupacao-bar-mini { width: 50px; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+        .sidebar-stats { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+        .sidebar-stat { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; color: #475569; }
+
+        /* Dias de treino - checkboxes no cadastro */
+        .dias-treino-group { display: flex; align-items: center; gap: 8px; background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; flex-wrap: wrap; }
+        .dias-treino-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-right: 4px; white-space: nowrap; }
+        .dia-check-label { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: #475569; cursor: pointer; padding: 3px 8px; border-radius: 12px; border: 1px solid var(--border); background: #f8fafc; white-space: nowrap; user-select: none; }
+        .dia-check-label:has(input:checked) { background: var(--primary); color: white; border-color: var(--primary); }
+        .dia-check-label input { display: none; }
+
+        /* Dias - filtro no dashboard */
+        .dia-filtro-label { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: #475569; cursor: pointer; padding: 5px 12px; border-radius: 15px; border: 1px solid var(--border); background: #f1f5f9; white-space: nowrap; user-select: none; flex-shrink: 0; }
+        .dia-filtro-label:has(input:checked) { background: var(--primary); color: white; border-color: var(--primary); }
+        .dia-filtro-label input { display: none; }
+
         .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--background); display: flex; align-items: center; justify-content: center; z-index: 10000; }
         .login-card { background: var(--card-bg); padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%; max-width: 400px; text-align: center; }
         .login-logo { font-size: 48px; margin-bottom: 15px; }
@@ -158,20 +218,21 @@
         .btn-login { width: 100%; background: var(--primary-gradient); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; }
         .login-error { color: var(--danger); font-size: 12px; font-weight: 600; margin-top: 10px; display: none; }
         #appContainer { display: none; }
-        
+
         @media(max-width: 768px) {
             header { flex-direction: column; text-align: center; gap: 10px; padding: 15px; }
+            .header-actions { justify-content: center; }
             .global-stats { text-align: center; }
-            .nav-tabs { padding: 0 15px; gap: 15px; justify-content: flex-start; }
+            .search-box-header input { width: 140px; }
+            .nav-tabs { padding: 0 15px; gap: 15px; }
             .widget { padding: 12px 15px; min-width: 150px; border-radius: 10px; }
             .widget .val { font-size: 18px; } .widget .lbl { font-size: 9px; }
-            .filter-group { flex-direction: row; align-items: center; justify-content: flex-start; width: 100%; }
-            .filter-label { min-width: 70px; font-size: 10px; } .grid-container { grid-template-columns: 1fr; }
+            .filter-group { flex-direction: row; align-items: center; width: 100%; }
+            .filter-label { min-width: 70px; font-size: 10px; }
             .fast-form { flex-direction: column; align-items: stretch; } .form-select { max-width: 100%; }
             .history-item { flex-direction: column; align-items: flex-start; gap: 6px; }
-            .modal-student-row { flex-direction: column; align-items: flex-start; }
-            .modal-student-info { flex-direction: column; align-items: flex-start; gap: 5px; }
-            .modal-student-actions { width: 100%; justify-content: flex-end; }
+            .dashboard-layout { flex-direction: column; }
+            .ranking-sidebar { position: static; width: 100%; }
         }
     </style>
 </head>
@@ -193,6 +254,15 @@
                 <div class="brand-title"><h1>AquaControl</h1><p>Controle de Turmas</p></div>
             </div>
             <div class="header-actions">
+                <!-- NOVO: Busca global -->
+                <div class="search-box-header">
+                    <span>🔍</span>
+                    <input type="text" id="globalSearchHeader" placeholder="Buscar aluno ou turma..." oninput="buscarGlobal()">
+                </div>
+                <!-- NOVO: Botão Exportar CSV -->
+                <button class="btn-icon" onclick="exportarCSV()">📥 CSV</button>
+                <!-- NOVO: Status Google Sheets -->
+                <span id="googleStatus" class="google-status">📡 Offline</span>
                 <div class="global-stats"><div id="topGlobalAlunos">0 alunos ativos</div><div class="vagas" id="topGlobalVagas">1137 vagas livres</div></div>
                 <button class="btn-logout" onclick="logout()">Sair 🚪</button>
             </div>
@@ -202,6 +272,7 @@
             <div class="tab-link" onclick="switchTab('alunos')">👥 Alunos</div>
             <div class="tab-link" onclick="switchTab('resumo')">📊 Resumo</div>
             <div class="tab-link" onclick="switchTab('historico')">📜 Histórico (30 dias)</div>
+            <div class="tab-link" onclick="switchTab('calendario')">📅 Calendário</div>
         </div>
         <div class="container">
             <div id="loadingBanner" class="loading-banner">🔄 Sincronizando com o Google Sheets...</div>
@@ -219,29 +290,73 @@
             <div id="tab-turmas" class="tab-content active">
                 <div class="filter-panel">
                     <div class="search-container"><input type="text" id="searchBar" class="search-bar" placeholder="🔍 Buscar turma, horário ou aluno..." oninput="filtrarETrabalhar()"></div>
-                    <div class="filter-group"><div class="filter-label">Dias:</div><div class="filter-options" id="filterDays"><button class="btn-select active" onclick="setFilter('day', 'TODOS')">Todos</button><button class="btn-select" onclick="setFilter('day', 'Segunda - Quarta e Sexta')">Seg/Qua/Sex</button><button class="btn-select" onclick="setFilter('day', 'Terça e Quinta')">Ter/Qui</button><button class="btn-select" onclick="setFilter('day', 'Sábado')">Sábado</button><button class="btn-select" onclick="setFilter('day', 'Sexta')">Sexta</button></div></div>
+                    <div class="filter-group">
+                        <div class="filter-label">Dias:</div>
+                        <div class="filter-options" id="filterDays" style="align-items:center; gap:8px;">
+                            <button class="btn-select active" onclick="limparFiltrosDia(this)">Todos</button>
+                            <label class="dia-filtro-label"><input type="checkbox" class="dia-filtro-cb" value="Segunda" onchange="filtrarPorDias()"> Seg</label>
+                            <label class="dia-filtro-label"><input type="checkbox" class="dia-filtro-cb" value="Terça" onchange="filtrarPorDias()"> Ter</label>
+                            <label class="dia-filtro-label"><input type="checkbox" class="dia-filtro-cb" value="Quarta" onchange="filtrarPorDias()"> Qua</label>
+                            <label class="dia-filtro-label"><input type="checkbox" class="dia-filtro-cb" value="Quinta" onchange="filtrarPorDias()"> Qui</label>
+                            <label class="dia-filtro-label"><input type="checkbox" class="dia-filtro-cb" value="Sexta" onchange="filtrarPorDias()"> Sex</label>
+                            <label class="dia-filtro-label"><input type="checkbox" class="dia-filtro-cb" value="Sábado" onchange="filtrarPorDias()"> Sáb</label>
+                        </div>
+                    </div>
                     <div class="filter-group"><div class="filter-label">Modalidade:</div><div class="filter-options" id="filterModalities"><button class="btn-select active" onclick="setFilter('modality', 'TODAS')">Todas</button><button class="btn-select" onclick="setFilter('modality', 'Natação Adulto')">Adulto</button><button class="btn-select" onclick="setFilter('modality', 'Hidroginástica')">Hidro</button><button class="btn-select" onclick="setFilter('modality', 'Natação Infantil Nível 1')">Infantil N1</button><button class="btn-select" onclick="setFilter('modality', 'Natação Infantil Nível 2')">Infantil N2</button><button class="btn-select" onclick="setFilter('modality', 'Natação Infantil Nível 3')">Infantil N3</button><button class="btn-select" onclick="setFilter('modality', 'Natação Baby')">Baby</button><button class="btn-select" onclick="setFilter('modality', 'Personal Class')">Personal</button></div></div>
                     <div class="filter-group"><div class="filter-label">Turno:</div><div class="filter-options" id="filterTurnos"><button class="btn-select active" onclick="setFilter('turno', 'TODOS')">Todos</button><button class="btn-select" onclick="setFilter('turno', 'Manhã')">Manhã</button><button class="btn-select" onclick="setFilter('turno', 'Tarde')">Tarde</button><button class="btn-select" onclick="setFilter('turno', 'Noite')">Noite</button></div></div>
-                    <div class="filter-group"><div class="filter-label">Ocupação:</div><div class="filter-options" id="filterOcupacao"><button class="btn-select active" onclick="setFilter('status', 'TODOS')">Todos</button><button class="btn-select" onclick="setFilter('status', 'COM_ALUNOS')">Com Alunos</button><button class="btn-select" onclick="setFilter('status', 'VENCIDOS')">🔴 Vencidos</button><button class="btn-select" onclick="setFilter('status', 'VACANCY')">Com Vagas</button><button class="btn-select" onclick="setFilter('status', 'FULL')">Lotadas</button><button class="btn-select" onclick="setFilter('status', 'EMPTY')">Vazias</button></div></div>
+                    <div class="filter-group"><div class="filter-label">Ocupação:</div><div class="filter-options" id="filterOcupacao"><button class="btn-select active" onclick="setFilter('status', 'TODOS')">Todos</button><button class="btn-select" onclick="setFilter('status', 'COM_ALUNOS')">Com Alunos</button><button class="btn-select" onclick="setFilter('status', 'VENCIDOS')">🔴 Vencidos</button><button class="btn-select" onclick="setFilter('status', 'VACANCY')">Com Vagas</button><button class="btn-select" onclick="setFilter('status', 'FULL')">Lotadas</button><button class="btn-select" onclick="setFilter('status', 'EMPTY')">Vazias</button><button class="btn-select" onclick="setFilter('status', 'EXP_HOJE')" style="background:#fef3c7; color:#92400e; border-color:#fde68a;">🧪 Exp. Hoje</button></div></div>
                 </div>
-                <div class="grid-container" id="cardsGrid"></div>
+                <!-- NOVO: Layout com sidebar de ranking -->
+                <div class="dashboard-layout">
+                    <div class="turmas-grid" id="cardsGrid"></div>
+                    <div class="ranking-sidebar" id="rankingSidebar">
+                        <div class="sidebar-stats" style="margin-top:0; padding-top:0; border-top:none;">
+                            <h3>🧪 Experimentais Hoje</h3>
+                            <div id="expHojeList"></div>
+                        </div>
+                        <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border);">
+                        <h3>🏆 Ranking de Ocupação</h3>
+                        <div id="rankingList"></div>
+                        </div>
+                        <div class="sidebar-stats">
+                            <h3>🎂 Aniversariantes do Mês</h3>
+                            <div id="aniversariantesList"></div>
+                        </div>
+                        <div class="sidebar-stats">
+                            <h3>📊 Estatísticas Rápidas</h3>
+                            <div id="statsSidebar"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="tab-alunos" class="tab-content">
                 <div class="filter-panel">
                     <div class="fast-form" id="cadastroForm">
                         <input type="hidden" id="editStudentId" value="">
-                        <input type="text" id="addStudentName" class="form-input" style="flex-grow: 2;" placeholder="Nome do Novo Aluno">
-                        <input type="text" id="addStudentPhone" class="form-input" style="flex-grow: 1;" placeholder="Telefone (DDD + Número)">
-                        <input type="text" id="addStudentDueDate" class="form-input" style="width: 150px;" placeholder="Vencimento (Ex: 15/12)">
-                        <select id="addStudentClassTarget" class="form-select"></select>
-                        <div class="checkbox-group" id="diasCheckboxGroup" style="display:none;">
-                            <label><input type="checkbox" class="dia-checkbox" value="Segunda"> Seg</label>
-                            <label><input type="checkbox" class="dia-checkbox" value="Terça"> Ter</label>
-                            <label><input type="checkbox" class="dia-checkbox" value="Quarta"> Qua</label>
-                            <label><input type="checkbox" class="dia-checkbox" value="Quinta"> Qui</label>
-                            <label><input type="checkbox" class="dia-checkbox" value="Sexta"> Sex</label>
-                            <label><input type="checkbox" class="dia-checkbox" value="Sábado"> Sáb</label>
+                        <input type="text" id="addStudentName" class="form-input" style="flex-grow: 2; min-width:160px;" placeholder="Nome do Aluno">
+                        <input type="text" id="addStudentPhone" class="form-input" style="flex-grow: 1; min-width:140px;" placeholder="Telefone (DDD + Número)">
+                        <input type="text" id="addStudentDueDate" class="form-input" style="width: 130px;" placeholder="Vencimento (Ex: 15/12)">
+                        <select id="addStudentModality" class="form-select" onchange="filtrarTurmasPorModalidade()" style="min-width:160px;">
+                            <option value="">🏊 Selecione Modalidade</option>
+                            <option value="Natação Adulto">Natação Adulto</option>
+                            <option value="Hidroginástica">Hidroginástica</option>
+                            <option value="Natação Infantil Nível 1">Infantil Nível 1</option>
+                            <option value="Natação Infantil Nível 2">Infantil Nível 2</option>
+                            <option value="Natação Infantil Nível 3">Infantil Nível 3</option>
+                            <option value="Natação Baby">Natação Baby</option>
+                            <option value="Personal Class">Personal Class</option>
+                        </select>
+                        <select id="addStudentClassTarget" class="form-select" style="min-width:200px;"></select>
+                        <input type="text" id="addStudentObs" class="form-input" style="flex-grow: 1; min-width:120px;" placeholder="OBS (opcional)">
+                        <div class="dias-treino-group">
+                            <span class="dias-treino-label">Dias de Treino:</span>
+                            <label class="dia-check-label"><input type="checkbox" class="dia-treino-cb" value="Seg"> Seg</label>
+                            <label class="dia-check-label"><input type="checkbox" class="dia-treino-cb" value="Ter"> Ter</label>
+                            <label class="dia-check-label"><input type="checkbox" class="dia-treino-cb" value="Qua"> Qua</label>
+                            <label class="dia-check-label"><input type="checkbox" class="dia-treino-cb" value="Qui"> Qui</label>
+                            <label class="dia-check-label"><input type="checkbox" class="dia-treino-cb" value="Sex"> Sex</label>
+                            <label class="dia-check-label"><input type="checkbox" class="dia-treino-cb" value="Sáb"> Sáb</label>
                         </div>
                         <button class="btn-submit-form" onclick="cadastrarAlunoPelaTabela()" id="btnCadastrar">+ Matricular Aluno</button>
                         <button class="btn-submit-form" onclick="cancelarEdicao()" id="btnCancelar" style="display:none; background:#94a3b8;">Cancelar</button>
@@ -249,7 +364,7 @@
                     <div class="search-container" style="margin-bottom:15px;"><input type="text" id="studentTableSearch" class="search-bar" placeholder="🔍 Filtrar aluno cadastrado..." oninput="renderStudentTable()"></div>
                     <div class="filter-group"><div class="filter-label">Status:</div><div class="filter-options" id="filterAlunoStatus"><button class="btn-select active" onclick="setFilterAluno('TODOS')">Todos</button><button class="btn-select" onclick="setFilterAluno('VENCIDOS')">🔴 Vencidos</button><button class="btn-select" onclick="setFilterAluno('EM_DIA')">🟢 Em Dia</button></div></div>
                 </div>
-                <div class="table-container"><table class="data-table"><thead><tr><th>CÓD</th><th>NOME DO ALUNO</th><th>TELEFONE</th><th>VENCIMENTO</th><th>DIAS</th><th>SITUAÇÃO</th><th>AÇÕES</th></tr></thead><tbody id="studentTableBody"></tbody></table></div>
+                <div class="table-container"><table class="data-table"><thead><tr><th>CÓD</th><th>NOME DO ALUNO</th><th>TELEFONE</th><th>VENCIMENTO</th><th>OBS</th><th>DIAS DE TREINO</th><th>TURMA</th><th>SITUAÇÃO</th><th>AÇÕES</th></tr></thead><tbody id="studentTableBody"></tbody></table></div>
                 <div class="vencidos-list" id="vencidosListContainer">
                     <h3>⚠️ ALUNOS VENCIDOS (Últimos 30 dias)</h3>
                     <div id="vencidosList"></div>
@@ -258,6 +373,51 @@
 
             <div id="tab-resumo" class="tab-content"><div id="resumeListContainer"></div></div>
             <div id="tab-historico" class="tab-content"><div class="history-container"><div class="history-list" id="historyList"></div></div></div>
+            
+            <!-- NOVA ABA: CALENDÁRIO DE EXPERIMENTAIS -->
+            <div id="tab-calendario" class="tab-content">
+                <div class="filter-panel">
+                    <div class="fast-form" style="background: linear-gradient(135deg, #e0f2fe, #ffffff);">
+                        <input type="text" id="newExperimentalName" class="form-input" placeholder="Nome do aluno experimental" style="flex-grow:2;">
+                        <input type="text" id="newExperimentalPhone" class="form-input" placeholder="Telefone (DDD + Número)" style="flex-grow:1;">
+                        <select id="newExperimentalModality" class="form-select" onchange="filtrarTurmasExpPorModalidade()" style="min-width:160px;">
+                            <option value="">🏊 Modalidade</option>
+                            <option value="Natação Adulto">Natação Adulto</option>
+                            <option value="Hidroginástica">Hidroginástica</option>
+                            <option value="Natação Infantil Nível 1">Infantil Nível 1</option>
+                            <option value="Natação Infantil Nível 2">Infantil Nível 2</option>
+                            <option value="Natação Infantil Nível 3">Infantil Nível 3</option>
+                            <option value="Natação Baby">Natação Baby</option>
+                            <option value="Personal Class">Personal Class</option>
+                        </select>
+                        <select id="newExperimentalClass" class="form-select" style="min-width:200px;"></select>
+                        <input type="date" id="newExperimentalDate" class="form-input">
+                        <input type="text" id="newExperimentalObs" class="form-input" placeholder="OBS (opcional)" style="flex-grow:1;">
+                        <div class="dias-treino-group" id="expDiasTreinoGroup">
+                            <span class="dias-treino-label">Dias:</span>
+                            <label class="dia-check-label"><input type="checkbox" class="exp-dia-cb" value="Seg"> Seg</label>
+                            <label class="dia-check-label"><input type="checkbox" class="exp-dia-cb" value="Ter"> Ter</label>
+                            <label class="dia-check-label"><input type="checkbox" class="exp-dia-cb" value="Qua"> Qua</label>
+                            <label class="dia-check-label"><input type="checkbox" class="exp-dia-cb" value="Qui"> Qui</label>
+                            <label class="dia-check-label"><input type="checkbox" class="exp-dia-cb" value="Sex"> Sex</label>
+                            <label class="dia-check-label"><input type="checkbox" class="exp-dia-cb" value="Sáb"> Sáb</label>
+                        </div>
+                        <button class="btn-submit-form" onclick="agendarAulaExperimental()">📅 Agendar Experimental</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <div class="filter-group" style="margin-bottom: 15px;">
+                        <div class="filter-label">Status:</div>
+                        <div class="filter-options" id="filterExpStatus">
+                            <button class="btn-select active" onclick="filtrarExperimentais('TODOS')">Todos</button>
+                            <button class="btn-select" onclick="filtrarExperimentais('agendado')">🟡 Agendados</button>
+                            <button class="btn-select" onclick="filtrarExperimentais('compareceu')">🟢 Compareceram</button>
+                            <button class="btn-select" onclick="filtrarExperimentais('nao_compareceu')">🔴 Não Compareceram</button>
+                        </div>
+                    </div>
+                    <div id="experimentaisList"></div>
+                </div>
+            </div>
         </div>
     </div>
     <div id="modalOverlay" class="modal-overlay" onclick="closeModal()">
@@ -267,6 +427,40 @@
                 <button class="modal-close-btn" onclick="closeModal()">✕</button>
             </div>
             <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+    <!-- Modal de cadastro rápido pelo card da turma -->
+    <div id="quickAddOverlay" class="modal-overlay" onclick="closeQuickAdd()">
+        <div class="modal-card" onclick="event.stopPropagation()" style="max-width:520px;">
+            <div class="modal-header">
+                <div class="modal-header-info">
+                    <h2 id="quickAddTitle">Cadastrar na Turma</h2>
+                    <span id="quickAddSubtitle" style="color:var(--primary); font-weight:600; font-size:13px; background:#e0f2fe; padding:2px 8px; border-radius:4px; display:inline-block; margin-top:5px;"></span>
+                </div>
+                <button class="modal-close-btn" onclick="closeQuickAdd()">x</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-tabs">
+                    <button class="modal-tab-btn active" onclick="switchQuickTab('aluno', this)">Aluno Mensal</button>
+                    <button class="modal-tab-btn" onclick="switchQuickTab('exp', this)">Experimental</button>
+                </div>
+                <div id="quickPane-aluno" class="modal-tab-pane active">
+                    <div class="quick-form-field"><label>Nome do Aluno</label><input type="text" id="qNome" placeholder="Nome completo"></div>
+                    <div class="quick-form-field"><label>Telefone (WhatsApp)</label><input type="text" id="qTelefone" placeholder="(31) 99999-9999"></div>
+                    <div class="quick-form-field"><label>Vencimento (Ex: 15/06)</label><input type="text" id="qVencimento" placeholder="DD/MM"></div>
+                    <div class="quick-form-field"><label>OBS (opcional)</label><input type="text" id="qObs" placeholder="Observações..."></div>
+                    <div class="quick-form-field"><label>Dias de Treino</label><div class="quick-dias-row"><label class="quick-dia-label"><input type="checkbox" class="q-dia-cb" value="Seg"> Seg</label><label class="quick-dia-label"><input type="checkbox" class="q-dia-cb" value="Ter"> Ter</label><label class="quick-dia-label"><input type="checkbox" class="q-dia-cb" value="Qua"> Qua</label><label class="quick-dia-label"><input type="checkbox" class="q-dia-cb" value="Qui"> Qui</label><label class="quick-dia-label"><input type="checkbox" class="q-dia-cb" value="Sex"> Sex</label><label class="quick-dia-label"><input type="checkbox" class="q-dia-cb" value="Sab"> Sab</label></div></div>
+                    <button class="btn-quick-submit" onclick="salvarQuickAluno()">Matricular Aluno</button>
+                </div>
+                <div id="quickPane-exp" class="modal-tab-pane">
+                    <div class="quick-form-field"><label>Nome do Aluno</label><input type="text" id="qExpNome" placeholder="Nome completo"></div>
+                    <div class="quick-form-field"><label>Telefone (WhatsApp)</label><input type="text" id="qExpTelefone" placeholder="(31) 99999-9999"></div>
+                    <div class="quick-form-field"><label>Data da Aula Experimental</label><input type="date" id="qExpData"></div>
+                    <div class="quick-form-field"><label>OBS (opcional)</label><input type="text" id="qExpObs" placeholder="Observações..."></div>
+                    <div class="quick-form-field"><label>Dias de Treino</label><div class="quick-dias-row"><label class="quick-dia-label"><input type="checkbox" class="q-exp-dia-cb" value="Seg"> Seg</label><label class="quick-dia-label"><input type="checkbox" class="q-exp-dia-cb" value="Ter"> Ter</label><label class="quick-dia-label"><input type="checkbox" class="q-exp-dia-cb" value="Qua"> Qua</label><label class="quick-dia-label"><input type="checkbox" class="q-exp-dia-cb" value="Qui"> Qui</label><label class="quick-dia-label"><input type="checkbox" class="q-exp-dia-cb" value="Sex"> Sex</label><label class="quick-dia-label"><input type="checkbox" class="q-exp-dia-cb" value="Sab"> Sab</label></div></div>
+                    <button class="btn-quick-submit green" onclick="salvarQuickExp()">Agendar Experimental</button>
+                </div>
+            </div>
         </div>
     </div>
     <div id="editModalOverlay" class="modal-overlay" onclick="closeEditModal()">
@@ -295,14 +489,18 @@
 
         let classData = rawClasses.map(c => ({ id: c[0], name: c[1], days: c[2], time: c[3], max: c[4], current: 0, students: [] }));
         let historyData = [];
+        let experimentais = [];
         let activeFilters = { day: 'TODOS', modality: 'TODAS', turno: 'TODOS', status: 'TODOS' };
         let alunoFilterStatus = 'TODOS';
         let editingStudent = null;
         let studentIdCounter = 1000;
+        let currentExpFilter = 'TODOS';
+        let googleConnected = false;
 
         window.onload = function() {
             if (localStorage.getItem("aqua_authenticated") === "true") liberarSistema();
             povoarSelectDeTurmas();
+            filtrarTurmasExpPorModalidade();
         };
 
         function gerarCodigoAluno() { return ++studentIdCounter; }
@@ -322,25 +520,300 @@
             carregarDadosDaNuvem();
         }
 
-        function switchTab(tabName) {
+        function switchTab(tabName, targetEl) {
             document.querySelectorAll('.tab-link').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            event.target.classList.add('active');
+            const el = targetEl || (typeof event !== 'undefined' && event && event.target ? event.target : null);
+            if (el) el.classList.add('active');
+            else { document.querySelectorAll('.tab-link').forEach(t => { if (t.getAttribute('onclick') && t.getAttribute('onclick').includes(`'${tabName}'`)) t.classList.add('active'); }); }
             document.getElementById(`tab-${tabName}`).classList.add('active');
             if (tabName === 'alunos') { renderStudentTable(); renderVencidosList(); }
             if (tabName === 'resumo') renderResumeTab();
             if (tabName === 'historico') renderHistory();
+            if (tabName === 'calendario') renderExperimentais();
         }
 
-        function setFilterAluno(value) {
-            alunoFilterStatus = value;
-            let buttons = document.getElementById('filterAlunoStatus').querySelectorAll('.btn-select');
-            buttons.forEach(b => b.classList.remove('active'));
+        // ========== NOVAS FUNÇÕES ==========
+        
+        function buscarGlobal() {
+            const termo = document.getElementById('globalSearchHeader').value.toLowerCase();
+            if (!termo) { filtrarETrabalhar(); return; }
+            
+            // Buscar alunos em todas as turmas
+            let alunosEncontrados = [];
+            classData.forEach(c => {
+                c.students.forEach(s => {
+                    if (s.name.toLowerCase().includes(termo) || s.phone.includes(termo)) {
+                        alunosEncontrados.push({ ...s, turma: c.name, turmaId: c.id });
+                    }
+                });
+            });
+            
+            if (alunosEncontrados.length > 0) {
+                switchTab('alunos');
+                document.getElementById('studentTableSearch').value = termo;
+                renderStudentTable();
+            }
+        }
+        
+        function exportarCSV() {
+            let csv = "Código,Nome,Telefone,Vencimento,OBS,Dias de Treino,Turma,Status\n";
+            classData.forEach(c => {
+                c.students.forEach(s => {
+                    const statusVenc = verificarVencimento(s.dueDate);
+                    csv += `"${s.code || ''}","${s.name}","${s.phone}","${formatarVencimento(s.dueDate)}","${s.obs || ''}","${Array.isArray(s.diasTreino) ? s.diasTreino.join('/') : (s.diasTreino || '')}","${c.name} (${c.time})","${statusVenc.vencido ? 'Vencido' : 'Em dia'}"\n`;
+                });
+            });
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `aquacontrol_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+        
+        function getAniversariantesMes() {
+            const mesAtual = new Date().getMonth() + 1;
+            let aniversariantes = [];
+            classData.forEach(c => {
+                c.students.forEach(s => {
+                    if (s.birthday) {
+                        const mesAniv = parseInt(s.birthday.split('/')[1]);
+                        if (mesAniv === mesAtual) aniversariantes.push({ nome: s.name, aniversario: s.birthday, turma: c.name });
+                    }
+                });
+            });
+            return aniversariantes;
+        }
+        
+        function renderRankingESidebar() {
+            // Experimentais do dia de hoje
+            const hoje = new Date().toISOString().split('T')[0];
+            const expHoje = experimentais.filter(e => e.data === hoje);
+            const expHojeEl = document.getElementById('expHojeList');
+            if (expHojeEl) {
+                if (expHoje.length === 0) {
+                    expHojeEl.innerHTML = '<div class="exp-today-item" style="color:#94a3b8;">Nenhum experimental hoje</div>';
+                } else {
+                    expHojeEl.innerHTML = expHoje.map(e => {
+                        const turma = classData.find(c => c.id === e.turmaId);
+                        const stMap = { agendado: '🟡', compareceu: '🟢', nao_compareceu: '🔴' };
+                        return `<div class="exp-today-item">
+                            <span class="exp-today-name">${stMap[e.status] || '🟡'} ${e.nome}</span>
+                            <span class="exp-today-sub">${e.telefone} · ${turma ? turma.time.split(' ')[0] : ''} ${turma ? turma.name.split(' ').slice(0,2).join(' ') : ''}</span>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            // Ranking de ocupação
+            const ranking = [...classData].sort((a,b) => (b.current) - (a.current)).slice(0,5);
+            document.getElementById('rankingList').innerHTML = ranking.map(t => {
+                const pct = Math.round((t.current / t.max) * 100);
+                return `<div class="ranking-item">
+                    <span>${t.name.split(' ').slice(0,2).join(' ')}</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span><strong>${t.current}/${t.max}</strong></span>
+                        <div class="ocupacao-bar-mini"><div style="width:${pct}%; height:100%; background:${pct >= 90 ? '#ef4444' : (pct >= 70 ? '#f59e0b' : '#10b981')}"></div></div>
+                        <span>${pct}%</span>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            // Aniversariantes
+            const aniversariantes = getAniversariantesMes();
+            document.getElementById('aniversariantesList').innerHTML = aniversariantes.length ? 
+                aniversariantes.map(a => `<div class="ranking-item"><span>🎂 ${a.nome}</span><span>${a.aniversario}</span></div>`).join('') :
+                '<div class="ranking-item" style="color:#94a3b8;">Nenhum aniversariante este mês</div>';
+            
+            // Estatísticas rápidas
+            const totalAlunos = classData.reduce((sum, c) => sum + c.current, 0);
+            const totalVencidos = classData.reduce((sum, c) => sum + c.students.filter(s => verificarVencimento(s.dueDate).vencido).length, 0);
+            const totalExp = experimentais.length;
+            document.getElementById('statsSidebar').innerHTML = `
+                <div class="sidebar-stat"><span>👥 Total Alunos</span><span><strong>${totalAlunos}</strong></span></div>
+                <div class="sidebar-stat"><span>⚠️ Vencidos</span><span><strong style="color:var(--danger)">${totalVencidos}</strong></span></div>
+                <div class="sidebar-stat"><span>🧪 Experimentais</span><span><strong>${totalExp}</strong></span></div>
+                <div class="sidebar-stat"><span>🧪 Exp. Hoje</span><span><strong style="color:#92400e">${expHoje.length}</strong></span></div>
+            `;
+        }
+        
+        // filtrarTurmasExpPorModalidade é usada no lugar de povoarSelectExperimentais
+        
+        function agendarAulaExperimental() {
+            const nome = document.getElementById("newExperimentalName").value.trim();
+            const telefone = document.getElementById("newExperimentalPhone").value.trim();
+            const turmaId = parseInt(document.getElementById("newExperimentalClass").value);
+            const data = document.getElementById("newExperimentalDate").value;
+            const obs = document.getElementById("newExperimentalObs").value.trim();
+            const diasTreino = Array.from(document.querySelectorAll('.exp-dia-cb:checked')).map(cb => cb.value);
+            
+            if (!nome || !telefone || !turmaId || !data) {
+                alert("Preencha Nome, Telefone, Turma e Data!");
+                return;
+            }
+            
+            experimentais.push({
+                id: Date.now(),
+                nome: nome,
+                telefone: telefone,
+                turmaId: turmaId,
+                status: "agendado",
+                data: data,
+                obs: obs,
+                diasTreino: diasTreino
+            });
+            
+            document.getElementById("newExperimentalName").value = "";
+            document.getElementById("newExperimentalPhone").value = "";
+            document.getElementById("newExperimentalClass").value = "";
+            document.getElementById("newExperimentalDate").value = "";
+            document.getElementById("newExperimentalObs").value = "";
+            document.getElementById("newExperimentalModality").value = "";
+            document.querySelectorAll('.exp-dia-cb').forEach(cb => cb.checked = false);
+            filtrarTurmasExpPorModalidade();
+            
+            calcularEAtualizarWidgets();
+            renderExperimentais();
+            salvarNaNuvem();
+            alert(`✅ Aula experimental de ${nome} agendada!`);
+        }
+        
+        function renderExperimentais() {
+            let filtrados = experimentais;
+            if (currentExpFilter !== 'TODOS') {
+                filtrados = experimentais.filter(e => e.status === currentExpFilter);
+            }
+            
+            const container = document.getElementById('experimentaisList');
+            if (!container) return;
+            
+            if (filtrados.length === 0) {
+                container.innerHTML = '<div class="empty-message" style="text-align:center; padding:40px;">Nenhuma aula experimental encontrada</div>';
+                return;
+            }
+            
+            container.innerHTML = `<table class="data-table"><thead><tr><th>NOME</th><th>TELEFONE</th><th>TURMA</th><th>DATA</th><th>DIAS</th><th>OBS</th><th>STATUS</th><th>AÇÕES</th></tr></thead><tbody>
+                ${filtrados.map(exp => {
+                    const turma = classData.find(c => c.id === exp.turmaId);
+                    let statusText = '', statusClass = '';
+                    if (exp.status === 'agendado') { statusText = '🟡 Agendado'; statusClass = 'badge-vencido'; }
+                    else if (exp.status === 'compareceu') { statusText = '🟢 Compareceu'; statusClass = 'badge-em-dia'; }
+                    else { statusText = '🔴 Não Compareceu'; statusClass = 'badge-vencido'; }
+                    const diasStr = Array.isArray(exp.diasTreino) && exp.diasTreino.length ? exp.diasTreino.join('/') : '—';
+                    const dataFmt = exp.data ? new Date(exp.data + 'T00:00:00').toLocaleDateString('pt-BR') : exp.data;
+                    
+                    return `<tr>
+                        <td><strong>${exp.nome}</strong></td>
+                        <td>${exp.telefone}</td>
+                        <td>${turma ? turma.name + '<br><small style="color:#94a3b8">' + turma.time + '</small>' : 'N/A'}</td>
+                        <td>${dataFmt}</td>
+                        <td><span style="font-size:11px;color:var(--primary);font-weight:600;">${diasStr}</span></td>
+                        <td><span style="font-size:11px;color:#64748b;">${exp.obs || '—'}</span></td>
+                        <td><span class="${statusClass}" style="padding:2px 8px; border-radius:4px;">${statusText}</span></td>
+                        <td style="white-space:nowrap;">
+                            ${exp.status === 'agendado' ? `<button class="btn-edit" onclick="marcarCompareceuExp(${exp.id})" style="background:#10b981;color:white;margin-bottom:2px;">✅</button>
+                                                           <button class="btn-edit" onclick="marcarNaoCompareceuExp(${exp.id})" style="background:#ef4444;color:white;">❌</button>` : ''}
+                            ${exp.status === 'compareceu' ? `<button class="btn-edit" onclick="efetivarMatriculaExp(${exp.id})" style="background:#0284c7;color:white;">🎓 Efetivar</button>` : ''}
+                            ${exp.status === 'nao_compareceu' ? `<button class="btn-edit" onclick="reagendarExp(${exp.id})">🔄 Reagendar</button>` : ''}
+                            <a href="https://wa.me/${exp.telefone.replace(/\D/g,'')}" target="_blank" class="btn-whatsapp" style="display:inline-block;margin-top:2px;">💬</a>
+                        </td>
+                    </tr>`;
+                }).join('')}
+            </tbody></table>`;
+        }
+        
+        function filtrarExperimentais(status) {
+            currentExpFilter = status;
+            document.querySelectorAll('#filterExpStatus .btn-select').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
+            renderExperimentais();
+        }
+        
+        function marcarCompareceuExp(expId) {
+            const exp = experimentais.find(e => e.id === expId);
+            if (exp) exp.status = 'compareceu';
+            renderExperimentais();
+            salvarNaNuvem();
+        }
+        
+        function marcarNaoCompareceuExp(expId) {
+            const exp = experimentais.find(e => e.id === expId);
+            if (exp) exp.status = 'nao_compareceu';
+            renderExperimentais();
+            salvarNaNuvem();
+        }
+        
+        function efetivarMatriculaExp(expId) {
+            const exp = experimentais.find(e => e.id === expId);
+            if (!exp) return;
+            
+            const turma = classData.find(c => c.id === exp.turmaId);
+            if (!turma) return;
+            
+            if (turma.current >= turma.max) {
+                alert("Turma lotada! Não é possível efetivar matrícula.");
+                return;
+            }
+            
+            turma.students.push({
+                code: gerarCodigoAluno(),
+                name: exp.nome,
+                phone: exp.telefone,
+                dueDate: formatarDataPadrao(),
+                obs: exp.obs || '',
+                diasTreino: exp.diasTreino || [],
+                birthday: ""
+            });
+            turma.current++;
+            
+            const index = experimentais.findIndex(e => e.id === expId);
+            experimentais.splice(index, 1);
+            
+            let log = { date: new Date().toISOString(), type: 'ADD', student: exp.nome, className: `${turma.name} (${turma.time})` };
+            atualizarHistoricoLocal(log);
+            
+            calcularEAtualizarWidgets();
+            filtrarETrabalhar();
             renderStudentTable();
-            renderVencidosList();
+            renderExperimentais();
+            salvarNaNuvem();
+            alert(`✅ Matrícula de ${exp.nome} efetivada com sucesso!`);
+        }
+        
+        function reagendarExp(expId) {
+            const exp = experimentais.find(e => e.id === expId);
+            if (exp) {
+                const novaData = prompt("Nova data (AAAA-MM-DD):", exp.data);
+                if (novaData) {
+                    exp.data = novaData;
+                    exp.status = 'agendado';
+                    renderExperimentais();
+                    salvarNaNuvem();
+                }
+            }
+        }
+        
+        function getDiasDaTurma(daysString) {
+            return daysString.split(' - ').join(' ').split(' e ').join(' ').split(' ');
         }
 
+        // Converte string de dias da TURMA (ex: "Segunda - Quarta e Sexta") para array normalizado
+        // para comparar com os checkboxes do filtro (ex: ['Segunda','Quarta','Sexta'])
+        function normalizarDiasTurma(daysString) {
+            const mapa = {
+                'Segunda': 'Segunda', 'Terça': 'Terça', 'Quarta': 'Quarta',
+                'Quinta': 'Quinta', 'Sexta': 'Sexta', 'Sábado': 'Sábado'
+            };
+            const tokens = daysString.replace(/ - /g, ' ').replace(/ e /g, ' ').split(' ');
+            return tokens.filter(t => mapa[t]);
+        }
+
+        // Lê checkboxes de dias de treino do aluno no formulário
+        function getDiasTreinoSelecionados() {
+            return Array.from(document.querySelectorAll('.dia-treino-cb:checked')).map(cb => cb.value);
+        }
+
+        // Funções existentes (mantidas)
         function formatarDataPadrao() {
             const hoje = new Date();
             return `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}`;
@@ -389,8 +862,13 @@
             return { texto: `📅 Venc: ${formatarVencimento(dueDate)}`, classe: 'badge-em-dia', alerta: false };
         }
 
-        function getDiasDaTurma(daysString) {
-            return daysString.split(' - ').join(' ').split(' e ').join(' ').split(' ');
+        function extrairHora(timeString) { return parseInt(timeString.substring(0, 2)); }
+        function getTurno(timeString, days) {
+            if (days.includes("Sábado")) return 'sabado';
+            const h = extrairHora(timeString);
+            if (h < 12) return 'manha';
+            if (h >= 12 && h < 18) return 'tarde';
+            return 'noite';
         }
 
         async function carregarDadosDaNuvem() {
@@ -407,19 +885,34 @@
                         }
                     });
                     if (nuvemData[0].studentIdCounter) studentIdCounter = nuvemData[0].studentIdCounter;
+                    if (nuvemData[0].experimentais) experimentais = nuvemData[0].experimentais;
                 }
-            } catch (error) { console.error(error); }
-            finally { mostrarLoading(false); calcularEAtualizarWidgets(); filtrarETrabalhar(); }
+                document.getElementById('googleStatus').innerText = '✅ Online';
+                document.getElementById('googleStatus').classList.add('connected');
+                googleConnected = true;
+            } catch (error) { 
+                console.error(error);
+                document.getElementById('googleStatus').innerText = '📡 Offline';
+                document.getElementById('googleStatus').classList.remove('connected');
+            }
+            finally { 
+                mostrarLoading(false); 
+                calcularEAtualizarWidgets(); 
+                filtrarETrabalhar();
+                renderRankingESidebar();
+            }
         }
 
         async function salvarNaNuvem() {
+            if (!googleConnected) return;
             try {
-                const payload = [...classData, { studentIdCounter }];
+                const payload = [...classData, { studentIdCounter, experimentais }];
                 await fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "SAVE_DATA", payload }) });
             } catch (error) { console.error(error); }
         }
 
         async function salvarHistoricoNaNuvem(logItem) {
+            if (!googleConnected) return;
             try {
                 await fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "SAVE_HISTORY", payload: logItem }) });
             } catch (error) { console.error(error); }
@@ -435,15 +928,6 @@
                 }
             });
             return turmasAtivas;
-        }
-
-        function extrairHora(timeString) { return parseInt(timeString.substring(0, 2)); }
-        function getTurno(timeString, days) {
-            if (days.includes("Sábado")) return 'sabado';
-            const h = extrairHora(timeString);
-            if (h < 12) return 'manha';
-            if (h >= 12 && h < 18) return 'tarde';
-            return 'noite';
         }
 
         function calcularEAtualizarWidgets() {
@@ -478,22 +962,56 @@
             document.getElementById('widgetOcupacao').innerText = `${pctOcupacao}%`;
             document.getElementById('progressGeral').style.width = pctOcupacao + '%';
             document.getElementById('progressGeral').style.background = pctOcupacao >= 90 ? 'var(--danger)' : (pctOcupacao >= 70 ? 'var(--warning)' : 'var(--success)');
+            renderRankingESidebar();
+        }
+
+        function limparFiltrosDia(btn) {
+            document.querySelectorAll('.dia-filtro-cb').forEach(cb => cb.checked = false);
+            document.getElementById('filterDays').querySelectorAll('.btn-select').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            filtrarETrabalhar();
+        }
+
+        function filtrarPorDias() {
+            // Desativa o botão "Todos" se algum dia estiver marcado
+            const marcados = Array.from(document.querySelectorAll('.dia-filtro-cb:checked'));
+            const btnTodos = document.querySelector('#filterDays .btn-select');
+            btnTodos.classList.toggle('active', marcados.length === 0);
+            filtrarETrabalhar();
+        }
+
+        function getDiasFiltroSelecionados() {
+            return Array.from(document.querySelectorAll('.dia-filtro-cb:checked')).map(cb => cb.value);
         }
 
         function setFilter(type, value) {
             activeFilters[type] = value;
-            let containerId = type === 'day' ? 'filterDays' : (type === 'modality' ? 'filterModalities' : (type === 'turno' ? 'filterTurnos' : 'filterOcupacao'));
+            let containerId = type === 'modality' ? 'filterModalities' : (type === 'turno' ? 'filterTurnos' : 'filterOcupacao');
             document.getElementById(containerId).querySelectorAll('.btn-select').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
             filtrarETrabalhar();
+        }
+
+        function setFilterAluno(value) {
+            alunoFilterStatus = value;
+            document.getElementById('filterAlunoStatus').querySelectorAll('.btn-select').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            renderStudentTable();
+            renderVencidosList();
         }
 
         function filtrarETrabalhar() {
             const grid = document.getElementById('cardsGrid');
             const searchQuery = document.getElementById('searchBar').value.toLowerCase();
             grid.innerHTML = '';
+            const diasFiltro = getDiasFiltroSelecionados(); // ex: ['Segunda','Quarta']
             let filtered = classData.filter(item => {
-                if (activeFilters.day !== 'TODOS' && item.days !== activeFilters.day) return false;
+                // Filtro de dias: a turma precisa conter TODOS os dias selecionados
+                if (diasFiltro.length > 0) {
+                    const diasDaTurma = normalizarDiasTurma(item.days); // ex: ['Segunda','Quarta','Sexta']
+                    const todosContidos = diasFiltro.every(d => diasDaTurma.includes(d));
+                    if (!todosContidos) return false;
+                }
                 if (activeFilters.modality !== 'TODAS' && item.name !== activeFilters.modality) return false;
                 if (activeFilters.turno !== 'TODOS') {
                     let h = extrairHora(item.time);
@@ -507,6 +1025,11 @@
                     if (activeFilters.status === 'EMPTY' && item.current !== 0) return false;
                     if (activeFilters.status === 'FULL' && (item.max - item.current) > 0) return false;
                     if (activeFilters.status === 'VACANCY' && (item.max - item.current) <= 0) return false;
+                    if (activeFilters.status === 'EXP_HOJE') {
+                        const hoje = new Date().toISOString().split('T')[0];
+                        const temExpHoje = experimentais.some(e => e.turmaId === item.id && e.data === hoje);
+                        if (!temExpHoje) return false;
+                    }
                 }
                 if (searchQuery) {
                     let m = item.name.toLowerCase().includes(searchQuery) || item.time.toLowerCase().includes(searchQuery) || item.students.some(s => s.name.toLowerCase().includes(searchQuery) || s.phone.includes(searchQuery));
@@ -521,6 +1044,8 @@
                 if (item.current === 0) { badgeText = "Vazia"; badgeClass = "status-empty"; cardClass = "card empty-class"; }
                 else if (available <= 0) { badgeText = "Lotada"; badgeClass = "status-full"; }
                 let barColor = percentage >= 100 ? 'var(--danger)' : (percentage >= 80 ? 'var(--warning)' : 'var(--success)');
+                const expsNaTurma = experimentais.filter(e => e.turmaId === item.id);
+                const expBadge = expsNaTurma.length > 0 ? `<span style="background:#fef3c7; color:#92400e; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; margin-left:6px;">🧪 ${expsNaTurma.length} exp</span>` : '';
                 let studentRows = item.students.map(s => {
                     const cleanPhone = s.phone.replace(/\D/g, '');
                     const outrasTurmas = obterTurmasDoAluno(s.name).filter(t => !t.includes(item.name));
@@ -532,49 +1057,53 @@
                 }).join('');
                 const card = document.createElement('div');
                 card.className = cardClass;
-                card.innerHTML = `<div class="card-clickable-header" onclick="openModal(${item.id})"><div class="card-header"><span class="status-badge ${badgeClass}">${badgeText}</span><h3>${item.name}</h3><div class="day">${item.days}</div><div class="time">${item.time}</div></div></div><div><div class="vacancy-info" onclick="openModal(${item.id})"><div class="counter-row"><span>Alunos:</span><strong>${item.current} / ${item.max}</strong></div><div class="counter-row"><span>Disponível:</span><strong style="color: ${available <= 0 ? 'var(--danger)' : 'var(--success)'}">${available}</strong></div><div class="progress-bar"><div class="progress-fill" style="width: ${percentage}%; background-color: ${barColor}"></div></div></div><div class="student-list">${studentRows || '<p style="font-size:11px; color:#94a3b8; text-align:center;">Nenhum aluno ativo</p>'}</div><div class="actions"><button class="btn btn-remove" onclick="alterarVaga(${item.id}, -1)">- Aluno</button><button class="btn btn-add" onclick="alterarVaga(${item.id}, 1)" ${available <= 0 ? 'disabled style="opacity:0.5;"' : ''}>+ Aluno</button><button class="btn btn-view" onclick="openModal(${item.id})">🔍</button></div></div>`;
+                card.innerHTML = `<div class="card-clickable-header" onclick="openModal(${item.id})"><div class="card-header"><span class="status-badge ${badgeClass}">${badgeText}</span><h3>${item.name}${expBadge}</h3><div class="day">${item.days}</div><div class="time">${item.time}</div></div></div><div><div class="vacancy-info" onclick="openModal(${item.id})"><div class="counter-row"><span>Alunos:</span><strong>${item.current} / ${item.max}</strong></div><div class="counter-row"><span>Disponível:</span><strong style="color: ${available <= 0 ? 'var(--danger)' : 'var(--success)'}">${available}</strong></div><div class="progress-bar"><div class="progress-fill" style="width: ${percentage}%; background-color: ${barColor}"></div></div></div><div class="student-list">${studentRows || '<p style="font-size:11px; color:#94a3b8; text-align:center;">Nenhum aluno ativo</p>'}</div><div class="actions"><button class="btn btn-remove" onclick="alterarVaga(${item.id}, -1)">- Aluno</button><button class="btn btn-add" onclick="openQuickAdd(${item.id})" ${available <= 0 ? 'style="opacity:0.7; background:#e0f2fe; color:#0369a1;"' : ''}>➕ Cadastrar</button><button class="btn btn-view" onclick="openModal(${item.id})">🔍</button></div></div>`;
                 grid.appendChild(card);
+            });
+            renderRankingESidebar();
+        }
+
+        function filtrarTurmasPorModalidade() {
+            const modalidade = document.getElementById("addStudentModality").value;
+            const select = document.getElementById("addStudentClassTarget");
+            select.innerHTML = '<option value="" disabled selected>Selecione a Turma/Horário</option>';
+            classData.filter(c => !modalidade || c.name === modalidade).forEach(c => {
+                select.innerHTML += `<option value="${c.id}">${c.name} — ${c.days.split(' ')[0]} ${c.time}</option>`;
+            });
+        }
+
+        function filtrarTurmasExpPorModalidade() {
+            const modalidade = document.getElementById("newExperimentalModality").value;
+            const select = document.getElementById("newExperimentalClass");
+            select.innerHTML = '<option value="">Selecione a turma</option>';
+            classData.filter(c => !modalidade || c.name === modalidade).forEach(c => {
+                select.innerHTML += `<option value="${c.id}">${c.name} — ${c.days.split(' ')[0]} ${c.time}</option>`;
             });
         }
 
         function povoarSelectDeTurmas() {
             const select = document.getElementById("addStudentClassTarget");
             select.innerHTML = '<option value="" disabled selected>Selecione a Turma/Horário</option>';
-            classData.forEach(c => { select.innerHTML += `<option value="${c.id}">${c.name} - ${c.days.split(' ')[0]} às ${c.time.split(' ')[0]}</option>`; });
-            select.onchange = function() {
-                const item = classData.find(c => c.id === parseInt(this.value));
-                const diasDiv = document.getElementById('diasCheckboxGroup');
-                if (item) {
-                    diasDiv.style.display = 'flex';
-                    const dias = getDiasDaTurma(item.days);
-                    document.querySelectorAll('.dia-checkbox').forEach(cb => {
-                        cb.checked = dias.includes(cb.value);
-                        cb.disabled = false;
-                    });
-                } else {
-                    diasDiv.style.display = 'none';
-                }
-            };
-        }
-
-        function getDiasSelecionados() {
-            return Array.from(document.querySelectorAll('.dia-checkbox:checked')).map(cb => cb.value);
+            classData.forEach(c => { select.innerHTML += `<option value="${c.id}">${c.name} — ${c.days.split(' ')[0]} ${c.time}</option>`; });
         }
 
         async function cadastrarAlunoPelaTabela() {
             const nomeInput = document.getElementById("addStudentName");
             const foneInput = document.getElementById("addStudentPhone");
             const dueInput = document.getElementById("addStudentDueDate");
+            const obsInput = document.getElementById("addStudentObs");
             const selectTurma = document.getElementById("addStudentClassTarget");
-            let nome = nomeInput.value.trim(), fone = foneInput.value.trim(), vencimento = dueInput.value.trim() || formatarDataPadrao(), turmaId = parseInt(selectTurma.value);
-            const diasSelecionados = getDiasSelecionados();
+            let nome = nomeInput.value.trim(), fone = foneInput.value.trim();
+            let vencimento = dueInput.value.trim() || formatarDataPadrao();
+            let obs = obsInput.value.trim();
+            let diasTreino = getDiasTreinoSelecionados(); // array ex: ['Seg','Qua']
+            let turmaId = parseInt(selectTurma.value);
             
-            if (!nome || !fone || isNaN(turmaId)) { alert("Preencha todos os campos!"); return; }
+            if (!nome || !fone || isNaN(turmaId)) { alert("Preencha Nome, Telefone e Turma!"); return; }
             const item = classData.find(c => c.id === turmaId); if (!item) return;
             if (item.current >= item.max) { alert("Turma lotada!"); return; }
 
             if (editingStudent) {
-                // Modo edição
                 const oldItem = classData.find(c => c.id === editingStudent.classId);
                 if (oldItem) {
                     const idx = oldItem.students.findIndex(s => s.code === editingStudent.code);
@@ -582,7 +1111,8 @@
                         oldItem.students[idx].name = nome;
                         oldItem.students[idx].phone = fone;
                         oldItem.students[idx].dueDate = vencimento;
-                        oldItem.students[idx].days = diasSelecionados;
+                        oldItem.students[idx].obs = obs;
+                        oldItem.students[idx].diasTreino = diasTreino;
                         if (oldItem.id !== turmaId) {
                             const novoItem = classData.find(c => c.id === turmaId);
                             if (novoItem.current >= novoItem.max) { alert("Turma de destino lotada!"); return; }
@@ -595,8 +1125,7 @@
                 }
                 cancelarEdicao();
             } else {
-                // Novo cadastro
-                item.students.push({ code: gerarCodigoAluno(), name: nome, phone: fone, dueDate: vencimento, days: diasSelecionados });
+                item.students.push({ code: gerarCodigoAluno(), name: nome, phone: fone, dueDate: vencimento, obs: obs, diasTreino: diasTreino });
                 item.current++;
                 let log = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${item.name} (${item.time})` };
                 atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
@@ -604,7 +1133,9 @@
                     nomeInput.value = nome; foneInput.value = fone; dueInput.value = vencimento; selectTurma.value = ""; selectTurma.focus();
                     return;
                 }
-                nomeInput.value = ""; foneInput.value = ""; dueInput.value = ""; selectTurma.value = "";
+                nomeInput.value = ""; foneInput.value = ""; dueInput.value = ""; obsInput.value = "";
+                document.querySelectorAll('.dia-treino-cb').forEach(cb => cb.checked = false);
+                selectTurma.value = "";
             }
             calcularEAtualizarWidgets(); filtrarETrabalhar(); renderStudentTable(); renderVencidosList(); await salvarNaNuvem();
         }
@@ -615,8 +1146,10 @@
             document.getElementById("addStudentName").value = "";
             document.getElementById("addStudentPhone").value = "";
             document.getElementById("addStudentDueDate").value = "";
-            document.getElementById("addStudentClassTarget").value = "";
-            document.getElementById("diasCheckboxGroup").style.display = 'none';
+            document.getElementById("addStudentObs").value = "";
+            document.querySelectorAll('.dia-treino-cb').forEach(cb => cb.checked = false);
+            document.getElementById("addStudentModality").value = "";
+            filtrarTurmasPorModalidade();
             document.getElementById("btnCadastrar").innerText = "+ Matricular Aluno";
             document.getElementById("btnCancelar").style.display = 'none';
         }
@@ -632,17 +1165,20 @@
             document.getElementById("addStudentName").value = student.name;
             document.getElementById("addStudentPhone").value = student.phone;
             document.getElementById("addStudentDueDate").value = formatarVencimento(student.dueDate);
+            document.getElementById("addStudentObs").value = student.obs || '';
+            document.getElementById("addStudentModality").value = item.name;
+            filtrarTurmasPorModalidade();
             document.getElementById("addStudentClassTarget").value = classId;
             
-            const diasDiv = document.getElementById('diasCheckboxGroup');
-            diasDiv.style.display = 'flex';
-            document.querySelectorAll('.dia-checkbox').forEach(cb => {
-                cb.checked = student.days && student.days.includes(cb.value);
+            // Marcar os dias de treino do aluno
+            const dias = Array.isArray(student.diasTreino) ? student.diasTreino : [];
+            document.querySelectorAll('.dia-treino-cb').forEach(cb => {
+                cb.checked = dias.includes(cb.value);
             });
             
             document.getElementById("btnCadastrar").innerText = "💾 Salvar Alterações";
             document.getElementById("btnCancelar").style.display = 'inline-block';
-            
+            switchTab('alunos');
             document.getElementById("addStudentName").focus();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -661,25 +1197,141 @@
 
         function openModal(id) {
             const item = classData.find(c => c.id === id); if (!item) return;
+            const expsNaTurma = experimentais.filter(e => e.turmaId === id);
+
             document.getElementById("modalTitle").innerText = item.name;
             document.getElementById("modalTime").innerText = `🕒 ${item.days} | ${item.time} (${item.current}/${item.max})`;
-            const body = document.getElementById("modalBody"); body.innerHTML = "";
-            if (item.students.length === 0) { 
-                body.innerHTML = `<p style="text-align:center; color:#64748b; font-size:13px;">Sem alunos matriculados.</p>`; 
+            const body = document.getElementById("modalBody");
+            body.innerHTML = "";
+
+            // ── SEÇÃO: ALUNOS MATRICULADOS ──
+            body.innerHTML += `<div class="modal-section-title">👥 Alunos Matriculados <span class="modal-section-count">${item.students.length}</span></div>`;
+            if (item.students.length === 0) {
+                body.innerHTML += `<p style="text-align:center; color:#94a3b8; font-size:12px; padding:12px 0;">Nenhum aluno matriculado.</p>`;
             } else {
-                body.innerHTML += `<div style="display:flex; padding:8px 15px; background:#f1f5f9; border-radius:8px; margin-bottom:5px; font-weight:700; font-size:12px; color:#64748b;"><span style="width:60px;">CÓD</span><span style="flex:2;">👤 ALUNO</span><span style="flex:1;">📅 VENC</span><span style="flex:1;">📞 TEL</span><span style="flex:1;">📅 DIAS</span><span style="width:150px; text-align:right;">AÇÕES</span></div>`;
                 item.students.forEach(s => {
                     const statusVenc = getStatusVencimento(s.dueDate);
                     const vencidoClass = statusVenc.alerta ? ' vencido' : '';
-                    const diasAluno = s.days && s.days.length > 0 ? s.days.join('/') : 'Todos';
-                    body.innerHTML += `<div class="modal-student-row${vencidoClass}"><div class="modal-student-info"><span style="font-size:11px; color:#94a3b8; width:60px;">#${s.code || '----'}</span><span class="modal-student-name">👤 ${s.name}</span><span class="modal-student-vencimento"><span class="${statusVenc.classe}" style="font-size:11px;">${statusVenc.texto}</span></span><span class="modal-student-phone">📞 ${s.phone}</span><span style="font-size:11px; color:var(--primary); font-weight:600;">📅 ${diasAluno}</span></div><div class="modal-student-actions"><button class="modal-btn-edit" onclick="editarAluno(${s.code}, ${item.id}); closeModal();">✏️ Editar</button><a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="modal-btn-zap">💬</a><button class="modal-btn-del" onclick="removerAlunoPelaTabela(${item.id}, '${s.name}'); openModal(${item.id});">🗑️</button></div></div>`;
+                    const diasAluno = Array.isArray(s.diasTreino) && s.diasTreino.length ? s.diasTreino.join('/') : '—';
+                    body.innerHTML += `
+                        <div class="modal-student-row${vencidoClass}">
+                            <div class="modal-student-info">
+                                <span class="modal-student-name">👤 ${s.name} <span style="color:#94a3b8; font-size:11px;">#${s.code || '----'}</span></span>
+                                <span class="modal-student-phone">📞 ${s.phone} &nbsp;|&nbsp; 📅 ${diasAluno}</span>
+                                <span class="modal-student-vencimento"><span class="${statusVenc.classe}">${statusVenc.texto}</span></span>
+                            </div>
+                            <div class="modal-student-actions">
+                                <button class="modal-btn-edit" onclick="editarAluno(${s.code}, ${item.id}); closeModal();">✏️</button>
+                                <a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="modal-btn-zap">💬</a>
+                                <button class="modal-btn-del" onclick="removerAlunoPelaTabela(${item.id}, '${s.name}'); openModal(${item.id});">🗑️</button>
+                            </div>
+                        </div>`;
                 });
             }
+
+            // ── SEÇÃO: AULAS EXPERIMENTAIS ──
+            body.innerHTML += `<div class="modal-section-title" style="margin-top:18px;">🧪 Aulas Experimentais <span class="modal-section-count" style="background:#fef3c7; color:#92400e;">${expsNaTurma.length}</span></div>`;
+            if (expsNaTurma.length === 0) {
+                body.innerHTML += `<p style="text-align:center; color:#94a3b8; font-size:12px; padding:12px 0;">Nenhum experimental nesta turma.</p>`;
+            } else {
+                expsNaTurma.forEach(exp => {
+                    const statusMap = {
+                        agendado:       { icon: '🟡', label: 'Agendado',        cls: 'exp-badge-agendado' },
+                        compareceu:     { icon: '🟢', label: 'Compareceu',      cls: 'exp-badge-compareceu' },
+                        nao_compareceu: { icon: '🔴', label: 'Não Compareceu',  cls: 'exp-badge-faltou' }
+                    };
+                    const st = statusMap[exp.status] || statusMap.agendado;
+                    const dataFmt = exp.data ? new Date(exp.data + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
+                    body.innerHTML += `
+                        <div class="modal-exp-row">
+                            <div class="modal-student-info">
+                                <span class="modal-student-name">🧪 ${exp.nome}</span>
+                                <span class="modal-student-phone">📞 ${exp.telefone} &nbsp;|&nbsp; 📅 ${dataFmt}</span>
+                                <span><span class="exp-badge ${st.cls}">${st.icon} ${st.label}</span></span>
+                            </div>
+                            <div class="modal-student-actions" style="flex-direction:column; gap:4px;">
+                                ${exp.status === 'agendado' ? `
+                                    <button class="modal-btn-edit" style="background:#dcfce7; color:#15803d;" onclick="marcarCompareceuExp(${exp.id}); openModal(${id});">✅ Compareceu</button>
+                                    <button class="modal-btn-edit" style="background:#fee2e2; color:#b91c1c;" onclick="marcarNaoCompareceuExp(${exp.id}); openModal(${id});">❌ Faltou</button>
+                                ` : ''}
+                                ${exp.status === 'compareceu' ? `
+                                    <button class="modal-btn-edit" style="background:#e0f2fe; color:#0369a1;" onclick="efetivarMatriculaExp(${exp.id}); closeModal();">🎓 Efetivar</button>
+                                ` : ''}
+                                ${exp.status === 'nao_compareceu' ? `
+                                    <button class="modal-btn-edit" style="background:#f1f5f9; color:#475569;" onclick="reagendarExp(${exp.id}); openModal(${id});">🔄 Reagendar</button>
+                                ` : ''}
+                                <a href="https://wa.me/${exp.telefone.replace(/\D/g, '')}" target="_blank" class="modal-btn-zap">💬</a>
+                            </div>
+                        </div>`;
+                });
+            }
+
             document.getElementById("modalOverlay").classList.add("active");
         }
         
         function closeModal() { document.getElementById("modalOverlay").classList.remove("active"); }
         function closeEditModal() { document.getElementById("editModalOverlay").classList.remove("active"); }
+
+        // ====== MODAL CADASTRO RÁPIDO PELO CARD ======
+        let quickAddClassId = null;
+
+        function openQuickAdd(classId) {
+            quickAddClassId = classId;
+            const item = classData.find(c => c.id === classId);
+            if (!item) return;
+            document.getElementById('quickAddTitle').innerText = item.name;
+            document.getElementById('quickAddSubtitle').innerText = `${item.days} | ${item.time}`;
+            // Limpar campos
+            ['qNome','qTelefone','qVencimento','qObs','qExpNome','qExpTelefone','qExpObs'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
+            document.getElementById('qExpData').value = new Date().toISOString().split('T')[0];
+            document.querySelectorAll('.q-dia-cb, .q-exp-dia-cb').forEach(cb => cb.checked = false);
+            switchQuickTab('aluno', document.querySelector('#quickAddOverlay .modal-tab-btn'));
+            document.getElementById('quickAddOverlay').classList.add('active');
+        }
+
+        function closeQuickAdd() { document.getElementById('quickAddOverlay').classList.remove('active'); }
+
+        function switchQuickTab(tab, btn) {
+            document.querySelectorAll('#quickAddOverlay .modal-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#quickAddOverlay .modal-tab-pane').forEach(p => p.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            document.getElementById('quickPane-' + tab).classList.add('active');
+        }
+
+        async function salvarQuickAluno() {
+            const nome = document.getElementById('qNome').value.trim();
+            const fone = document.getElementById('qTelefone').value.trim();
+            const vencimento = document.getElementById('qVencimento').value.trim() || formatarDataPadrao();
+            const obs = document.getElementById('qObs').value.trim();
+            const diasTreino = Array.from(document.querySelectorAll('.q-dia-cb:checked')).map(cb => cb.value);
+            if (!nome || !fone) { alert('Preencha Nome e Telefone!'); return; }
+            const item = classData.find(c => c.id === quickAddClassId);
+            if (!item) return;
+            if (item.current >= item.max) { alert('Turma lotada!'); return; }
+            item.students.push({ code: gerarCodigoAluno(), name: nome, phone: fone, dueDate: vencimento, obs, diasTreino });
+            item.current++;
+            let log = { date: new Date().toISOString(), type: 'ADD', student: nome, className: `${item.name} (${item.time})` };
+            atualizarHistoricoLocal(log); await salvarHistoricoNaNuvem(log);
+            calcularEAtualizarWidgets(); filtrarETrabalhar(); renderStudentTable(); renderVencidosList(); await salvarNaNuvem();
+            closeQuickAdd();
+            alert(`✅ ${nome} matriculado em ${item.name}!`);
+        }
+
+        async function salvarQuickExp() {
+            const nome = document.getElementById('qExpNome').value.trim();
+            const fone = document.getElementById('qExpTelefone').value.trim();
+            const data = document.getElementById('qExpData').value;
+            const obs = document.getElementById('qExpObs').value.trim();
+            const diasTreino = Array.from(document.querySelectorAll('.q-exp-dia-cb:checked')).map(cb => cb.value);
+            if (!nome || !fone || !data) { alert('Preencha Nome, Telefone e Data!'); return; }
+            experimentais.push({ id: Date.now(), nome, telefone: fone, turmaId: quickAddClassId, status: 'agendado', data, obs, diasTreino });
+            calcularEAtualizarWidgets(); filtrarETrabalhar(); renderExperimentais(); await salvarNaNuvem();
+            closeQuickAdd();
+            alert(`🧪 Experimental de ${nome} agendado!`);
+        }
+        // =============================================
 
         async function alterarVaga(id, mudança) {
             const item = classData.find(c => c.id === id); if (!item) return;
@@ -726,24 +1378,34 @@
             let total = [];
             classData.forEach(c => { 
                 c.students.forEach(s => { 
-                    total.push({ code: s.code, name: s.name, phone: s.phone, dueDate: s.dueDate || formatarDataPadrao(), days: s.days, className: c.name, time: c.time, classId: c.id }); 
+                    total.push({ code: s.code, name: s.name, phone: s.phone, dueDate: s.dueDate || formatarDataPadrao(), obs: s.obs || '', diasTreino: s.diasTreino || '', className: c.name, time: c.time, classId: c.id }); 
                 }); 
             });
-            if (search) total = total.filter(s => s.name.toLowerCase().includes(search) || s.phone.includes(search));
+            if (search) total = total.filter(s => s.name.toLowerCase().includes(search) || s.phone.includes(search) || s.obs.toLowerCase().includes(search));
             if (alunoFilterStatus === 'VENCIDOS') total = total.filter(s => verificarVencimento(s.dueDate).vencido);
             else if (alunoFilterStatus === 'EM_DIA') total = total.filter(s => !verificarVencimento(s.dueDate).vencido);
-            if (total.length === 0) { body.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#94a3b8;">Nenhum aluno encontrado.</td></tr>`; return; }
+            if (total.length === 0) { body.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#94a3b8;">Nenhum aluno encontrado.</td></tr>`; return; }
             
             total.forEach(s => {
                 const statusVenc = getStatusVencimento(s.dueDate);
                 const vencidoClass = statusVenc.alerta ? ' class="vencido"' : '';
-                const diasAluno = s.days && s.days.length > 0 ? s.days.join('/') : 'Todos';
-                body.innerHTML += `<tr${vencidoClass}><td><span style="color:#94a3b8; font-size:11px;">#${s.code || '----'}</span></td><td class="student-name">👤 ${s.name}</td><td class="student-phone">${s.phone}</td><td><span class="badge" style="background:#fffbeb; color:${statusVenc.alerta ? 'var(--danger)' : 'var(--warning)'}; padding:4px 8px; border-radius:6px; font-weight:700;">📅 ${formatarVencimento(s.dueDate)}</span></td><td><span style="font-size:11px; color:var(--primary); font-weight:600;">📅 ${diasAluno}</span></td><td><span class="${statusVenc.classe}">${statusVenc.texto}</span></td><td><div style="display:flex; gap:4px;"><button class="btn-edit" onclick="editarAluno(${s.code}, ${s.classId})">✏️</button><a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="btn-whatsapp">WhatsApp</a><button class="btn-table-del" onclick="removerAlunoPelaTabela(${s.classId}, '${s.name}')">🗑️</button></div></td></tr>`;
+                body.innerHTML += `<tr${vencidoClass}>
+                    <td><span style="color:#94a3b8; font-size:11px;">#${s.code || '----'}</span></td>
+                    <td class="student-name">👤 ${s.name}</td>
+                    <td class="student-phone">${s.phone}</td>
+                    <td><span class="badge" style="background:#fffbeb; color:${statusVenc.alerta ? 'var(--danger)' : 'var(--warning)'}; padding:4px 8px; border-radius:6px; font-weight:700;">📅 ${formatarVencimento(s.dueDate)}</span></td>
+                    <td><span style="font-size:11px; color:#64748b;">${s.obs || '---'}</span></td>
+                    <td><span style="font-size:11px; color:var(--primary); font-weight:600;">${Array.isArray(s.diasTreino) && s.diasTreino.length ? s.diasTreino.join('/') : (s.diasTreino || '---')}</span></td>
+                    <td><span style="font-size:11px; color:#475569; font-weight:600; background:#f1f5f9; padding:3px 7px; border-radius:5px;">${s.className}</span></td>
+                    <td><span class="${statusVenc.classe}">${statusVenc.texto}</span></td>
+                    <td><div style="display:flex; gap:4px;"><button class="btn-edit" onclick="editarAluno(${s.code}, ${s.classId})">✏️</button><a href="https://wa.me/${s.phone.replace(/\D/g, '')}" target="_blank" class="btn-whatsapp">WhatsApp</a><button class="btn-table-del" onclick="removerAlunoPelaTabela(${s.classId}, '${s.name}')">🗑️</button></div></td>
+                </tr>`;
             });
         }
 
         function renderVencidosList() {
             const container = document.getElementById('vencidosList');
+            if (!container) return;
             container.innerHTML = '';
             let todosVencidos = [];
             classData.forEach(c => {
@@ -780,23 +1442,7 @@
                 container.innerHTML += `<div class="resume-row"><div><strong>${nomes[turno]}</strong></div><div class="resume-meta"><span>${t.alunos}/${t.capacidade} vagas</span><div class="resume-bar-bg"><div style="width:${pct}%; background:${pct >= 90 ? 'var(--danger)' : (pct >= 70 ? 'var(--warning)' : 'var(--success)')}; height:100%;"></div></div><span style="color:#64748b; font-weight:bold;">${pct}%</span></div></div>`;
             });
             const gruposDias = ["Segunda - Quarta e Sexta", "Terça e Quinta", "Sexta", "Sábado"];
-            container.innerHTML += `<div class="resume-section-title" style="margin-top:20px;">📅 RESUMO POR DIA</div>`;
-            gruposDias.forEach(dia => {
-                let turmas = classData.filter(c => c.days === dia);
-                if (turmas.length > 0) {
-                    let totalAlunosDia = turmas.reduce((sum, t) => sum + t.current, 0);
-                    let totalCapacidadeDia = turmas.reduce((sum, t) => sum + t.max, 0);
-                    let pctDia = totalCapacidadeDia > 0 ? Math.round((totalAlunosDia / totalCapacidadeDia) * 100) : 0;
-                    container.innerHTML += `<div class="resume-section-title">${dia} (${totalAlunosDia}/${totalCapacidadeDia} - ${pctDia}%)</div>`;
-                    turmas.forEach(t => {
-                        let pct = Math.round((t.current / t.max) * 100); 
-                        let barColor = pct >= 100 ? 'var(--danger)' : (pct >= 80 ? 'var(--warning)' : 'var(--success)');
-                        let vencidosNaTurma = t.students.filter(s => verificarVencimento(s.dueDate).vencido).length;
-                        let infoVencidos = vencidosNaTurma > 0 ? ` <span style="color:var(--danger); font-size:11px;">(${vencidosNaTurma} vencidos)</span>` : '';
-                        container.innerHTML += `<div class="resume-row"><div><strong>${t.name}</strong> <span style="color:#64748b;">${t.time}</span>${infoVencidos}</div><div class="resume-meta"><span>${t.current}/${t.max} vagas</span><div class="resume-bar-bg"><div style="width:${pct}%; background:${barColor}; height:100%;"></div></div><span style="color:#64748b; font-weight:bold;">${pct}%</span></div></div>`;
-                    });
-                }
-            });
+            // Seção por dia removida conforme solicitado
         }
     </script>
 </body>
