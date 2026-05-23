@@ -740,21 +740,23 @@ function enviarParaGoogle(aluno) {
 }
 
 function salvarNoGoogle(dadosAluno) {
-    const url = "https://script.google.com/macros/s/AKfycbwhU7UOTnRCWTtBwVPLa88armwTcHk9iLgu_vsIEiYHsWsW9sYrSPQDz1t2wYdxMQVC/exec"; // O link da implantação (Web App)
+    console.log("Iniciando envio para o Google..."); // VAI APARECER NO CONSOLE
+    const url = "https://script.google.com/macros/s/AKfycbwhU7UOTnRCWTtBwVPLa88armwTcHk9iLgu_vsIEiYHsWsW9sYrSPQDz1t2wYdxMQVC/exec";
 
     fetch(url, {
         method: "POST",
-        mode: "no-cors", // Necessário para evitar erro de bloqueio de CORS
+        mode: "no-cors",
         cache: "no-cache",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dadosAluno)
     })
     .then(() => {
-        alert("Dados salvos com sucesso!");
-        // Após salvar, recarrega a página ou os dados para refletir na tela
-        window.location.reload(); 
+        alert("Sucesso! Verifique a planilha.");
     })
-    .catch(error => console.error("Erro ao salvar:", error));
+    .catch(error => {
+        alert("Erro no salvamento: " + error);
+        console.error("Erro detalhado:", error);
+    });
 }
 
 // ============================================================
