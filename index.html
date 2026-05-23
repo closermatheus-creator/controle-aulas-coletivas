@@ -772,9 +772,9 @@
             const incompletos = alunos.filter(a => !a.dias_treino || a.dias_treino.trim() === '');
             
             if (incompletos.length === 0) {
-                body.innerHTML = `<td><td colspan="6" style="text-align:center; padding:40px;">✅ Nenhum aluno incompleto! Todos têm dias de treino definidos.</div>';
-                return;
-            }
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px;">✅ Nenhum aluno incompleto! Todos têm dias de treino definidos.</td></tr>';
+    return;
+}
             
             body.innerHTML = incompletos.map(a => {
                 const diasOptions = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
