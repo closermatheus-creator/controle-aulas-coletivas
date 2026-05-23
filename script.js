@@ -592,7 +592,7 @@ function filtrarIncompletos(filter) {
 // ============================================================
 function abrirModalHorario(horarioId) {
     const horario = horariosConfig.find(h => h.id === horarioId);
-    if (!nav = horario) return;
+    if (!horario) return;
     const alunosHorario = getAlunosPorHorario(horarioId);
     
     document.getElementById('modalTitulo').innerHTML = `${horario.modalidade} - ${horario.horario}`;
