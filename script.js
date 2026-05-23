@@ -682,22 +682,6 @@ function vincularIncompleto(cod) {
     salvarNoGoogle(al);
 }
 
-function vincularIncompleto(cod) {
-    const al = alunos.find(a => a.codigo == cod);
-    const sel = document.querySelector(`.inc-sel-${cod}`);
-    if (al && sel && sel.value) {
-        const h = horariosConfig.find(hc => hc.id == sel.value);
-        if (h.dias.includes('Segunda')) al.seg = h.id;
-        if (h.dias.includes('Terça')) al.ter = h.id;
-        if (h.dias.includes('Quarta')) al.qua = h.id;
-        if (h.dias.includes('Quinta')) al.qui = h.id;
-        if (h.dias.includes('Sexta')) al.sex = h.id;
-        if (h.dias.includes('Sábado')) al.sab = h.id;
-        renderizarTudo();
-        abrirSuperModal('incompletos');
-        alert(`✅ Aluno ${al.nome} vinculado com sucesso!`);
-    }
-}
 
 function renderTurmasSuper() {
     const grid = document.getElementById('superTurmasGrid');
