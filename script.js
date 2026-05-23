@@ -122,12 +122,11 @@ function verificarVencimento(dataVenc) {
 function getAlunosPorHorario(horarioId) {
     const config = horariosConfig.find(h => h.id == horarioId);
     return alunos.filter(a => {
-        // Tenta achar pelo ID exato
+        // Tenta achar pelo ID numérico
         if (a.horario_id == horarioId) return true;
-        // Fallback inteligente: tenta achar pelo nome da modalidade + texto do horário
+        // Tenta achar pelo texto escrito na planilha do Google (Modalidade + Horário)
         if (config && a.modalidade === config.modalidade && a.horario === config.horario) {
-            // Atualiza o ID do aluno internamente para facilitar
-            a.horario_id = horarioId; 
+            a.horario_id = horarioId; // Converte o texto em ID para o sistema funcionar rápido
             return true;
         }
         return false;
@@ -172,6 +171,9 @@ function getDiasTreinoSelecionados() {
 // ============================================================
 // FUNÇÕES DE CADASTRO E GERENCIAMENTO DE ALUNOS
 // ============================================================
+// ============================================================
+// FUNÇÕES DE CADASTRO E GERENCIAMENTO DE ALUNOS
+// ============================================================
 function cadastrarAluno() {
     const editId = document.getElementById('editStudentId')?.value;
     const nome = document.getElementById('addStudentName')?.value.trim();
@@ -189,26 +191,57 @@ function cadastrarAluno() {
     }
     
     if (editId) {
-        // Atualiza aluno existente
+        // Atualiza um aluno que já existe
         const index = alunos.findIndex(a => a.codigo == editId);
         if (index !== -1) {
             alunos[index] = { ...alunos[index], nome, telefone, vencimento, aniversario, modalidade, dias_treino: diasTreino.join(','), horario_id: horarioId, obs };
             alert(`✅ ${nome} atualizado com sucesso!`);
         }
     } else {
-        // Cria novo aluno
+        // Cria um aluno novo
         alunos.push({
             codigo: gerarCodigo(), nome, telefone, vencimento, aniversario, modalidade, dias_treino: diasTreino.join(','), horario_id: horarioId, obs: obs || '', status: 'ATIVO'
         });
         alert(`✅ ${nome} cadastrado com sucesso!`);
     }
     
-    cancelarEdicao(); // Limpa o form e volta os botões ao normal
+    cancelarEdicao();
     renderizarTudo();
 }
 
+function editarAluno(codigo) {
+    const aluno = alunos.find(a => a.codigo == codigo);
+    if (!aluno) return;
+    
+    // Puxa os dados do aluno de volta para os campos lá em cima
+    document.getElementById('editStudentId').value = aluno.codigo;
+    document.getElementById('addStudentName').value = aluno.nome || '';
+    document.getElementById('addStudentPhone').value = aluno.telefone || '';
+    document.getElementById('addStudentDueDate').value = aluno.vencimento || '';
+    document.getElementById('addStudentBirthday').value = aluno.aniversario || '';
+    document.getElementById('addStudentModality').value = aluno.modalidade || '';
+    document.getElementById('addStudentHorario').value = aluno.horario_id || '';
+    document.getElementById('addStudentObs').value = aluno.obs || '';
+    
+    // Remarca os dias da semana corretamente
+    document.querySelectorAll('.dia-treino-cb').forEach(cb => cb.checked = false);
+    if (aluno.dias_treino) {
+        const dias = String(aluno.dias_treino).split(',');
+        document.querySelectorAll('.dia-treino-cb').forEach(cb => {
+            if (dias.map(d => d.trim()).includes(cb.value)) cb.checked = true;
+        });
+    }
+    
+    // Muda a aparência dos botões
+    const btnSubmit = document.querySelector('.btn-submit');
+    if (btnSubmit) btnSubmit.innerText = '💾 Salvar Edição';
+    document.getElementById('btnCancelar').style.display = 'inline-block';
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function cancelarEdicao() {
-    editingStudent = null;
+    document.getElementById('editStudentId').value = '';
     document.getElementById('addStudentName').value = '';
     document.getElementById('addStudentPhone').value = '';
     document.getElementById('addStudentDueDate').value = '';
@@ -217,6 +250,9 @@ function cancelarEdicao() {
     document.getElementById('addStudentHorario').value = '';
     document.getElementById('addStudentObs').value = '';
     document.querySelectorAll('.dia-treino-cb').forEach(cb => cb.checked = false);
+    
+    const btnSubmit = document.querySelector('.btn-submit');
+    if (btnSubmit) btnSubmit.innerText = '➕ Cadastrar';
     document.getElementById('btnCancelar').style.display = 'none';
 }
 
@@ -224,6 +260,17 @@ function removerAluno(codigo) {
     if (!confirm('Remover este aluno?')) return;
     alunos = alunos.filter(a => a.codigo != codigo);
     renderizarTudo();
+}
+
+function salvarDiasIncompletos(codigo) {
+    const aluno = alunos.find(a => a.codigo == codigo);
+    if (!aluno) return;
+    
+    const dias = Array.from(document.querySelectorAll(`.correcao-dia-${codigo}:checked`)).map(cb => cb.value);
+    aluno.dias_treino = dias.join(',');
+    
+    renderizarTudo();
+    alert(`✅ Dias de ${aluno.nome} atualizados: ${dias.join(', ') || 'Nenhum'}`);
 }
 
 function salvarDiasIncompletos(codigo) {
