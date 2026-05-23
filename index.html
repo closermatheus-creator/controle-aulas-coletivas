@@ -482,7 +482,7 @@
         
         function verificarVencimento(dataVenc) {
             if (!dataVenc) return { vencido: false, texto: "Sem data" };
-            const partes = dataVenc.split('/');
+            const partes = String(dataVenc).split('/');
             if (partes.length !== 2) return { vencido: false, texto: dataVenc };
             const hoje = new Date();
             const dataComp = new Date(hoje.getFullYear(), parseInt(partes[1])-1, parseInt(partes[0]));
@@ -505,7 +505,9 @@
             const mesAtual = new Date().getMonth() + 1;
             return alunos.filter(a => {
                 if (!a.aniversario) return false;
-                const mes = parseInt(a.aniversario.split('/')[1]);
+                const partes = String(a.aniversario).split('/');
+                if (partes.length < 2) return false;
+                const mes = parseInt(partes[1]);
                 return mes === mesAtual;
             });
         }
@@ -625,7 +627,7 @@
                 exibir = filtrados.filter(h => {
                     const alunosHorario = getAlunosPorHorario(h.id);
                     const matchHorario = h.horario.toLowerCase().includes(searchQuery) || h.modalidade.toLowerCase().includes(searchQuery);
-                    const matchAluno = alunosHorario.some(a => a.nome.toLowerCase().includes(searchQuery) || a.telefone.includes(searchQuery));
+                    const matchAluno = alunosHorario.some(a => String(a.nome || '').toLowerCase().includes(searchQuery) || String(a.telefone || '').includes(searchQuery));
                     return matchHorario || matchAluno;
                 });
             }
@@ -655,7 +657,7 @@
                                 <span style="font-size:0.55rem; color:#64748b;"> #${a.codigo}</span>
                                 ${status.vencido ? `<span class="badge-vencido" style="font-size:0.5rem; margin-left:5px;">${status.texto}</span>` : ''}
                             </div>
-                            <a href="https://wa.me/${a.telefone.replace(/\D/g,'')}" target="_blank" class="btn-whatsapp">WhatsApp</a>
+                            <a href="https://wa.me/${String(a.telefone || '').replace(/\D/g,'')}" target="_blank" class="btn-whatsapp">WhatsApp</a>
                         </div>
                     `;
                 }).join('');
@@ -702,7 +704,7 @@
             let filtrados = [...alunos];
             
             if (search) {
-                filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(search) || a.telefone.includes(search));
+                filtrados = filtrados.filter(a => String(a.nome || '').toLowerCase().includes(search) || String(a.telefone || '').includes(search));
             }
             if (alunoFilterStatus === 'VENCIDOS') {
                 filtrados = filtrados.filter(a => verificarVencimento(a.vencimento).vencido);
@@ -724,7 +726,7 @@
                         <td>${horario ? horario.horario : '—'}</td>
                         <td>${a.modalidade}</td>
                         <td>
-                            <a href="https://wa.me/${a.telefone.replace(/\D/g,'')}" target="_blank" class="btn-whatsapp" style="display:inline-block; margin-right:5px;">💬</a>
+                            <a href="https://wa.me/${String(a.telefone || '').replace(/\D/g,'')}" target="_blank" class="btn-whatsapp" style="display:inline-block; margin-right:5px;">💬</a>
                             <button onclick="removerAluno(${a.codigo})" style="background:#fee2e2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">🗑️</button>
                         </td>
                     </tr>
@@ -956,7 +958,7 @@
                 ${alunosHorario.map(a => `
                     <div class="modal-student-row">
                         <div><strong>${a.nome}</strong><br><span style="font-size:0.65rem;">📞 ${a.telefone}</span></div>
-                        <div><a href="https://wa.me/${a.telefone.replace(/\D/g,'')}" target="_blank" class="btn-whatsapp">💬</a>
+                        <div><a href="https://wa.me/${String(a.telefone || '').replace(/\D/g,'')}" target="_blank" class="btn-whatsapp">💬</a>
                         <button onclick="removerAluno(${a.codigo}); fecharModal();" style="background:#fee2e2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">🗑️</button></div>
                     </div>
                 `).join('') || '<div style="text-align:center;">Nenhum aluno</div>'}</div>
@@ -1055,7 +1057,7 @@
         function buscarGlobal() {
             const termo = document.getElementById('globalSearchHeader')?.value.toLowerCase();
             if (!termo) return;
-            const encontrados = alunos.filter(a => a.nome.toLowerCase().includes(termo) || a.telefone.includes(termo));
+            const encontrados = alunos.filter(a => String(a.nome || '').toLowerCase().includes(termo) || String(a.telefone || '').includes(termo));
             if (encontrados.length > 0) {
                 mudarAba('alunos');
                 document.getElementById('studentTableSearch').value = termo;
