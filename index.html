@@ -225,7 +225,6 @@
                 </div>
             </div>
             
-            <!-- ABA HORÁRIOS -->
             <div id="tab-horarios" class="tab-content active">
                 <div class="filter-panel">
                     <input type="text" id="searchBar" class="search-bar" placeholder="🔍 Buscar horário ou aluno..." oninput="filtrarHorarios()">
@@ -254,6 +253,26 @@
                             <button class="btn-select" onclick="filtrarPorModalidade('Personal Class')">Personal</button>
                         </div>
                     </div>
+                    <div class="filter-group">
+                        <div class="filter-label">Turno:</div>
+                        <div class="filter-options" id="filterTurno">
+                            <button class="btn-select active" onclick="filtrarPorTurno('TODOS')">Todos</button>
+                            <button class="btn-select" onclick="filtrarPorTurno('manha')">Manhã</button>
+                            <button class="btn-select" onclick="filtrarPorTurno('tarde')">Tarde</button>
+                            <button class="btn-select" onclick="filtrarPorTurno('noite')">Noite</button>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <div class="filter-label">Ocupação:</div>
+                        <div class="filter-options" id="filterOcupacao">
+                            <button class="btn-select active" onclick="filtrarPorOcupacao('TODOS')">Todos</button>
+                            <button class="btn-select" onclick="filtrarPorOcupacao('COM_ALUNOS')">Com Alunos</button>
+                            <button class="btn-select" onclick="filtrarPorOcupacao('VENCIDOS')">🔴 Vencidos</button>
+                            <button class="btn-select" onclick="filtrarPorOcupacao('COM_VAGAS')">Com Vagas</button>
+                            <button class="btn-select" onclick="filtrarPorOcupacao('LOTADAS')">Lotadas</button>
+                            <button class="btn-select" onclick="filtrarPorOcupacao('VAZIAS')">Vazias</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="dashboard-layout">
                     <div class="turmas-grid" id="cardsGrid"></div>
@@ -272,7 +291,6 @@
                 </div>
             </div>
             
-            <!-- ABA ALUNOS -->
             <div id="tab-alunos" class="tab-content">
                 <div class="filter-panel">
                     <div class="fast-form">
@@ -330,12 +348,10 @@
                 </div>
             </div>
             
-            <!-- ABA RESUMO -->
             <div id="tab-resumo" class="tab-content">
                 <div id="resumoContainer"></div>
             </div>
             
-            <!-- ABA INCOMPLETOS -->
             <div id="tab-incompletos" class="tab-content">
                 <div class="filter-panel">
                     <div class="filter-group">
@@ -361,7 +377,6 @@
         </div>
     </div>
     
-    <!-- MODAL -->
     <div id="modal" class="modal" onclick="fecharModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
@@ -460,10 +475,10 @@
         ];
         
         // ============================================================
-        // VARIÁVEIS GLOBAIS
+        // VARIÁVEIS GLOBAIS (COM OS NOVOS FILTROS)
         // ============================================================
         let alunos = [];
-        let activeFilters = { modalidade: 'TODAS' };
+        let activeFilters = { modalidade: 'TODAS', turno: 'TODOS', ocupacao: 'TODOS' };
         let currentDiasFiltro = [];
         let alunoFilterStatus = 'TODOS';
         let studentIdCounter = 1000;
@@ -597,7 +612,7 @@
         }
         
         // ============================================================
-        // RENDERIZAÇÃO DOS HORÁRIOS (CARDS)
+        // RENDERIZAÇÃO DOS HORÁRIOS (CARDS E NOVOS FILTROS LÓGICOS)
         // ============================================================
         function getHorariosFiltrados() {
             let filtrados = [...horariosConfig];
@@ -610,6 +625,26 @@
             
             if (activeFilters.modalidade !== 'TODAS') {
                 filtrados = filtrados.filter(h => h.modalidade === activeFilters.modalidade);
+            }
+            
+            if (activeFilters.turno !== 'TODOS') {
+                filtrados = filtrados.filter(h => h.turno === activeFilters.turno);
+            }
+            
+            if (activeFilters.ocupacao !== 'TODOS') {
+                filtrados = filtrados.filter(h => {
+                    const alunosHorario = getAlunosPorHorario(h.id);
+                    const ocupacaoAtual = alunosHorario.length;
+                    
+                    if (activeFilters.ocupacao === 'COM_ALUNOS') return ocupacaoAtual > 0;
+                    if (activeFilters.ocupacao === 'VAZIAS') return ocupacaoAtual === 0;
+                    if (activeFilters.ocupacao === 'LOTADAS') return ocupacaoAtual >= h.capacidade;
+                    if (activeFilters.ocupacao === 'COM_VAGAS') return ocupacaoAtual < h.capacidade;
+                    if (activeFilters.ocupacao === 'VENCIDOS') {
+                        return alunosHorario.some(a => verificarVencimento(a.vencimento).vencido);
+                    }
+                    return true;
+                });
             }
             
             return filtrados;
@@ -633,7 +668,7 @@
             }
             
             if (exibir.length === 0) {
-                grid.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;">Nenhum horário encontrado</div>';
+                grid.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;">Nenhum horário encontrado com estes filtros</div>';
                 return;
             }
             
@@ -745,8 +780,9 @@
             const vencidosUnicos = [];
             const nomesVistos = [];
             vencidos.forEach(v => {
-                if (!nomesVistos.includes(v.nome.toLowerCase())) {
-                    nomesVistos.push(v.nome.toLowerCase());
+                const nomeSeguro = String(v.nome || '').toLowerCase();
+                if (!nomesVistos.includes(nomeSeguro)) {
+                    nomesVistos.push(nomeSeguro);
                     vencidosUnicos.push(v);
                 }
             });
@@ -759,7 +795,7 @@
             container.innerHTML = vencidosUnicos.map(v => `
                 <div class="vencido-card">
                     <div><strong>#${v.codigo}</strong> 👤 ${v.nome} - 📞 ${v.telefone}</div>
-                    <a href="https://wa.me/${v.telefone.replace(/\D/g,'')}" target="_blank" class="btn-whatsapp">💬 Cobrar</a>
+                    <a href="https://wa.me/${String(v.telefone || '').replace(/\D/g,'')}" target="_blank" class="btn-whatsapp">💬 Cobrar</a>
                 </div>
             `).join('');
         }
@@ -774,9 +810,9 @@
             const incompletos = alunos.filter(a => !a.dias_treino || a.dias_treino.trim() === '');
             
             if (incompletos.length === 0) {
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px;">✅ Nenhum aluno incompleto! Todos têm dias de treino definidos.</td></tr>';
-    return;
-}
+                body.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px;">✅ Nenhum aluno incompleto! Todos têm dias de treino definidos.</td></tr>';
+                return;
+            }
             
             body.innerHTML = incompletos.map(a => {
                 const diasOptions = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -907,7 +943,7 @@
         }
         
         // ============================================================
-        // FILTROS
+        // FILTROS NOVOS E ANTIGOS
         // ============================================================
         function limparFiltrosDia(btn) {
             document.querySelectorAll('.dia-filtro-cb').forEach(cb => cb.checked = false);
@@ -927,6 +963,20 @@
         function filtrarPorModalidade(modalidade) {
             activeFilters.modalidade = modalidade;
             document.querySelectorAll('#filterModalities .btn-select').forEach(b => b.classList.remove('active'));
+            if (event && event.target) event.target.classList.add('active');
+            renderizarHorarios();
+        }
+        
+        function filtrarPorTurno(turno) {
+            activeFilters.turno = turno;
+            document.querySelectorAll('#filterTurno .btn-select').forEach(b => b.classList.remove('active'));
+            if (event && event.target) event.target.classList.add('active');
+            renderizarHorarios();
+        }
+        
+        function filtrarPorOcupacao(ocupacao) {
+            activeFilters.ocupacao = ocupacao;
+            document.querySelectorAll('#filterOcupacao .btn-select').forEach(b => b.classList.remove('active'));
             if (event && event.target) event.target.classList.add('active');
             renderizarHorarios();
         }
