@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>AquaControl - Controle de Turmas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <div class="login-logo">🔑</div>
+            <h2>Acesso Restrito</h2>
+            <p>Insira a senha para continuar.</p>
+            <input type="password" id="passwordInput" class="login-input" placeholder="Digite a senha..." onkeypress="handleKeyPress(event)">
+            <button class="btn-login" onclick="checkPassword()">Entrar no Sistema</button>
+            <div id="loginError" class="login-error">❌ Senha incorreta!</div>
+        </div>
+    </div>
+    
+    <div id="appContainer">
+        <div class="header">
+            <div class="logo">
+                <h1>🏊 AquaControl</h1>
+                <p>Gestão de Horários - Academia</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <div style="background: rgba(255,255,255,0.15); border-radius: 30px; padding: 5px 15px; display: flex; align-items: center; gap: 8px;">
+                    <span>🔍</span>
+                    <input type="text" id="globalSearchHeader" placeholder="Buscar aluno..." style="background: transparent; border: none; outline: none; color: white; width: 160px;" oninput="buscarGlobal()">
+                </div>
+                <button onclick="exportarCSV()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 12px; border-radius: 20px; cursor: pointer;">📥 CSV</button>
+                <span id="googleStatus" class="status">📡 Offline</span>
+                <div style="text-align: right;">
+                    <div id="topGlobalAlunos">0 alunos</div>
+                    <div class="vagas" id="topGlobalVagas">0 matrículas</div>
+                </div>
+                <button onclick="logout()" style="background: rgba(255,255,255,0.15); border: none; color: white; padding: 5px 12px; border-radius: 20px; cursor: pointer;">Sair</button>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="mudarAba('horarios')">📅 Horários</div>
+            <div class="tab" onclick="mudarAba('alunos')">👥 Alunos</div>
+            <div class="tab" onclick="mudarAba('resumo')">📊 Resumo</div>
+            <div class="tab" onclick="mudarAba('incompletos')">⚠️ Incompletos</div>
+        </div>
+        
+        <div class="container">
+            <div id="loadingBanner" style="background: #e0f2fe; color: #0369a1; padding: 8px; text-align: center; font-size: 0.75rem; border-radius: 8px; margin-bottom: 15px; display: none;">🔄 Sincronizando...</div>
+            
+            <div class="summary-widgets">
+                <div class="widget aluno-counter">
+                    <div class="val" id="widgetTotalAlunosCount">0</div>
+                    <div class="lbl">🎯 TOTAL DE ALUNOS</div>
+                    <div class="sub">cadastrados no sistema</div>
+                </div>
+                <div class="widget">
+                    <div class="val" id="widgetTotalAlunos">0</div>
+                    <div class="lbl">👤 Ativos</div>
+                    <div class="sub" id="widgetTotalCapacidade">matrículas</div>
+                </div>
+                <div class="widget">
+                    <div class="val" id="widgetVencidos" style="color: #ef4444;">0</div>
+                    <div class="lbl">⚠️ Vencidos</div>
+                    <div class="sub">pagamentos atrasados</div>
+                </div>
+                <div class="widget">
+                    <div class="val" id="widgetEmDia">0</div>
+                    <div class="lbl">✅ Em Dia</div>
+                    <div class="sub">pagamentos em dia</div>
+                </div>
+                <div class="widget">
+                    <div class="val" id="widgetManha">0</div>
+                    <div class="lbl">☀️ Manhã</div>
+                    <div class="sub">matrículas</div>
+                    <div class="progress-mini"><div class="progress-mini-fill" id="progressManha" style="width: 0%"></div></div>
+                </div>
+                <div class="widget">
+                    <div class="val" id="widgetTarde">0</div>
+                    <div class="lbl">🌤️ Tarde</div>
+                    <div class="sub">matrículas</div>
+                    <div class="progress-mini"><div class="progress-mini-fill" id="progressTarde" style="width: 0%"></div></div>
+                </div>
+                <div class="widget">
+                    <div class="val" id="widgetNoite">0</div>
+                    <div class="lbl">🌙 Noite</div>
+                    <div class="sub">matrículas</div>
+                    <div class="progress-mini"><div class="progress-mini-fill" id="progressNoite" style="width: 0%"></div></div>
+                </div>
+                <div class="widget">
+                    <div class="val" id="widgetSabado">0</div>
+                    <div class="lbl">📅 Sábados</div>
+                    <div class="sub">matrículas</div>
+                    <div class="progress-mini"><div class="progress-mini-fill" id="progressSabado" style="width: 0%"></div></div>
+                </div>
+                <div class="widget">
+                    <div class="val" id="widgetOcupacao">0%</div>
+                    <div class="lbl">🎯 Ocupação</div>
+                    <div class="progress-mini"><div class="progress-mini-fill" id="progressGeral" style="width: 0%"></div></div>
+                </div>
+            </div>
+            
+            <div id="tab-horarios" class="tab-content active">
+                <div class="filter-panel">
+                    <input type="text" id="searchBar" class="search-bar" placeholder="🔍 Buscar horário ou aluno..." oninput="filtrarHorarios()">
+                    <div class="filter-group">
+                        <div class="filter-label">Dias:</div>
+                        <div class="filter-options" id="filterDays">
+                            <button class="btn-select active" onclick="limparFiltrosDia(this)">Todos</button>
+                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Segunda" onchange="filtrarHorarios()" style="margin-right: 3px;"> Seg</label>
+                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Terça" onchange="filtrarHorarios()" style="margin-right: 3px;"> Ter</label>
+                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Quarta" onchange="filtrarHorarios()" style="margin-right: 3px;"> Qua</label>
+                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Quinta" onchange="filtrarHorarios()" style="margin-right: 3px;"> Qui</label>
+                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Sexta" onchange="filtrarHorarios()" style="margin-right: 3px;"> Sex</label>
+                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Sábado" onchange="filtrarHorarios()" style="margin-right: 3px;"> Sáb</label>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <div class="filter-label">Modalidade:</div>
+                        <div class="filter-options" id="filterModalities">
+                            <button class="btn-select active" onclick="filtrarPorModalidade('TODAS')">Todas</button>
+                            <button class="btn-select" onclick="filtrarPorModalidade('Natação Adulto')">Adulto</button>
+                            <button class="btn-select" onclick="filtrarPorModalidade('Hidroginástica')">Hidro</button>
+                            <button class="btn-select" onclick="filtrarPorModalidade('Natação Infantil Nível 1')">Inf N1</button>
+                            <button class="btn-select" onclick="filtrarPorModalidade('Natação Infantil Nível 2')">Inf N2</button>
+                            <button class="btn-select" onclick="filtrarPorModalidade('Natação Infantil Nível 3')">Inf N3</button>
+                            <button class="btn-select" onclick="filtrarPorModalidade('Natação Baby')">Baby</button>
+                            <button class="btn-select" onclick="filtrarPorModalidade('Personal Class')">Personal</button>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <div class="filter-label">Turno:</div>
+                        <div class="filter-options" id="filterTurno">
+                            <button class="btn-select active" onclick="filtrarPorTurno('TODOS')">Todos</button>
+                            <button class="btn-select" onclick="filtrarPorTurno('manha')">Manhã</button>
+                            <button class="btn-select" onclick="filtrarPorTurno('tarde')">Tarde</button>
+                            <button class="btn-select" onclick="filtrarPorTurno('noite')">Noite</button>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <div class="filter-label">Ocupação:</div>
+                        <div class="filter-options" id="filterOcupacao">
+                            <button class="btn-select active" onclick="filtrarPorOcupacao('TODOS')">Todos</button>
+                            <button class="btn-select" onclick="filtrarPorOcupacao('COM_ALUNOS')">Com Alunos</button>
+                            <button class="btn-select" onclick="filtrarPorOcupacao('VENCIDOS')">🔴 Vencidos</button>
+                            <button class="btn-select" onclick="COM_VAGAS">Com Vagas</button>
+                            <button class="btn-select" onclick="filtrarPorOcupacao('LOTADAS')">Lotadas</button>
+                            <button class="btn-select" onclick="filtrarPorOcupacao('VAZIAS')">Vazias</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="dashboard-layout">
+                    <div class="turmas-grid" id="cardsGrid"></div>
+                    <div class="ranking-sidebar" id="rankingSidebar">
+                        <h3>🏆 Ranking de Ocupação</h3>
+                        <div id="rankingList"></div>
+                        <div style="margin-top: 20px;">
+                            <h3>🎂 Aniversariantes do Mês</h3>
+                            <div id="aniversariantesList"></div>
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <h3>📊 Estatísticas</h3>
+                            <div id="statsSidebar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="tab-alunos" class="tab-content">
+                <div class="filter-panel">
+                    <div class="fast-form">
+                        <input type="hidden" id="editStudentId">
+                        <input type="text" id="addStudentName" class="form-input" placeholder="Nome" style="flex:2">
+                        <input type="text" id="addStudentPhone" class="form-input" placeholder="Telefone" style="flex:1">
+                        <input type="text" id="addStudentDueDate" class="form-input" placeholder="Vencimento (DD/MM)" style="width: 100px">
+                        <input type="text" id="addStudentBirthday" class="form-input" placeholder="Aniversário (DD/MM)" style="width: 100px">
+                        <select id="addStudentModality" class="form-select" style="min-width: 140px;">
+                            <option value="">Modalidade</option>
+                            <option value="Natação Adulto">Natação Adulto</option>
+                            <option value="Hidroginástica">Hidroginástica</option>
+                            <option value="Natação Infantil Nível 1">Infantil N1</option>
+                            <option value="Natação Infantil Nível 2">Infantil N2</option>
+                            <option value="Natação Infantil Nível 3">Infantil N3</option>
+                            <option value="Natação Baby">Baby</option>
+                            <option value="Personal Class">Personal</option>
+                        </select>
+                        <div class="dias-treino-group" style="display: flex; gap: 5px; flex-wrap: wrap;">
+                            <label style="display: inline-flex; align-items: center; gap: 3px; font-size: 0.65rem;"><input type="checkbox" class="dia-treino-cb" value="Segunda"> Seg</label>
+                            <label style="display: inline-flex; align-items: center; gap: 3px; font-size: 0.65rem;"><input type="checkbox" class="dia-treino-cb" value="Terça"> Ter</label>
+                            <label style="display: inline-flex; align-items: center; gap: 3px; font-size: 0.65rem;"><input type="checkbox" class="dia-treino-cb" value="Quarta"> Qua</label>
+                            <label style="display: inline-flex; align-items: center; gap: 3px; font-size: 0.65rem;"><input type="checkbox" class="dia-treino-cb" value="Quinta"> Qui</label>
+                            <label style="display: inline-flex; align-items: center; gap: 3px; font-size: 0.65rem;"><input type="checkbox" class="dia-treino-cb" value="Sexta"> Sex</label>
+                            <label style="display: inline-flex; align-items: center; gap: 3px; font-size: 0.65rem;"><input type="checkbox" class="dia-treino-cb" value="Sábado"> Sáb</label>
+                        </div>
+                        <select id="addStudentHorario" class="form-select" style="min-width: 180px;">
+                            <option value="">Selecione horário</option>
+                        </select>
+                        <input type="text" id="addStudentObs" class="form-input" placeholder="OBS">
+                        <button class="btn-submit" onclick="cadastrarAluno()">➕ Cadastrar</button>
+                        <button class="btn-submit" onclick="cancelarEdicao()" id="btnCancelar" style="display:none; background:#94a3b8;">Cancelar</button>
+                    </div>
+                    <div class="filter-group">
+                        <div class="filter-label">Status:</div>
+                        <div class="filter-options">
+                            <button class="btn-select active" onclick="setFilterAluno('TODOS')">Todos</button>
+                            <button class="btn-select" onclick="setFilterAluno('VENCIDOS')">🔴 Vencidos</button>
+                            <button class="btn-select" onclick="setFilterAluno('EM_DIA')">🟢 Em Dia</button>
+                        </div>
+                    </div>
+                    <input type="text" id="studentTableSearch" class="search-bar" placeholder="🔍 Filtrar aluno..." oninput="renderStudentTable()" style="margin-top: 10px;">
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Aniversário</th><th>Dias</th><th>Horário</th><th>Modalidade</th><th>Situação</th><th>Ações</th></tr>
+                        </thead>
+                        <tbody id="studentTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="vencidos-list">
+                    <h3>⚠️ ALUNOS VENCIDOS (Últimos 30 dias)</h3>
+                    <div id="vencidosList"></div>
+                </div>
+            </div>
+            
+            <div id="tab-resumo" class="tab-content">
+                <div id="resumoContainer"></div>
+            </div>
+            
+            <div id="tab-incompletos" class="tab-content">
+                <div class="filter-panel">
+                    <div class="filter-group">
+                        <div class="filter-label">Filtrar:</div>
+                        <div class="filter-options">
+                            <button class="btn-select active" onclick="filtrarIncompletos('TODOS')">Todos</button>
+                            <button class="btn-select" onclick="filtrarIncompletos('SEM_DIAS')">📅 Sem Dias</button>
+                        </div>
+                    </div>
+                    <div style="background: #fef3c7; padding: 10px; border-radius: 8px; color: #92400e; font-size: 0.7rem; margin-top: 10px;">
+                        💡 Alunos com dias não identificados aparecem aqui. Selecione os dias corretos e clique em Salvar.
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Dias Atual</th><th>Corrigir Dias</th><th>Ação</th></tr>
+                        </thead>
+                        <tbody id="incompletosBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal" class="modal" onclick="fecharModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modalTitulo">Horário</h3>
+                <button class="modal-close" onclick="fecharModal()">✕</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
