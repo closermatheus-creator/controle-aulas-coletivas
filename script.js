@@ -621,6 +621,7 @@ function renderStudentTableSuper() {
 
 // RENDERIZAÇÃO DA TELA DE INCOMPLETOS COM GRADE DE VINCULAÇÃO
 // RENDERIZAÇÃO DA TELA DE INCOMPLETOS COM GRADE DE VINCULAÇÃO
+// RENDERIZAÇÃO DA TELA DE INCOMPLETOS COM GRADE DE VINCULAÇÃO E BOTÃO DE TESTE
 function renderIncompletosSuper() {
     const body = document.getElementById('superIncompletosBody');
     if (!body) return;
@@ -638,7 +639,7 @@ function renderIncompletosSuper() {
         const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const gradeHtml = diasSemana.map(dia => {
             const campo = diasMap[dia];
-            // Filtra apenas turmas da mesma MODALIDADE do aluno para evitar erros
+            // Filtra apenas turmas da mesma MODALIDADE do aluno
             const turmasCompativeis = horariosConfig.filter(h => h.modalidade === a.modalidade && h.dias.includes(dia));
             
             return `
@@ -658,7 +659,13 @@ function renderIncompletosSuper() {
                 <td><strong>${a.nome}</strong><br><small style="color:#64748b;">${a.modalidade}</small></td>
                 <td>${a.telefone}</td>
                 <td><div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:5px;">${gradeHtml}</div></td>
-                <td><button onclick="vincularIncompleto(${a.codigo})" class="btn-save-modal" style="padding:8px 12px; font-size:0.8rem;">💾 Salvar</button></td>
+                <td>
+                    <button onclick="alert('Botão clicado! Aluno: ${a.nome}'); vincularIncompleto(${a.codigo})" 
+                            class="btn-save-modal" 
+                            style="padding:8px 12px; font-size:0.8rem;">
+                        💾 Salvar
+                    </button>
+                </td>
             </tr>
         `;
     }).join('');
@@ -666,10 +673,11 @@ function renderIncompletosSuper() {
 
 // LÓGICA DE SALVAMENTO QUE ATUALIZA A PLANILHA E MUDA O STATUS
 function vincularIncompleto(cod) {
+    alert("Entrei na função de salvamento para o código: " + cod);
     const al = alunos.find(a => a.codigo == cod);
-    if (!al) return;
+    if (!al) { alert("Aluno não encontrado!"); return; }
 
-    // Captura os valores dos selects da grade
+    // Captura os valores
     ['seg', 'ter', 'qua', 'qui', 'sex', 'sab'].forEach(campo => {
         const select = document.querySelector(`.inc-select-${al.codigo}-${campo}`);
         if(select) al[campo] = select.value ? parseInt(select.value) : '';
@@ -677,10 +685,7 @@ function vincularIncompleto(cod) {
 
     al.status = 'ATIVO';
 
-    // Chama o mensageiro e exibe o que está sendo enviado para depurar
-    console.log("Enviando para o Google:", al);
-    
-    // AQUI ESTÁ O SEGREDO: Chame a função de salvamento diretamente
+    console.log("Tentando salvar:", al);
     salvarNoGoogle(al);
 }
 
