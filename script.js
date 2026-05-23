@@ -256,6 +256,20 @@ function atualizarWidgets() {
     `;
 }
 
+function mostrarToast(msg, tipo = 'sucesso') {
+    let t = document.getElementById('toastGlobal');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'toastGlobal';
+        t.className = 'toast';
+        document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.className = `toast ${tipo === 'erro' ? 'erro' : ''}`;
+    setTimeout(() => t.classList.add('show'), 10);
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
 // ============================================================
 // DESIGN DO APP: RENDERIZAÇÃO DA HOME PRINCIPAL (CARDS)
 // ============================================================
@@ -658,7 +672,6 @@ function renderIncompletosSuper() {
     document.querySelectorAll('.btn-save').forEach(btn => {
         btn.addEventListener('click', function() {
             const cod = this.getAttribute('data-codigo');
-            alert("Botão detectado! Iniciando salvamento...");
             vincularIncompleto(cod);
         });
     });
@@ -666,7 +679,6 @@ function renderIncompletosSuper() {
 
 // LÓGICA DE SALVAMENTO QUE ATUALIZA A PLANILHA E MUDA O STATUS
 function vincularIncompleto(cod) {
-    alert("Entrei na função de salvamento para o código: " + cod);
     const al = alunos.find(a => a.codigo == cod);
     if (!al) { alert("Aluno não encontrado!"); return; }
 
@@ -680,6 +692,7 @@ function vincularIncompleto(cod) {
 
     console.log("Tentando salvar:", al);
     salvarNoGoogle(al);
+    abrirSuperModal('incompletos'); // 👈 ADICIONA ESSA LINHA
 }
 
 
@@ -717,9 +730,8 @@ function enviarParaGoogle(aluno) {
 }
 
 function salvarNoGoogle(dadosAluno) {
-    console.log("Iniciando envio para o Google..."); // VAI APARECER NO CONSOLE
+    console.log("Iniciando envio para o Google...");
     const url = "https://script.google.com/macros/s/AKfycbwhU7UOTnRCWTtBwVPLa88armwTcHk9iLgu_vsIEiYHsWsW9sYrSPQDz1t2wYdxMQVC/exec";
-
     fetch(url, {
         method: "POST",
         mode: "no-cors",
@@ -728,10 +740,10 @@ function salvarNoGoogle(dadosAluno) {
         body: JSON.stringify(dadosAluno)
     })
     .then(() => {
-        alert("Sucesso! Verifique a planilha.");
+        mostrarToast('✅ Salvo com sucesso na planilha!');
     })
     .catch(error => {
-        alert("Erro no salvamento: " + error);
+        mostrarToast('❌ Erro ao salvar: ' + error, 'erro');
         console.error("Erro detalhado:", error);
     });
 }
