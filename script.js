@@ -127,7 +127,8 @@ function verificarVencimento(dataVenc) {
     if (diff < 0) return { vencido: true, texto: `⚠️ Vencido há ${-diff} dias` };
     if (diff === 0) return { vencido: true, texto: `⚠️ Vence hoje` };
     if (diff <= 5) return { vencido: false, texto: `📅 Falta ${diff} dias` };
-    return { vencido: false, texto: `📅 ${dataVenc}` };
+    const ddmm = partes[0].padStart(2,'0') + '/' + partes[1].padStart(2,'0');
+    return { vencido: false, texto: `📅 ${ddmm}` };
 }
 
 function getAlunosPorHorario(horarioId) {
@@ -387,7 +388,7 @@ function renderStudentTable() {
                 <td><strong>${a.nome}</strong></td>
                 <td>${a.telefone}</td>
                 <td><span class="badge ${status.vencido ? 'badge-vencido' : 'badge-emdia'}">${status.texto}</span></td>
-                <td>${a.aniversario || '—'}</td>
+                <td>${a.aniversario ? String(a.aniversario).split('/').slice(0,2).join('/') : '—'}</td>
                 <td><span style="color:var(--primary); font-weight:600;">${a.dias_treino || '—'}</span></td>
                 <td>${horario ? horario.horario : '—'}</td>
                 <td>${a.modalidade}</td>
@@ -827,6 +828,10 @@ function mudarAba(aba) {
         document.querySelectorAll('.tab')[3].classList.add('active');
         document.getElementById('tab-incompletos').classList.add('active');
         renderIncompletos();
+    } else if (aba === 'turmas') {
+        document.querySelectorAll('.tab')[4].classList.add('active');
+        document.getElementById('tab-turmas').classList.add('active');
+        renderizarTurmas();
     }
 }
 

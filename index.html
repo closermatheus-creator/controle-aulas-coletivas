@@ -40,16 +40,12 @@
         </div>
         
         <div class="tabs">
-            <div class="tab active" onclick="mudarAba('horarios')">📅 Horários</div>
-            <div class="tab" onclick="mudarAba('alunos')">👥 Alunos</div>
-            <div class="tab" onclick="mudarAba('resumo')">📊 Resumo</div>
-            <div class="tab" onclick="mudarAba('incompletos')">⚠️ Incompletos</div>
-            <div class="tab" onclick="mudarAba('turmas')">📊 Turmas</div>
-            <div id="tab-turmas" class="tab-content">
-                <h2>Painel de Ocupação</h2>
-            <div id="turmasContainer" class="turmas-grid"></div>
-            </div>
-        </div>
+    <div class="tab active" onclick="mudarAba('horarios')">📅 Horários</div>
+    <div class="tab" onclick="mudarAba('alunos')">👥 Alunos</div>
+    <div class="tab" onclick="mudarAba('resumo')">📊 Resumo</div>
+    <div class="tab" onclick="mudarAba('incompletos')">⚠️ Incompletos</div>
+    <div class="tab" onclick="mudarAba('turmas')">📊 Turmas</div>
+</div>
         
         <div class="container">
             <div id="loadingBanner" style="background: #e0f2fe; color: #0369a1; padding: 8px; text-align: center; font-size: 0.75rem; border-radius: 8px; margin-bottom: 15px; display: none;">🔄 Sincronizando...</div>
@@ -149,7 +145,7 @@
                             <button class="btn-select active" onclick="filtrarPorOcupacao('TODOS')">Todos</button>
                             <button class="btn-select" onclick="filtrarPorOcupacao('COM_ALUNOS')">Com Alunos</button>
                             <button class="btn-select" onclick="filtrarPorOcupacao('VENCIDOS')">🔴 Vencidos</button>
-                            <button class="btn-select" onclick="filtrarPorOcupacao('COM_VAGAS')"</button>
+                            <button class="btn-select" onclick="filtrarPorOcupacao('COM_VAGAS')">Com Vagas</button>
                             <button class="btn-select" onclick="filtrarPorOcupacao('LOTADAS')">Lotadas</button>
                             <button class="btn-select" onclick="filtrarPorOcupacao('VAZIAS')">Vazias</button>
                         </div>
@@ -233,30 +229,38 @@
                 <div id="resumoContainer"></div>
             </div>
             
-            <div id="tab-incompletos" class="tab-content">
-                <div class="filter-panel">
-                    <div class="filter-group">
-                        <div class="filter-label">Filtrar:</div>
-                        <div class="filter-options">
-                            <button class="btn-select active" onclick="filtrarIncompletos('TODOS')">Todos</button>
-                            <button class="btn-select" onclick="filtrarIncompletos('SEM_DIAS')">📅 Sem Dias</button>
-                        </div>
-                    </div>
-                    <div style="background: #fef3c7; padding: 10px; border-radius: 8px; color: #92400e; font-size: 0.7rem; margin-top: 10px;">
-                        💡 Alunos com dias não identificados aparecem aqui. Selecione os dias corretos e clique em Salvar.
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Dias Atual</th><th>Corrigir Dias</th><th>Ação</th></tr>
-                        </thead>
-                        <tbody id="incompletosBody"></tbody>
-                    </table>
-                </div>
+       ```html
+<div id="tab-incompletos" class="tab-content">
+    <div class="filter-panel">
+        <div class="filter-group">
+            <div class="filter-label">Filtrar:</div>
+            <div class="filter-options">
+                <button class="btn-select active" onclick="filtrarIncompletos('TODOS')">Todos</button>
+                <button class="btn-select" onclick="filtrarIncompletos('SEM_DIAS')">📅 Sem Dias</button>
             </div>
         </div>
+        <div style="background: #fef3c7; padding: 10px; border-radius: 8px; color: #92400e; font-size: 0.7rem; margin-top: 10px;">
+            💡 Alunos com dias não identificados aparecem aqui. Selecione os dias corretos e clique em Salvar.
+        </div>
     </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Dias Atual</th><th>Corrigir Dias</th><th>Ação</th></tr>
+            </thead>
+            <tbody id="incompletosBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="tab-turmas" class="tab-content">
+    <h2 style="margin-bottom: 15px;">Painel de Ocupação</h2>
+    <div id="turmasContainer" class="turmas-grid"></div>
+</div>
+
+        </div>
+    </div>
+```
     
     <div id="modal" class="modal" onclick="fecharModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
