@@ -626,26 +626,17 @@ function renderIncompletosSuper() {
     const body = document.getElementById('superIncompletosBody');
     if (!body) return;
     
-    // Filtra alunos que estão PENDENTES ou sem dias marcados
     const inc = alunos.filter(a => a.status === 'PENDENTE' || (!a.seg && !a.ter && !a.qua && !a.qui && !a.sex && !a.sab));
     
-    if (inc.length === 0) { 
-        body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#16a34a; font-weight:bold; padding:25px;">✅ Tudo limpo! Nenhum aluno pendente.</td></tr>'; 
-        return; 
-    }
-    
     body.innerHTML = inc.map(a => {
-        // Gera a Mini Grade de 6 dias
         const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const gradeHtml = diasSemana.map(dia => {
             const campo = diasMap[dia];
-            // Filtra apenas turmas da mesma MODALIDADE do aluno
             const turmasCompativeis = horariosConfig.filter(h => h.modalidade === a.modalidade && h.dias.includes(dia));
-            
             return `
                 <div style="margin-bottom:5px;">
-                    <label style="font-size:0.7rem; font-weight:bold;">${dia}:</label>
-                    <select class="inc-select-${a.codigo}-${campo}" style="width:100%; padding:4px; font-size:0.8rem;">
+                    <label>${dia}:</label>
+                    <select class="inc-select-${a.codigo}-${campo}">
                         <option value="">--</option>
                         ${turmasCompativeis.map(h => `<option value="${h.id}">${h.horario}</option>`).join('')}
                     </select>
@@ -653,22 +644,24 @@ function renderIncompletosSuper() {
             `;
         }).join('');
 
+        // BOTÃO COM ID ÚNICO E EVENTO DE CLIQUE
         return `
             <tr>
-                <td>#${a.codigo}</td>
-                <td><strong>${a.nome}</strong><br><small style="color:#64748b;">${a.modalidade}</small></td>
-                <td>${a.telefone}</td>
-                <td><div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:5px;">${gradeHtml}</div></td>
-                <td>
-                    <button onclick="alert('Botão clicado! Aluno: ${a.nome}'); vincularIncompleto(${a.codigo})" 
-                            class="btn-save-modal" 
-                            style="padding:8px 12px; font-size:0.8rem;">
-                        💾 Salvar
-                    </button>
-                </td>
+                <td>${a.nome}</td>
+                <td>${gradeHtml}</td>
+                <td><button id="btn-save-${a.codigo}" class="btn-save" data-codigo="${a.codigo}">💾 SALVAR AGORA</button></td>
             </tr>
         `;
     }).join('');
+
+    // Adiciona o ouvinte de clique em todos os botões novos
+    document.querySelectorAll('.btn-save').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const cod = this.getAttribute('data-codigo');
+            alert("Botão detectado! Iniciando salvamento...");
+            vincularIncompleto(cod);
+        });
+    });
 }
 
 // LÓGICA DE SALVAMENTO QUE ATUALIZA A PLANILHA E MUDA O STATUS
