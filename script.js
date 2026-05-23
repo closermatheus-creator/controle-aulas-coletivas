@@ -121,7 +121,11 @@ async function carregarDados() {
         const resposta = await fetch(GOOGLE_SCRIPT_URL);
         const dados = await resposta.json();
         
-        alunos = dados.alunos || [];
+        // Mágica aqui: Pegamos a aba principal e a aba de incompletos (se existir) e unimos na memória!
+        const alunosPrincipais = dados.alunos || [];
+        const alunosIncompletos = dados.incompletos || [];
+        alunos = [...alunosPrincipais, ...alunosIncompletos];
+        
         experimentais = dados.experimentais || [];
         
         studentIdCounter = alunos.length > 0 ? Math.max(...alunos.map(a => a.codigo || 0), 1000) : 1000;
@@ -136,7 +140,6 @@ async function carregarDados() {
         renderizarTudo();
     }
 }
-
 // ============================================================
 // RELATÓRIOS E COMPILADORES DE CAPACIDADE
 // ============================================================
@@ -560,53 +563,6 @@ function abrirSuperModal(tipo) {
         `;
         renderStudentTableSuper();
     }
-    else if (tipo === 'resumo') {
-        titulo.innerHTML = '📊 Resumo Estatístico por Categoria (Lotação)';
-        let totalVagasOferecidas = horariosConfig.reduce((s, h) => s + (h.capacidade || 10), 0);
-        let totalMatriculasOcupadas = 0;
-        alunos.forEach(a => {
-            if (a.seg) totalMatriculasOcupadas++; if (a.ter) totalMatriculasOcupadas++;
-            if (a.qua) totalMatriculasOcupadas++; if (a.qui) totalMatriculasOcupadas++;
-            if (a.sex) totalMatriculasOcupadas++; if (a.sab) totalMatriculasOcupadas++;
-        });
-        const pctOcupacao = totalVagasOferecidas > 0 ? ((totalMatriculasOcupadas / totalVagasOferecidas) * 100).toFixed(1) : 0;
-        const resumoCategorias = {};
-        horariosConfig.forEach(h => {
-            if (!resumoCategorias[h.modalidade]) resumoCategorias[h.modalidade] = { ocupadas: 0, totais: 0 };
-            resumoCategorias[h.modalidade].totais += h.capacidade;
-            resumoCategorias[h.modalidade].ocupadas += getOcupacaoHorario(h.id);
-        });
-
-        corpo.innerHTML = `
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:25px;">
-                <div style="background:#f0fdf4; padding:20px; border-radius:12px; border:1px solid #bbf7d0; text-align:center;">
-                    <div style="font-size:2.6rem; font-weight:800; color:#16a34a;">${totalMatriculasOcupadas} / ${totalVagasOferecidas}</div>
-                    <div style="font-weight:700; color:#475569; margin-top:5px;">Matrículas Preenchidas na Academia</div>
-                </div>
-                <div style="background:#f0f9ff; padding:20px; border-radius:12px; border:1px solid #bae6fd; text-align:center;">
-                    <div style="font-size:2.6rem; font-weight:800; color:#0284c7;">${pctOcupacao}%</div>
-                    <div style="font-weight:700; color:#475569; margin-top:5px;">Taxa de Ocupação Geral</div>
-                </div>
-            </div>
-            <h3 style="font-size:1.2rem; color:#1e293b; margin-bottom:15px; border-left:4px solid #006994; padding-left:8px;">📊 Lotação e Limite Máximo por Categoria:</h3>
-            <div style="display:flex; flex-direction:column; gap:15px; background:white; border:1px solid #cbd5e1; border-radius:12px; padding:20px;">
-                ${Object.entries(resumoCategorias).map(([modalidade, dados]) => {
-                    const pctCat = ((dados.ocupadas / dados.totais) * 100).toFixed(1);
-                    return `
-                        <div>
-                            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.05rem; margin-bottom:6px;">
-                                <span>🔹 ${modalidade}</span>
-                                <span style="color:#006994;">${dados.ocupadas} ocupadas / ${dados.totais} limites (${pctCat}%)</span>
-                            </div>
-                            <div style="background:#e2e8f0; height:10px; border-radius:5px; overflow:hidden;">
-                                <div style="width:${pctCat}%; background:#006994; height:100%;"></div>
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        `;
-    }
     else if (tipo === 'incompletos') {
         titulo.innerHTML = '⚠️ Alunos sem Dias de Treino Vinculados';
         corpo.innerHTML = `
@@ -620,11 +576,6 @@ function abrirSuperModal(tipo) {
             </div>
         `;
         renderIncompletosSuper();
-    }
-    else if (tipo === 'turmas') {
-        titulo.innerHTML = '🏢 Visão Geral Macro de Ocupação';
-        corpo.innerHTML = `<div class="turmas-grid" id="superTurmasGrid"></div>`;
-        renderTurmasSuper();
     }
 }
 
@@ -668,26 +619,68 @@ function renderStudentTableSuper() {
     }).join('');
 }
 
+// RENDERIZAÇÃO DA TELA DE INCOMPLETOS COM GRADE DE VINCULAÇÃO
 function renderIncompletosSuper() {
     const body = document.getElementById('superIncompletosBody');
     if (!body) return;
-    const inc = alunos.filter(a => !a.seg && !a.ter && !a.qua && !a.qui && !a.sex && !a.sab);
-    if (inc.length === 0) { body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#16a34a; font-weight:bold; padding:25px;">✅ Nenhum aluno incompleto! Todos possuem turmas associadas.</td></tr>'; return; }
     
-    body.innerHTML = inc.map(a => `
-        <tr>
-            <td>#${a.codigo}</td>
-            <td><strong>${a.nome}</strong></td>
-            <td>${a.telefone}</td>
-            <td>
-                <select class="inc-sel-${a.codigo} form-select-field" style="padding:6px; border-radius:6px; font-size:0.9rem;">
-                    <option value="">-- Escolha uma Turma Alvo --</option>
-                    ${horariosConfig.map(h => `<option value="${h.id}">${h.modalidade} (${h.horario})</option>`).join('')}
-                </select>
-            </td>
-            <td><button onclick="vincularIncompleto(${a.codigo})" class="btn-save-modal" style="padding:8px 14px; font-size:0.85rem;">💾 Vincular</button></td>
-        </tr>
-    `).join('');
+    // Filtra alunos que estão PENDENTES ou sem dias marcados
+    const inc = alunos.filter(a => a.status === 'PENDENTE' || (!a.seg && !a.ter && !a.qua && !a.qui && !a.sex && !a.sab));
+    
+    if (inc.length === 0) { 
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#16a34a; font-weight:bold; padding:25px;">✅ Tudo limpo! Nenhum aluno pendente.</td></tr>'; 
+        return; 
+    }
+    
+    body.innerHTML = inc.map(a => {
+        // Gera a Mini Grade de 6 dias
+        const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        const gradeHtml = diasSemana.map(dia => {
+            const campo = diasMap[dia];
+            // Filtra apenas turmas da mesma MODALIDADE do aluno para evitar erros
+            const turmasCompativeis = horariosConfig.filter(h => h.modalidade === a.modalidade && h.dias.includes(dia));
+            
+            return `
+                <div style="margin-bottom:5px;">
+                    <label style="font-size:0.7rem; font-weight:bold;">${dia}:</label>
+                    <select class="inc-select-${a.codigo}-${campo}" style="width:100%; padding:4px; font-size:0.8rem;">
+                        <option value="">--</option>
+                        ${turmasCompativeis.map(h => `<option value="${h.id}">${h.horario}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <tr>
+                <td>#${a.codigo}</td>
+                <td><strong>${a.nome}</strong><br><small style="color:#64748b;">${a.modalidade}</small></td>
+                <td>${a.telefone}</td>
+                <td><div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:5px;">${gradeHtml}</div></td>
+                <td><button onclick="vincularIncompleto(${a.codigo})" class="btn-save-modal" style="padding:8px 12px; font-size:0.8rem;">💾 Salvar</button></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// LÓGICA DE SALVAMENTO QUE ATUALIZA A PLANILHA E MUDA O STATUS
+function vincularIncompleto(cod) {
+    const al = alunos.find(a => a.codigo == cod);
+    if (!al) return;
+
+    // Coleta os IDs selecionados na mini grade
+    ['seg', 'ter', 'qua', 'qui', 'sex', 'sab'].forEach(campo => {
+        const select = document.querySelector(`.inc-select-${al.codigo}-${campo}`);
+        al[campo] = select.value ? parseInt(select.value) : '';
+    });
+
+    al.status = 'ATIVO'; // Muda o status de PENDENTE para ATIVO
+    
+    // Aqui entra a chamada para enviar os dados de volta para o seu Google Sheets
+    // (Lembre-se de ter a função salvarNoGoogle implementada que faz o POST)
+    renderizarTudo();
+    abrirSuperModal('incompletos');
+    alert(`✅ ${al.nome} vinculado e ativado com sucesso!`);
 }
 
 function vincularIncompleto(cod) {
@@ -722,6 +715,23 @@ function renderTurmasSuper() {
             </div>
         `;
     }).join('');
+}
+function salvarNoGoogle(dadosAluno) {
+    const url = "https://script.google.com/macros/s/AKfycbxzZg07IVj3o9zsNuRPbb33hpqLWMdbx_Ea_6XrT0ikYvez5JP85Myyxq22hk_dee6_/exec"; // O link da implantação (Web App)
+
+    fetch(url, {
+        method: "POST",
+        mode: "no-cors", // Necessário para evitar erro de bloqueio de CORS
+        cache: "no-cache",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dadosAluno)
+    })
+    .then(() => {
+        alert("Dados salvos com sucesso!");
+        // Após salvar, recarrega a página ou os dados para refletir na tela
+        window.location.reload(); 
+    })
+    .catch(error => console.error("Erro ao salvar:", error));
 }
 
 // ============================================================
