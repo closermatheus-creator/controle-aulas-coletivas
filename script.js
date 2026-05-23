@@ -120,22 +120,50 @@ function verificarVencimento(dataVenc) {
 }
 
 function getAlunosPorHorario(horarioId) {
-    return alunos.filter(a => a.horario_id == horarioId);
-}
-
-function getOcupacaoHorario(horarioId) {
-    return getAlunosPorHorario(horarioId).length;
-}
-
-function getAniversariantesMes() {
-    const mesAtual = new Date().getMonth() + 1;
+    const config = horariosConfig.find(h => h.id == horarioId);
     return alunos.filter(a => {
-        if (!a.aniversario) return false;
-        const partes = String(a.aniversario).split('/');
-        if (partes.length < 2) return false;
-        const mes = parseInt(partes[1]);
-        return mes === mesAtual;
+        // Tenta achar pelo ID exato
+        if (a.horario_id == horarioId) return true;
+        // Fallback inteligente: tenta achar pelo nome da modalidade + texto do horário
+        if (config && a.modalidade === config.modalidade && a.horario === config.horario) {
+            // Atualiza o ID do aluno internamente para facilitar
+            a.horario_id = horarioId; 
+            return true;
+        }
+        return false;
     });
+}
+
+function editarAluno(codigo) {
+    const aluno = alunos.find(a => a.codigo == codigo);
+    if (!aluno) return;
+    
+    // Preenche o formulário
+    document.getElementById('editStudentId').value = aluno.codigo;
+    document.getElementById('addStudentName').value = aluno.nome || '';
+    document.getElementById('addStudentPhone').value = aluno.telefone || '';
+    document.getElementById('addStudentDueDate').value = aluno.vencimento || '';
+    document.getElementById('addStudentBirthday').value = aluno.aniversario || '';
+    document.getElementById('addStudentModality').value = aluno.modalidade || '';
+    document.getElementById('addStudentHorario').value = aluno.horario_id || '';
+    document.getElementById('addStudentObs').value = aluno.obs || '';
+    
+    // Marca as caixinhas dos dias de treino
+    document.querySelectorAll('.dia-treino-cb').forEach(cb => cb.checked = false);
+    if (aluno.dias_treino) {
+        const dias = aluno.dias_treino.split(',');
+        document.querySelectorAll('.dia-treino-cb').forEach(cb => {
+            if (dias.map(d => d.trim()).includes(cb.value)) cb.checked = true;
+        });
+    }
+    
+    // Muda o visual dos botões
+    const btnSubmit = document.querySelector('.btn-submit');
+    if (btnSubmit) btnSubmit.innerText = '💾 Salvar Edição';
+    document.getElementById('btnCancelar').style.display = 'inline-block';
+    
+    // Rola a tela para o topo
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function getDiasTreinoSelecionados() {
@@ -145,6 +173,7 @@ function getDiasTreinoSelecionados() {
 // FUNÇÕES DE CADASTRO E GERENCIAMENTO DE ALUNOS
 // ============================================================
 function cadastrarAluno() {
+    const editId = document.getElementById('editStudentId')?.value;
     const nome = document.getElementById('addStudentName')?.value.trim();
     const telefone = document.getElementById('addStudentPhone')?.value.trim();
     const vencimento = document.getElementById('addStudentDueDate')?.value.trim() || formatarData();
@@ -159,33 +188,23 @@ function cadastrarAluno() {
         return;
     }
     
-    const novoAluno = {
-        codigo: gerarCodigo(),
-        nome: nome,
-        telefone: telefone,
-        vencimento: vencimento,
-        aniversario: aniversario || '',
-        modalidade: modalidade,
-        dias_treino: diasTreino.join(','),
-        horario_id: horarioId,
-        obs: obs || '',
-        status: 'ATIVO'
-    };
+    if (editId) {
+        // Atualiza aluno existente
+        const index = alunos.findIndex(a => a.codigo == editId);
+        if (index !== -1) {
+            alunos[index] = { ...alunos[index], nome, telefone, vencimento, aniversario, modalidade, dias_treino: diasTreino.join(','), horario_id: horarioId, obs };
+            alert(`✅ ${nome} atualizado com sucesso!`);
+        }
+    } else {
+        // Cria novo aluno
+        alunos.push({
+            codigo: gerarCodigo(), nome, telefone, vencimento, aniversario, modalidade, dias_treino: diasTreino.join(','), horario_id: horarioId, obs: obs || '', status: 'ATIVO'
+        });
+        alert(`✅ ${nome} cadastrado com sucesso!`);
+    }
     
-    alunos.push(novoAluno);
-    
-    // Limpa os campos do formulário após cadastrar
-    document.getElementById('addStudentName').value = '';
-    document.getElementById('addStudentPhone').value = '';
-    document.getElementById('addStudentDueDate').value = '';
-    document.getElementById('addStudentBirthday').value = '';
-    document.getElementById('addStudentModality').value = '';
-    document.getElementById('addStudentHorario').value = '';
-    document.getElementById('addStudentObs').value = '';
-    document.querySelectorAll('.dia-treino-cb').forEach(cb => cb.checked = false);
-    
+    cancelarEdicao(); // Limpa o form e volta os botões ao normal
     renderizarTudo();
-    alert(`✅ ${nome} cadastrado com sucesso!`);
 }
 
 function cancelarEdicao() {
@@ -369,6 +388,7 @@ function renderStudentTable() {
                 <td>${a.modalidade}</td>
                 <td>
                     <a href="https://wa.me/${String(a.telefone || '').replace(/\D/g,'')}" target="_blank" class="btn-whatsapp" style="display:inline-block; margin-right:5px;">💬</a>
+                    <button onclick="editarAluno(${a.codigo})" style="background:#e0f2fe; color:#0369a1; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; margin-right:5px;">✏️</button>
                     <button onclick="removerAluno(${a.codigo})" style="background:#fee2e2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">🗑️</button>
                 </td>
             </tr>
