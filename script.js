@@ -561,11 +561,7 @@ function renderizarTurmas() {
     const normalizar = (texto) => String(texto || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
     container.innerHTML = horariosConfig.map(config => {
-        const alunosNaTurma = alunos.filter(a => {
-            return normalizar(a.modalidade) === normalizar(config.modalidade) &&
-                   normalizar(a.horario) === normalizar(config.horario);
-        });
-
+        const alunosNaTurma = alunos.filter(a => a.horario_id == config.id);
         const ocupacao = alunosNaTurma.length;
         const percentual = Math.min((ocupacao / (config.capacidade || 1)) * 100, 100);
 
