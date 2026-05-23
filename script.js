@@ -668,19 +668,18 @@ function vincularIncompleto(cod) {
     const al = alunos.find(a => a.codigo == cod);
     if (!al) return;
 
-    // Coleta os IDs selecionados na mini grade
+    // 1. Atualiza os dados na memória (a mini grade)
     ['seg', 'ter', 'qua', 'qui', 'sex', 'sab'].forEach(campo => {
+        // Ajuste: pegando o valor correto dos selects que você criou
         const select = document.querySelector(`.inc-select-${al.codigo}-${campo}`);
-        al[campo] = select.value ? parseInt(select.value) : '';
+        if(select) al[campo] = select.value ? parseInt(select.value) : '';
     });
 
-    al.status = 'ATIVO'; // Muda o status de PENDENTE para ATIVO
-    
-    // Aqui entra a chamada para enviar os dados de volta para o seu Google Sheets
-    // (Lembre-se de ter a função salvarNoGoogle implementada que faz o POST)
-    renderizarTudo();
-    abrirSuperModal('incompletos');
-    alert(`✅ ${al.nome} vinculado e ativado com sucesso!`);
+    al.status = 'ATIVO';
+
+    // 2. Agora chamamos a função que envia para o Google (O MENSAGEIRO)
+    // Usamos o seu objeto 'al' que agora está com os dados novos
+    salvarNoGoogle(al); 
 }
 
 function vincularIncompleto(cod) {
@@ -716,8 +715,25 @@ function renderTurmasSuper() {
         `;
     }).join('');
 }
+
+// Exemplo de como preparar os dados antes de enviar
+function enviarParaGoogle(aluno) {
+    const dados = {
+        codigo: aluno.codigo,
+        seg: aluno.seg || "", // Se estiver vazio, envia vazio
+        ter: aluno.ter || "",
+        qua: aluno.qua || "",
+        qui: aluno.qui || "",
+        sex: aluno.sex || "",
+        sab: aluno.sab || "",
+        status: "ATIVO" // Ou o status que desejar
+    };
+    
+    // ... aqui vai o seu fetch usando a URL nova
+}
+
 function salvarNoGoogle(dadosAluno) {
-    const url = "https://script.google.com/macros/s/AKfycbxzZg07IVj3o9zsNuRPbb33hpqLWMdbx_Ea_6XrT0ikYvez5JP85Myyxq22hk_dee6_/exec"; // O link da implantação (Web App)
+    const url = "https://script.google.com/macros/s/AKfycbwhU7UOTnRCWTtBwVPLa88armwTcHk9iLgu_vsIEiYHsWsW9sYrSPQDz1t2wYdxMQVC/exec"; // O link da implantação (Web App)
 
     fetch(url, {
         method: "POST",
