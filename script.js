@@ -729,6 +729,19 @@ function enviarParaGoogle(aluno) {
     // ... aqui vai o seu fetch usando a URL nova
 }
 
+function toggleTheme() {
+    const isDark = document.body.classList.toggle('dark');
+    localStorage.setItem('aqua_theme', isDark ? 'dark' : 'light');
+    document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
+}
+ 
+// Aplica tema salvo ao carregar
+(function() {
+    const saved = localStorage.getItem('aqua_theme');
+    if (saved === 'dark') {
+        document.body.classList.add('dark');
+    }
+
 function salvarNoGoogle(dadosAluno) {
     console.log("Iniciando envio para o Google...");
     const url = "https://script.google.com/macros/s/AKfycbwhU7UOTnRCWTtBwVPLa88armwTcHk9iLgu_vsIEiYHsWsW9sYrSPQDz1t2wYdxMQVC/exec";
