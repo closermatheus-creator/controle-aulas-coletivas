@@ -620,6 +620,7 @@ function renderStudentTableSuper() {
 }
 
 // RENDERIZAÇÃO DA TELA DE INCOMPLETOS COM GRADE DE VINCULAÇÃO
+// RENDERIZAÇÃO DA TELA DE INCOMPLETOS COM GRADE DE VINCULAÇÃO
 function renderIncompletosSuper() {
     const body = document.getElementById('superIncompletosBody');
     if (!body) return;
@@ -668,18 +669,19 @@ function vincularIncompleto(cod) {
     const al = alunos.find(a => a.codigo == cod);
     if (!al) return;
 
-    // 1. Atualiza os dados na memória (a mini grade)
+    // Captura os valores dos selects da grade
     ['seg', 'ter', 'qua', 'qui', 'sex', 'sab'].forEach(campo => {
-        // Ajuste: pegando o valor correto dos selects que você criou
         const select = document.querySelector(`.inc-select-${al.codigo}-${campo}`);
         if(select) al[campo] = select.value ? parseInt(select.value) : '';
     });
 
     al.status = 'ATIVO';
 
-    // 2. Agora chamamos a função que envia para o Google (O MENSAGEIRO)
-    // Usamos o seu objeto 'al' que agora está com os dados novos
-    salvarNoGoogle(al); 
+    // Chama o mensageiro e exibe o que está sendo enviado para depurar
+    console.log("Enviando para o Google:", al);
+    
+    // AQUI ESTÁ O SEGREDO: Chame a função de salvamento diretamente
+    salvarNoGoogle(al);
 }
 
 function vincularIncompleto(cod) {
