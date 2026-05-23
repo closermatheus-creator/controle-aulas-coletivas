@@ -44,6 +44,11 @@
             <div class="tab" onclick="mudarAba('alunos')">👥 Alunos</div>
             <div class="tab" onclick="mudarAba('resumo')">📊 Resumo</div>
             <div class="tab" onclick="mudarAba('incompletos')">⚠️ Incompletos</div>
+            <div class="tab" onclick="mudarAba('turmas')">📊 Turmas</div>
+            <div id="tab-turmas" class="tab-content">
+                <h2>Painel de Ocupação</h2>
+            <div id="turmasContainer" class="turmas-grid"></div>
+            </div>
         </div>
         
         <div class="container">
@@ -144,7 +149,7 @@
                             <button class="btn-select active" onclick="filtrarPorOcupacao('TODOS')">Todos</button>
                             <button class="btn-select" onclick="filtrarPorOcupacao('COM_ALUNOS')">Com Alunos</button>
                             <button class="btn-select" onclick="filtrarPorOcupacao('VENCIDOS')">🔴 Vencidos</button>
-                            <button class="btn-select" onclick="COM_VAGAS">Com Vagas</button>
+                            <button class="btn-select" onclick="filtrarPorOcupacao('COM_VAGAS')"</button>
                             <button class="btn-select" onclick="filtrarPorOcupacao('LOTADAS')">Lotadas</button>
                             <button class="btn-select" onclick="filtrarPorOcupacao('VAZIAS')">Vazias</button>
                         </div>
@@ -257,7 +262,7 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <h3 id="modalTitulo">Horário</h3>
-                <button class="modal-close" onclick="fecharModal()">✕</button>
+                <button class="modal-close" onclick="fecharModal()">✕</button></div>
             <div class="modal-body" id="modalBody"></div>
         </div>
     </div>

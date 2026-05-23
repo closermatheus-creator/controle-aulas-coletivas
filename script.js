@@ -2,7 +2,6 @@
 // CONFIGURAÇÕES GLOBAIS
 // ============================================================
 const MASTER_PASSWORD = "aqua123";
-// URL de integração oficial e preservada do Google Apps Script
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzGpaP6Kg3DRLojUee1Nb44SPwt2BixO5w4Sg_qjBPGSr1Ajiye9hSAGweLBde3fBzH/exec";
 
 // ============================================================
@@ -47,7 +46,7 @@ const horariosConfig = [
     { id: 36, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "09:05-09:35", capacidade: 12, turno: "manha" },
     { id: 37, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "10:15-10:45", capacidade: 12, turno: "tarde" },
     { id: 38, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "13:00-13:30", capacidade: 12, turno: "tarde" },
-    { id: 50, modalidade: "Natação Baby", dias: ["Segunda","Quarta","Sexta"], horario: "17:00-17:30", capacidade: 18, turno: "tarde" },
+    { id: 39, modalidade: "Natação Baby", dias: ["Segunda","Quarta","Sexta"], horario: "17:00-17:30", capacidade: 18, turno: "tarde" },
     { id: 40, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "17:40-18:10", capacidade: 12, turno: "noite" },
     { id: 41, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "18:45-19:15", capacidade: 12, turno: "noite" },
     { id: 42, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "20:45-21:15", capacidade: 12, turno: "noite" },
@@ -58,31 +57,30 @@ const horariosConfig = [
     { id: 47, modalidade: "Natação Infantil Nível 3", dias: ["Segunda","Quarta","Sexta"], horario: "09:40-10:20", capacidade: 12, turno: "manha" },
     { id: 48, modalidade: "Natação Baby", dias: ["Segunda","Quarta","Sexta"], horario: "10:25-10:55", capacidade: 18, turno: "tarde" },
     { id: 49, modalidade: "Natação Baby", dias: ["Segunda","Quarta","Sexta"], horario: "14:10-14:40", capacidade: 18, turno: "tarde" },
-    { id: 50, modalidade: "Natação Baby", dias: ["Segunda","Quarta","Sexta"], horario: "17:00-17:30", capacidade: 18, turno: "tarde" },
-    { id: 51, modalidade: "Natação Baby", dias: ["Segunda","Quarta","Sexta"], horario: "19:50-20:20", capacidade: 18, turno: "noite" },
-    { id: 52, modalidade: "Natação Baby", dias: ["Terça","Quinta"], horario: "09:40-10:10", capacidade: 18, turno: "manha" },
-    { id: 53, modalidade: "Natação Baby", dias: ["Terça","Quinta"], horario: "14:10-14:40", capacidade: 18, turno: "tarde" },
-    { id: 54, modalidade: "Natação Baby", dias: ["Terça","Quinta"], horario: "18:10-18:40", capacidade: 18, turno: "noite" },
-    { id: 55, modalidade: "Natação Baby", dias: ["Terça","Quinta"], horario: "20:15-20:45", capacidade: 18, turno: "noite" },
-    { id: 56, modalidade: "Natação Baby", dias: ["Sábado"], horario: "09:15-09:45", capacidade: 20, turno: "sabado" },
-    { id: 57, modalidade: "Natação Baby", dias: ["Sábado"], horario: "11:10-11:40", capacidade: 20, turno: "sabado" },
-    { id: 58, modalidade: "Natação Baby", dias: ["Sábado"], horario: "14:20-14:50", capacidade: 20, turno: "sabado" },
-    { id: 59, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "06:00-07:00", capacidade: 3, turno: "manha" },
-    { id: 60, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "07:00-08:00", capacidade: 3, turno: "manha" },
-    { id: 61, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "08:00-09:00", capacidade: 3, turno: "manha" },
-    { id: 62, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "09:00-10:00", capacidade: 3, turno: "manha" },
-    { id: 63, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "10:00-11:00", capacidade: 3, turno: "tarde" },
-    { id: 64, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "11:00-12:00", capacidade: 3, turno: "tarde" },
-    { id: 65, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "12:00-13:00", capacidade: 3, turno: "tarde" },
-    { id: 66, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "13:00-14:00", capacidade: 3, turno: "tarde" },
-    { id: 67, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "14:00-15:00", capacidade: 3, turno: "tarde" },
-    { id: 68, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "15:00-16:00", capacidade: 3, turno: "tarde" },
-    { id: 69, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "16:00-17:00", capacidade: 3, turno: "tarde" },
-    { id: 70, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "17:00-18:00", capacidade: 3, turno: "tarde" },
-    { id: 71, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "18:00-19:00", capacidade: 3, turno: "noite" },
-    { id: 72, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "19:00-20:00", capacidade: 3, turno: "noite" },
-    { id: 73, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "20:00-21:00", capacidade: 3, turno: "noite" },
-    { id: 74, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "21:00-22:00", capacidade: 3, turno: "noite" }
+    { id: 50, modalidade: "Natação Baby", dias: ["Segunda","Quarta","Sexta"], horario: "19:50-20:20", capacidade: 18, turno: "noite" },
+    { id: 51, modalidade: "Natação Baby", dias: ["Terça","Quinta"], horario: "09:40-10:10", capacidade: 18, turno: "manha" },
+    { id: 52, modalidade: "Natação Baby", dias: ["Terça","Quinta"], horario: "14:10-14:40", capacidade: 18, turno: "tarde" },
+    { id: 53, modalidade: "Natação Baby", dias: ["Terça","Quinta"], horario: "18:10-18:40", capacidade: 18, turno: "noite" },
+    { id: 54, modalidade: "Natação Baby", dias: ["Terça","Quinta"], horario: "20:15-20:45", capacidade: 18, turno: "noite" },
+    { id: 55, modalidade: "Natação Baby", dias: ["Sábado"], horario: "09:15-09:45", capacidade: 20, turno: "sabado" },
+    { id: 56, modalidade: "Natação Baby", dias: ["Sábado"], horario: "11:10-11:40", capacidade: 20, turno: "sabado" },
+    { id: 57, modalidade: "Natação Baby", dias: ["Sábado"], horario: "14:20-14:50", capacidade: 20, turno: "sabado" },
+    { id: 58, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "06:00-07:00", capacidade: 3, turno: "manha" },
+    { id: 59, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "07:00-08:00", capacidade: 3, turno: "manha" },
+    { id: 60, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "08:00-09:00", capacidade: 3, turno: "manha" },
+    { id: 61, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "09:00-10:00", capacidade: 3, turno: "manha" },
+    { id: 62, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "10:00-11:00", capacidade: 3, turno: "tarde" },
+    { id: 63, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "11:00-12:00", capacidade: 3, turno: "tarde" },
+    { id: 64, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "12:00-13:00", capacidade: 3, turno: "tarde" },
+    { id: 65, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "13:00-14:00", capacidade: 3, turno: "tarde" },
+    { id: 66, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "14:00-15:00", capacidade: 3, turno: "tarde" },
+    { id: 67, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "15:00-16:00", capacidade: 3, turno: "tarde" },
+    { id: 68, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "16:00-17:00", capacidade: 3, turno: "tarde" },
+    { id: 69, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "17:00-18:00", capacidade: 3, turno: "tarde" },
+    { id: 70, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "18:00-19:00", capacidade: 3, turno: "noite" },
+    { id: 71, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "19:00-20:00", capacidade: 3, turno: "noite" },
+    { id: 72, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "20:00-21:00", capacidade: 3, turno: "noite" },
+    { id: 73, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "21:00-22:00", capacidade: 3, turno: "noite" }
 ];
 
 // ============================================================
@@ -100,6 +98,19 @@ let googleConnected = false;
 // FUNÇÕES AUXILIARES E DE TRATAMENTO DE DADOS
 // ============================================================
 function gerarCodigo() { return ++studentIdCounter; }
+
+function getOcupacaoHorario(horarioId) {
+    return getAlunosPorHorario(horarioId).length;
+}
+
+function getAniversariantesMes() {
+    const mesAtual = new Date().getMonth() + 1;
+    return alunos.filter(a => {
+        if (!a.aniversario) return false;
+        const partes = String(a.aniversario).split('/');
+        return partes.length === 2 && parseInt(partes[1]) === mesAtual;
+    });
+}
 
 function formatarData() {
     const hoje = new Date();
@@ -122,55 +133,19 @@ function verificarVencimento(dataVenc) {
 function getAlunosPorHorario(horarioId) {
     const config = horariosConfig.find(h => h.id == horarioId);
     return alunos.filter(a => {
-        // Tenta achar pelo ID numérico
         if (a.horario_id == horarioId) return true;
-        // Tenta achar pelo texto escrito na planilha do Google (Modalidade + Horário)
         if (config && a.modalidade === config.modalidade && a.horario === config.horario) {
-            a.horario_id = horarioId; // Converte o texto em ID para o sistema funcionar rápido
+            a.horario_id = horarioId;
             return true;
         }
         return false;
     });
 }
 
-function editarAluno(codigo) {
-    const aluno = alunos.find(a => a.codigo == codigo);
-    if (!aluno) return;
-    
-    // Preenche o formulário
-    document.getElementById('editStudentId').value = aluno.codigo;
-    document.getElementById('addStudentName').value = aluno.nome || '';
-    document.getElementById('addStudentPhone').value = aluno.telefone || '';
-    document.getElementById('addStudentDueDate').value = aluno.vencimento || '';
-    document.getElementById('addStudentBirthday').value = aluno.aniversario || '';
-    document.getElementById('addStudentModality').value = aluno.modalidade || '';
-    document.getElementById('addStudentHorario').value = aluno.horario_id || '';
-    document.getElementById('addStudentObs').value = aluno.obs || '';
-    
-    // Marca as caixinhas dos dias de treino
-    document.querySelectorAll('.dia-treino-cb').forEach(cb => cb.checked = false);
-    if (aluno.dias_treino) {
-        const dias = aluno.dias_treino.split(',');
-        document.querySelectorAll('.dia-treino-cb').forEach(cb => {
-            if (dias.map(d => d.trim()).includes(cb.value)) cb.checked = true;
-        });
-    }
-    
-    // Muda o visual dos botões
-    const btnSubmit = document.querySelector('.btn-submit');
-    if (btnSubmit) btnSubmit.innerText = '💾 Salvar Edição';
-    document.getElementById('btnCancelar').style.display = 'inline-block';
-    
-    // Rola a tela para o topo
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
 function getDiasTreinoSelecionados() {
     return Array.from(document.querySelectorAll('.dia-treino-cb:checked')).map(cb => cb.value);
 }
-// ============================================================
-// FUNÇÕES DE CADASTRO E GERENCIAMENTO DE ALUNOS
-// ============================================================
+
 // ============================================================
 // FUNÇÕES DE CADASTRO E GERENCIAMENTO DE ALUNOS
 // ============================================================
@@ -184,27 +159,26 @@ function cadastrarAluno() {
     const diasTreino = getDiasTreinoSelecionados();
     const horarioId = parseInt(document.getElementById('addStudentHorario')?.value);
     const obs = document.getElementById('addStudentObs')?.value.trim();
-    
+
     if (!nome || !telefone || !modalidade || diasTreino.length === 0 || !horarioId) {
         alert('Preencha todos os campos obrigatórios!');
         return;
     }
-    
+
     if (editId) {
-        // Atualiza um aluno que já existe
         const index = alunos.findIndex(a => a.codigo == editId);
         if (index !== -1) {
             alunos[index] = { ...alunos[index], nome, telefone, vencimento, aniversario, modalidade, dias_treino: diasTreino.join(','), horario_id: horarioId, obs };
             alert(`✅ ${nome} atualizado com sucesso!`);
         }
     } else {
-        // Cria um aluno novo
         alunos.push({
-            codigo: gerarCodigo(), nome, telefone, vencimento, aniversario, modalidade, dias_treino: diasTreino.join(','), horario_id: horarioId, obs: obs || '', status: 'ATIVO'
+            codigo: gerarCodigo(), nome, telefone, vencimento, aniversario, modalidade,
+            dias_treino: diasTreino.join(','), horario_id: horarioId, obs: obs || '', status: 'ATIVO'
         });
         alert(`✅ ${nome} cadastrado com sucesso!`);
     }
-    
+
     cancelarEdicao();
     renderizarTudo();
 }
@@ -212,8 +186,7 @@ function cadastrarAluno() {
 function editarAluno(codigo) {
     const aluno = alunos.find(a => a.codigo == codigo);
     if (!aluno) return;
-    
-    // Puxa os dados do aluno de volta para os campos lá em cima
+
     document.getElementById('editStudentId').value = aluno.codigo;
     document.getElementById('addStudentName').value = aluno.nome || '';
     document.getElementById('addStudentPhone').value = aluno.telefone || '';
@@ -222,8 +195,7 @@ function editarAluno(codigo) {
     document.getElementById('addStudentModality').value = aluno.modalidade || '';
     document.getElementById('addStudentHorario').value = aluno.horario_id || '';
     document.getElementById('addStudentObs').value = aluno.obs || '';
-    
-    // Remarca os dias da semana corretamente
+
     document.querySelectorAll('.dia-treino-cb').forEach(cb => cb.checked = false);
     if (aluno.dias_treino) {
         const dias = String(aluno.dias_treino).split(',');
@@ -231,12 +203,11 @@ function editarAluno(codigo) {
             if (dias.map(d => d.trim()).includes(cb.value)) cb.checked = true;
         });
     }
-    
-    // Muda a aparência dos botões
+
     const btnSubmit = document.querySelector('.btn-submit');
     if (btnSubmit) btnSubmit.innerText = '💾 Salvar Edição';
     document.getElementById('btnCancelar').style.display = 'inline-block';
-    
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -250,7 +221,7 @@ function cancelarEdicao() {
     document.getElementById('addStudentHorario').value = '';
     document.getElementById('addStudentObs').value = '';
     document.querySelectorAll('.dia-treino-cb').forEach(cb => cb.checked = false);
-    
+
     const btnSubmit = document.querySelector('.btn-submit');
     if (btnSubmit) btnSubmit.innerText = '➕ Cadastrar';
     document.getElementById('btnCancelar').style.display = 'none';
@@ -265,50 +236,37 @@ function removerAluno(codigo) {
 function salvarDiasIncompletos(codigo) {
     const aluno = alunos.find(a => a.codigo == codigo);
     if (!aluno) return;
-    
-    const dias = Array.from(document.querySelectorAll(`.correcao-dia-${codigo}:checked`)).map(cb => cb.value);
-    aluno.dias_treino = dias.join(',');
-    
-    renderizarTudo();
-    alert(`✅ Dias de ${aluno.nome} atualizados: ${dias.join(', ') || 'Nenhum'}`);
-}
 
-function salvarDiasIncompletos(codigo) {
-    const aluno = alunos.find(a => a.codigo == codigo);
-    if (!aluno) return;
-    
     const dias = Array.from(document.querySelectorAll(`.correcao-dia-${codigo}:checked`)).map(cb => cb.value);
     aluno.dias_treino = dias.join(',');
-    
+
     renderizarTudo();
     alert(`✅ Dias de ${aluno.nome} atualizados: ${dias.join(', ') || 'Nenhum'}`);
 }
 
 // ============================================================
-// SISTEMA DE FILTROS LOGÍCOS
+// SISTEMA DE FILTROS
 // ============================================================
 function getHorariosFiltrados() {
     let filtrados = [...horariosConfig];
-    
+
     if (currentDiasFiltro.length > 0) {
-        filtrados = filtrados.filter(h => {
-            return currentDiasFiltro.some(dia => h.dias.includes(dia));
-        });
+        filtrados = filtrados.filter(h => currentDiasFiltro.some(dia => h.dias.includes(dia)));
     }
-    
+
     if (activeFilters.modalidade !== 'TODAS') {
         filtrados = filtrados.filter(h => h.modalidade === activeFilters.modalidade);
     }
-    
+
     if (activeFilters.turno !== 'TODOS') {
         filtrados = filtrados.filter(h => h.turno === activeFilters.turno);
     }
-    
+
     if (activeFilters.ocupacao !== 'TODOS') {
         filtrados = filtrados.filter(h => {
             const alunosHorario = getAlunosPorHorario(h.id);
             const ocupacaoAtual = alunosHorario.length;
-            
+
             if (activeFilters.ocupacao === 'COM_ALUNOS') return ocupacaoAtual > 0;
             if (activeFilters.ocupacao === 'VAZIAS') return ocupacaoAtual === 0;
             if (activeFilters.ocupacao === 'LOTADAS') return ocupacaoAtual >= h.capacidade;
@@ -319,20 +277,20 @@ function getHorariosFiltrados() {
             return true;
         });
     }
-    
+
     return filtrados;
 }
 
 // ============================================================
-// RENDERIZADORES DE TELA (HTML DINÂMICO)
+// RENDERIZADORES DE TELA
 // ============================================================
 function renderizarHorarios() {
     const grid = document.getElementById('cardsGrid');
     if (!grid) return;
-    
+
     const filtrados = getHorariosFiltrados();
     const searchQuery = document.getElementById('searchBar')?.value.toLowerCase() || '';
-    
+
     let exibir = filtrados;
     if (searchQuery) {
         exibir = filtrados.filter(h => {
@@ -342,23 +300,23 @@ function renderizarHorarios() {
             return matchHorario || matchAluno;
         });
     }
-    
+
     if (exibir.length === 0) {
         grid.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;">Nenhum horário encontrado com estes filtros</div>';
         return;
     }
-    
+
     grid.innerHTML = exibir.map(horario => {
         const alunosHorario = getAlunosPorHorario(horario.id);
         const ocupacao = alunosHorario.length;
         const percentage = (ocupacao / horario.capacidade) * 100;
         const lotado = ocupacao >= horario.capacidade;
-        
+
         let badgeClass = 'badge-disponivel';
         let badgeText = 'Disponível';
         if (ocupacao === 0) { badgeText = 'Vazia'; badgeClass = 'badge-vazio'; }
         if (lotado) { badgeText = 'Lotada'; badgeClass = 'badge-lotado'; }
-        
+
         const alunosHtml = alunosHorario.map(a => {
             const status = verificarVencimento(a.vencimento);
             return `
@@ -372,7 +330,7 @@ function renderizarHorarios() {
                 </div>
             `;
         }).join('');
-        
+
         return `
             <div class="card">
                 <div class="card-header" onclick="abrirModalHorario(${horario.id})">
@@ -407,10 +365,10 @@ function removerUltimoAluno(horarioId) {
 function renderStudentTable() {
     const body = document.getElementById('studentTableBody');
     if (!body) return;
-    
+
     const search = document.getElementById('studentTableSearch')?.value.toLowerCase() || '';
     let filtrados = [...alunos];
-    
+
     if (search) {
         filtrados = filtrados.filter(a => String(a.nome || '').toLowerCase().includes(search) || String(a.telefone || '').includes(search));
     }
@@ -419,7 +377,7 @@ function renderStudentTable() {
     } else if (alunoFilterStatus === 'EM_DIA') {
         filtrados = filtrados.filter(a => !verificarVencimento(a.vencimento).vencido);
     }
-    
+
     body.innerHTML = filtrados.map(a => {
         const status = verificarVencimento(a.vencimento);
         const horario = horariosConfig.find(h => h.id == a.horario_id);
@@ -441,7 +399,7 @@ function renderStudentTable() {
             </tr>
         `;
     }).join('');
-    
+
     renderVencidosList();
     atualizarWidgets();
 }
@@ -449,7 +407,7 @@ function renderStudentTable() {
 function renderVencidosList() {
     const container = document.getElementById('vencidosList');
     if (!container) return;
-    
+
     const vencidos = alunos.filter(a => verificarVencimento(a.vencimento).vencido);
     const vencidosUnicos = [];
     const nomesVistos = [];
@@ -460,12 +418,12 @@ function renderVencidosList() {
             vencidosUnicos.push(v);
         }
     });
-    
+
     if (vencidosUnicos.length === 0) {
         container.innerHTML = '<div style="text-align:center; padding:20px; color:#16a34a;">✅ Todos os alunos estão em dia!</div>';
         return;
     }
-    
+
     container.innerHTML = vencidosUnicos.map(v => `
         <div class="vencido-card">
             <div><strong>#${v.codigo}</strong> 👤 ${v.nome} - 📞 ${v.telefone}</div>
@@ -477,14 +435,14 @@ function renderVencidosList() {
 function renderIncompletos() {
     const body = document.getElementById('incompletosBody');
     if (!body) return;
-    
+
     const incompletos = alunos.filter(a => !a.dias_treino || a.dias_treino.trim() === '');
-    
+
     if (incompletos.length === 0) {
         body.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px;">✅ Nenhum aluno incompleto! Todos têm dias de treino definidos.</td></tr>';
         return;
     }
-    
+
     body.innerHTML = incompletos.map(a => {
         const diasOptions = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const checkboxes = diasOptions.map(dia => `
@@ -492,7 +450,7 @@ function renderIncompletos() {
                 <input type="checkbox" class="correcao-dia-${a.codigo}" value="${dia}"> ${dia.substring(0,3)}
             </label>
         `).join('');
-        
+
         return `
             <tr>
                 <td>#${a.codigo}</td>
@@ -509,11 +467,11 @@ function renderIncompletos() {
 function renderResumo() {
     const container = document.getElementById('resumoContainer');
     if (!container) return;
-    
+
     const total = alunos.length;
     const porModalidade = {};
     alunos.forEach(a => { porModalidade[a.modalidade] = (porModalidade[a.modalidade] || 0) + 1; });
-    
+
     container.innerHTML = `
         <div style="background:white; border-radius:12px; padding:20px;">
             <h3 style="margin-bottom:15px;">📊 Resumo da Academia</h3>
@@ -538,12 +496,12 @@ function renderizarSidebar() {
         const pct = Math.round((ocup / h.capacidade) * 100);
         return `<div class="ranking-item"><span>${h.modalidade.split(' ').slice(0,2).join(' ')} ${h.horario.split('-')[0]}</span><span><strong>${ocup}/${h.capacidade}</strong> (${pct}%)</span></div>`;
     }).join('');
-    
+
     const aniversariantes = getAniversariantesMes();
-    document.getElementById('aniversariantesList').innerHTML = aniversariantes.length ? 
+    document.getElementById('aniversariantesList').innerHTML = aniversariantes.length ?
         aniversariantes.map(a => `<div class="ranking-item"><span>🎂 ${a.nome}</span><span>${a.aniversario}</span></div>`).join('') :
         '<div class="ranking-item" style="color:#94a3b8;">Nenhum aniversariante</div>';
-    
+
     const totalAlunos = alunos.length;
     const vencidos = alunos.filter(a => verificarVencimento(a.vencimento).vencido).length;
     document.getElementById('statsSidebar').innerHTML = `
@@ -557,7 +515,7 @@ function atualizarWidgets() {
     const totalAlunos = alunos.length;
     const vencidos = alunos.filter(a => verificarVencimento(a.vencimento).vencido).length;
     const emDia = totalAlunos - vencidos;
-    
+
     let manha = 0, tarde = 0, noite = 0, sabado = 0;
     alunos.forEach(a => {
         const h = horariosConfig.find(h => h.id == a.horario_id);
@@ -568,11 +526,11 @@ function atualizarWidgets() {
             else if (h.turno === 'sabado') sabado++;
         }
     });
-    
+
     const totalMatriculas = manha + tarde + noite + sabado;
     const capacidadeTotal = horariosConfig.reduce((s, h) => s + h.capacidade, 0);
     const pctOcupacao = capacidadeTotal > 0 ? Math.round((totalMatriculas / capacidadeTotal) * 100) : 0;
-    
+
     document.getElementById('widgetTotalAlunosCount').innerText = totalAlunos;
     document.getElementById('widgetTotalAlunos').innerText = totalAlunos;
     document.getElementById('widgetVencidos').innerText = vencidos;
@@ -585,7 +543,7 @@ function atualizarWidgets() {
     document.getElementById('progressGeral').style.width = `${pctOcupacao}%`;
     document.getElementById('topGlobalAlunos').innerText = `${totalAlunos} alunos`;
     document.getElementById('topGlobalVagas').innerText = `${totalMatriculas} matrículas`;
-    
+
     const turnos = ['Manha', 'Tarde', 'Noite', 'Sabado'];
     const valores = [manha, tarde, noite, sabado];
     turnos.forEach((t, i) => {
@@ -595,7 +553,36 @@ function atualizarWidgets() {
     });
 }
 
+function renderizarTurmas() {
+    const container = document.getElementById('turmasContainer');
+    if (!container) return;
+
+    const normalizar = (texto) => String(texto || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    container.innerHTML = horariosConfig.map(config => {
+        const alunosNaTurma = alunos.filter(a => {
+            return normalizar(a.modalidade) === normalizar(config.modalidade) &&
+                   normalizar(a.horario) === normalizar(config.horario);
+        });
+
+        const ocupacao = alunosNaTurma.length;
+        const percentual = Math.min((ocupacao / (config.capacidade || 1)) * 100, 100);
+
+        return `
+            <div class="card-turma" style="background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <h3>${config.modalidade}</h3>
+                <p><strong>${config.horario}</strong></p>
+                <div class="progress-bar" style="background:#e5e7eb; height:8px; border-radius:4px; margin: 10px 0;">
+                    <div class="progress" style="width: ${percentual}%; background:#0284c7; height:100%; border-radius:4px;"></div>
+                </div>
+                <p style="font-size:0.8rem;">${ocupacao} de ${config.capacidade} alunos</p>
+            </div>
+        `;
+    }).join('');
+}
+
 function renderizarTudo() {
+    renderizarTurmas();
     renderizarHorarios();
     renderStudentTable();
     renderIncompletos();
@@ -661,7 +648,7 @@ function abrirModalHorario(horarioId) {
     const horario = horariosConfig.find(h => h.id === horarioId);
     if (!horario) return;
     const alunosHorario = getAlunosPorHorario(horarioId);
-    
+
     document.getElementById('modalTitulo').innerHTML = `${horario.modalidade} - ${horario.horario}`;
     const body = document.getElementById('modalBody');
     body.innerHTML = `
@@ -720,26 +707,23 @@ function salvarCadastroModal() {
     const modalidade = document.getElementById('modalModalidade')?.value;
     const dias = Array.from(document.querySelectorAll('.modal-dia-cb:checked')).map(cb => cb.value);
     const horarioId = parseInt(document.getElementById('modalHorario')?.value);
-    
+
     if (!nome || !telefone || !modalidade || dias.length === 0 || !horarioId) {
         alert('Preencha todos os campos!');
         return;
     }
-    
-    const novoAluno = {
+
+    alunos.push({
         codigo: gerarCodigo(),
-        nome: nome,
-        telefone: telefone,
-        vencimento: vencimento,
+        nome, telefone, vencimento,
         aniversario: '',
-        modalidade: modalidade,
+        modalidade,
         dias_treino: dias.join(','),
         horario_id: horarioId,
         obs: '',
         status: 'ATIVO'
-    };
-    
-    alunos.push(novoAluno);
+    });
+
     renderizarTudo();
     fecharModal();
     alert(`✅ ${nome} cadastrado com sucesso!`);
@@ -751,7 +735,7 @@ function fecharModal(event) {
 }
 
 // ============================================================
-// EXPORTAÇÃO DE ARQUIVOS E BUSCA GLOBAL
+// EXPORTAÇÃO E BUSCA GLOBAL
 // ============================================================
 function exportarCSV() {
     let csv = "Código,Nome,Telefone,Vencimento,Aniversário,Modalidade,Dias de Treino,Horário,OBS\n";
@@ -778,17 +762,17 @@ function buscarGlobal() {
 }
 
 // ============================================================
-// INTEGRAÇÃO ASSÍNCRONA COM GOOGLE APPS SCRIPT
+// INTEGRAÇÃO COM GOOGLE APPS SCRIPT
 // ============================================================
 async function carregarDados() {
     const statusEl = document.getElementById('googleStatus');
     statusEl.innerText = '🔄 Carregando...';
     document.getElementById('loadingBanner').style.display = 'block';
-    
+
     try {
         const resposta = await fetch(GOOGLE_SCRIPT_URL);
         const dados = await resposta.json();
-        
+
         if (dados.alunos && dados.alunos.length > 0) {
             alunos = dados.alunos;
             const maxCodigo = Math.max(...alunos.map(a => a.codigo || 0), 1000);
@@ -796,7 +780,7 @@ async function carregarDados() {
         } else {
             alunos = [];
         }
-        
+
         statusEl.innerText = '✅ Online';
         statusEl.classList.add('online');
         googleConnected = true;
@@ -807,8 +791,7 @@ async function carregarDados() {
     } finally {
         document.getElementById('loadingBanner').style.display = 'none';
         renderizarTudo();
-        
-        // Alimenta o seletor de horários do formulário de cadastro principal
+
         const selectHorario = document.getElementById('addStudentHorario');
         if (selectHorario && selectHorario.options.length <= 1) {
             horariosConfig.forEach(h => {
@@ -822,12 +805,12 @@ async function carregarDados() {
 }
 
 // ============================================================
-// INTERNAVEGAÇÃO (SISTEMA DE ABAS) E CONTROLE DE LOGIN
+// SISTEMA DE ABAS E LOGIN
 // ============================================================
 function mudarAba(aba) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    
+
     if (aba === 'horarios') {
         document.querySelector('.tab:first-child').classList.add('active');
         document.getElementById('tab-horarios').classList.add('active');
@@ -865,7 +848,6 @@ function logout() {
     location.reload();
 }
 
-// Execução automática ao iniciar a página
 window.onload = function() {
     if (localStorage.getItem("aqua_authenticated") === "true") {
         document.getElementById("loginScreen").style.display = "none";
