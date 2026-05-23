@@ -1,11 +1,11 @@
 // ============================================================
-// CONFIGURAÇÕES GLOBAIS
+// CONFIGURAÇÕES GLOBAIS E LINKS DE INTEGRAÇÃO
 // ============================================================
 const MASTER_PASSWORD = "aqua123";
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzGpaP6Kg3DRLojUee1Nb44SPwt2BixO5w4Sg_qjBPGSr1Ajiye9hSAGweLBde3fBzH/exec";
 
 // ============================================================
-// HORÁRIOS DO SISTEMA
+// GRADE HORÁRIA COMPLETA DA ACADEMIA (73 HORÁRIOS ORIGINAIS)
 // ============================================================
 const horariosConfig = [
     { id: 1, modalidade: "Natação Adulto", dias: ["Segunda","Quarta","Sexta"], horario: "06:00-06:40", capacidade: 10, turno: "manha" },
@@ -45,7 +45,7 @@ const horariosConfig = [
     { id: 35, modalidade: "Natação Infantil Nível 1", dias: ["Segunda","Quarta","Sexta"], horario: "20:50-21:20", capacidade: 12, turno: "noite" },
     { id: 36, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "09:05-09:35", capacidade: 12, turno: "manha" },
     { id: 37, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "10:15-10:45", capacidade: 12, turno: "tarde" },
-    { id: 38, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "13:00-13:30", capacidad: 12, turno: "tarde" },
+    { id: 38, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "13:00-13:30", capacidade: 12, turno: "tarde" },
     { id: 39, modalidade: "Natação Baby", dias: ["Segunda","Quarta","Sexta"], horario: "17:00-17:30", capacidade: 18, turno: "tarde" },
     { id: 40, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "17:40-18:10", capacidade: 12, turno: "noite" },
     { id: 41, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "18:45-19:15", capacidade: 12, turno: "noite" },
@@ -84,841 +84,21 @@ const horariosConfig = [
 ];
 
 // ============================================================
-// VARIÁVEIS GLOBAIS
+// ESTADOS DA APLICAÇÃO (VARIÁVEIS GLOBAIS PERSISTENTES)
 // ============================================================
 let alunos = [];
-let activeFilters = { modalidade: 'TODAS', turno: 'TODOS', ocupacao: 'TODOS' };
-let currentDiasFiltro = [];
-let alunoFilterStatus = 'TODOS';
+let experimentais = [];
 let studentIdCounter = 1000;
-let editingStudent = null;
-let googleConnected = false;
+let expIdCounter = 1000;
+let historicoFaltasExperimentais = {};
+
+// Controle de Multi-Filtros do Hub Eterno
+let activeFilters = { modalidade: 'TODAS', turno: 'TODOS', ocupacao: 'TODOS' };
+const diasMap = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 'qui', 'Sexta': 'sex', 'Sábado': 'sab' };
 
 // ============================================================
-// MAPEAMENTO DE DIAS PARA IDS DAS COLUNAS
+// LOGIN E CONEXÃO ASYNCRONA (GOOGLE SCRIPT PAYLOAD)
 // ============================================================
-const diasMap = {
-    'Segunda': 'seg',
-    'Terça': 'ter',
-    'Quarta': 'qua',
-    'Quinta': 'qui',
-    'Sexta': 'sex',
-    'Sábado': 'sab'
-};
-
-// ============================================================
-// FUNÇÃO PRINCIPAL: PEGAR ALUNOS POR HORÁRIO
-// ============================================================
-function getAlunosPorHorario(horarioId) {
-    const horario = horariosConfig.find(h => h.id == horarioId);
-    if (!horario) return [];
-    
-    // Verificar em quais dias da semana este horário acontece
-    const diasDoHorario = horario.dias; // ex: ["Segunda","Quarta","Sexta"]
-    
-    // Buscar alunos que treinam neste horário em qualquer um dos dias
-    return alunos.filter(aluno => {
-        for (const dia of diasDoHorario) {
-            const campoDia = diasMap[dia];
-            if (campoDia && aluno[campoDia] == horarioId) {
-                return true;
-            }
-        }
-        return false;
-    });
-}
-
-// ============================================================
-// FUNÇÃO PARA OBTER OCUPAÇÃO DE UM HORÁRIO
-// ============================================================
-function getOcupacaoHorario(horarioId) {
-    return getAlunosPorHorario(horarioId).length;
-}
-
-// ============================================================
-// FUNÇÕES AUXILIARES
-// ============================================================
-function gerarCodigo() { 
-    return ++studentIdCounter; 
-}
-
-function getAniversariantesMes() {
-    const mesAtual = new Date().getMonth() + 1;
-    return alunos.filter(a => {
-        if (!a.aniversario) return false;
-        const partes = String(a.aniversario).split('/');
-        return partes.length === 2 && parseInt(partes[1]) === mesAtual;
-    });
-}
-
-function formatarData() {
-    const hoje = new Date();
-    return `${String(hoje.getDate()).padStart(2,'0')}/${String(hoje.getMonth()+1).padStart(2,'0')}`;
-}
-
-function verificarVencimento(dataVenc) {
-    if (!dataVenc) return { vencido: false, texto: "Sem data" };
-    const partes = String(dataVenc).split('/');
-    if (partes.length !== 2) return { vencido: false, texto: dataVenc };
-    const hoje = new Date();
-    const dataComp = new Date(hoje.getFullYear(), parseInt(partes[1])-1, parseInt(partes[0]));
-    const diff = Math.ceil((dataComp - hoje) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return { vencido: true, texto: `⚠️ Vencido há ${-diff} dias` };
-    if (diff === 0) return { vencido: true, texto: `⚠️ Vence hoje` };
-    if (diff <= 5) return { vencido: false, texto: `📅 Falta ${diff} dias` };
-    const ddmm = partes[0].padStart(2,'0') + '/' + partes[1].padStart(2,'0');
-    return { vencido: false, texto: `📅 ${ddmm}` };
-}
-
-function getDiasTreinoSelecionados() {
-    const dias = [];
-    if (document.getElementById('diaSeg')?.checked) dias.push('Segunda');
-    if (document.getElementById('diaTer')?.checked) dias.push('Terça');
-    if (document.getElementById('diaQua')?.checked) dias.push('Quarta');
-    if (document.getElementById('diaQui')?.checked) dias.push('Quinta');
-    if (document.getElementById('diaSex')?.checked) dias.push('Sexta');
-    if (document.getElementById('diaSab')?.checked) dias.push('Sábado');
-    return dias;
-}
-
-// ============================================================
-// CADASTRO DE ALUNO (NOVA VERSÃO COM DIAS SEPARADOS)
-// ============================================================
-function cadastrarAluno() {
-    const editId = document.getElementById('editStudentId')?.value;
-    const nome = document.getElementById('addStudentName')?.value.trim();
-    const telefone = document.getElementById('addStudentPhone')?.value.trim();
-    const vencimento = document.getElementById('addStudentDueDate')?.value.trim() || formatarData();
-    const aniversario = document.getElementById('addStudentBirthday')?.value.trim();
-    const modalidade = document.getElementById('addStudentModality')?.value;
-    const obs = document.getElementById('addStudentObs')?.value.trim();
-    
-    // Pegar os IDs dos horários para cada dia
-    const seg = parseInt(document.getElementById('horarioSeg')?.value) || '';
-    const ter = parseInt(document.getElementById('horarioTer')?.value) || '';
-    const qua = parseInt(document.getElementById('horarioQua')?.value) || '';
-    const qui = parseInt(document.getElementById('horarioQui')?.value) || '';
-    const sex = parseInt(document.getElementById('horarioSex')?.value) || '';
-    const sab = parseInt(document.getElementById('horarioSab')?.value) || '';
-    
-    if (!nome || !telefone || !modalidade) {
-        alert('Preencha Nome, Telefone e Modalidade!');
-        return;
-    }
-    
-    if (editId) {
-        const index = alunos.findIndex(a => a.codigo == editId);
-        if (index !== -1) {
-            alunos[index] = { 
-                ...alunos[index], 
-                nome, telefone, vencimento, aniversario, modalidade, obs,
-                seg, ter, qua, qui, sex, sab
-            };
-            alert(`✅ ${nome} atualizado com sucesso!`);
-        }
-    } else {
-        alunos.push({
-            codigo: gerarCodigo(),
-            nome, telefone, vencimento, aniversario, modalidade, obs,
-            seg, ter, qua, qui, sex, sab,
-            status: 'ATIVO'
-        });
-        alert(`✅ ${nome} cadastrado com sucesso!`);
-    }
-    
-    cancelarEdicao();
-    renderizarTudo();
-}
-
-function editarAluno(codigo) {
-    const aluno = alunos.find(a => a.codigo == codigo);
-    if (!aluno) return;
-    
-    document.getElementById('editStudentId').value = aluno.codigo;
-    document.getElementById('addStudentName').value = aluno.nome || '';
-    document.getElementById('addStudentPhone').value = aluno.telefone || '';
-    document.getElementById('addStudentDueDate').value = aluno.vencimento || '';
-    document.getElementById('addStudentBirthday').value = aluno.aniversario || '';
-    document.getElementById('addStudentModality').value = aluno.modalidade || '';
-    document.getElementById('addStudentObs').value = aluno.obs || '';
-    
-    // Preencher os selects de horário
-    if (document.getElementById('horarioSeg')) document.getElementById('horarioSeg').value = aluno.seg || '';
-    if (document.getElementById('horarioTer')) document.getElementById('horarioTer').value = aluno.ter || '';
-    if (document.getElementById('horarioQua')) document.getElementById('horarioQua').value = aluno.qua || '';
-    if (document.getElementById('horarioQui')) document.getElementById('horarioQui').value = aluno.qui || '';
-    if (document.getElementById('horarioSex')) document.getElementById('horarioSex').value = aluno.sex || '';
-    if (document.getElementById('horarioSab')) document.getElementById('horarioSab').value = aluno.sab || '';
-    
-    const btnSubmit = document.querySelector('#cadastroForm .btn-submit');
-    if (btnSubmit) btnSubmit.innerText = '💾 Salvar Edição';
-    document.getElementById('btnCancelar').style.display = 'inline-block';
-    
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function cancelarEdicao() {
-    document.getElementById('editStudentId').value = '';
-    document.getElementById('addStudentName').value = '';
-    document.getElementById('addStudentPhone').value = '';
-    document.getElementById('addStudentDueDate').value = '';
-    document.getElementById('addStudentBirthday').value = '';
-    document.getElementById('addStudentModality').value = '';
-    document.getElementById('addStudentObs').value = '';
-    
-    // Limpar selects de horário
-    const selects = ['horarioSeg', 'horarioTer', 'horarioQua', 'horarioQui', 'horarioSex', 'horarioSab'];
-    selects.forEach(id => {
-        if (document.getElementById(id)) document.getElementById(id).value = '';
-    });
-    
-    const btnSubmit = document.querySelector('#cadastroForm .btn-submit');
-    if (btnSubmit) btnSubmit.innerText = '➕ Cadastrar';
-    document.getElementById('btnCancelar').style.display = 'none';
-}
-
-function removerAluno(codigo) {
-    if (!confirm('Remover este aluno?')) return;
-    alunos = alunos.filter(a => a.codigo != codigo);
-    renderizarTudo();
-}
-
-// ============================================================
-// RENDERIZAÇÃO DOS HORÁRIOS (CARDS)
-// ============================================================
-function getHorariosFiltrados() {
-    let filtrados = [...horariosConfig];
-    
-    if (currentDiasFiltro.length > 0) {
-        filtrados = filtrados.filter(h => currentDiasFiltro.some(dia => h.dias.includes(dia)));
-    }
-    
-    if (activeFilters.modalidade !== 'TODAS') {
-        filtrados = filtrados.filter(h => h.modalidade === activeFilters.modalidade);
-    }
-    
-    if (activeFilters.turno !== 'TODOS') {
-        filtrados = filtrados.filter(h => h.turno === activeFilters.turno);
-    }
-    
-    if (activeFilters.ocupacao !== 'TODOS') {
-        filtrados = filtrados.filter(h => {
-            const ocupacaoAtual = getOcupacaoHorario(h.id);
-            if (activeFilters.ocupacao === 'COM_ALUNOS') return ocupacaoAtual > 0;
-            if (activeFilters.ocupacao === 'VAZIAS') return ocupacaoAtual === 0;
-            if (activeFilters.ocupacao === 'LOTADAS') return ocupacaoAtual >= h.capacidade;
-            if (activeFilters.ocupacao === 'COM_VAGAS') return ocupacaoAtual < h.capacidade;
-            if (activeFilters.ocupacao === 'VENCIDOS') {
-                const alunosHorario = getAlunosPorHorario(h.id);
-                return alunosHorario.some(a => verificarVencimento(a.vencimento).vencido);
-            }
-            return true;
-        });
-    }
-    
-    return filtrados;
-}
-
-function renderizarHorarios() {
-    const grid = document.getElementById('cardsGrid');
-    if (!grid) return;
-    
-    const filtrados = getHorariosFiltrados();
-    const searchQuery = document.getElementById('searchBar')?.value.toLowerCase() || '';
-    
-    let exibir = filtrados;
-    if (searchQuery) {
-        exibir = filtrados.filter(h => {
-            const alunosHorario = getAlunosPorHorario(h.id);
-            const matchHorario = h.horario.toLowerCase().includes(searchQuery) || h.modalidade.toLowerCase().includes(searchQuery);
-            const matchAluno = alunosHorario.some(a => String(a.nome || '').toLowerCase().includes(searchQuery) || String(a.telefone || '').includes(searchQuery));
-            return matchHorario || matchAluno;
-        });
-    }
-    
-    if (exibir.length === 0) {
-        grid.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;">Nenhum horário encontrado</div>';
-        return;
-    }
-    
-    grid.innerHTML = exibir.map(horario => {
-        const alunosHorario = getAlunosPorHorario(horario.id);
-        const ocupacao = alunosHorario.length;
-        const percentage = (ocupacao / horario.capacidade) * 100;
-        const lotado = ocupacao >= horario.capacidade;
-        
-        let badgeClass = 'badge-disponivel';
-        let badgeText = 'Disponível';
-        if (ocupacao === 0) { badgeText = 'Vazia'; badgeClass = 'badge-vazio'; }
-        if (lotado) { badgeText = 'Lotada'; badgeClass = 'badge-lotado'; }
-        
-        const alunosHtml = alunosHorario.map(a => {
-            const status = verificarVencimento(a.vencimento);
-            return `
-                <div class="student-item">
-                    <div>
-                        <span class="student-name">${a.nome}</span>
-                        <span style="font-size:0.55rem; color:#64748b;"> #${a.codigo}</span>
-                        ${status.vencido ? `<span class="badge-vencido" style="font-size:0.5rem; margin-left:5px;">${status.texto}</span>` : ''}
-                    </div>
-                    <a href="https://wa.me/${String(a.telefone || '').replace(/\D/g,'')}" target="_blank" class="btn-whatsapp">WhatsApp</a>
-                </div>
-            `;
-        }).join('');
-        
-        return `
-            <div class="card">
-                <div class="card-header" onclick="abrirModalHorario(${horario.id})">
-                    <h3>${horario.modalidade}</h3>
-                    <div class="dias">${horario.dias.join(' • ')}</div>
-                    <div class="horario">${horario.horario}</div>
-                </div>
-                <div class="card-body">
-                    <div class="info-row">
-                        <span>📊 Ocupação</span>
-                        <span><strong>${ocupacao}/${horario.capacidade}</strong> <span class="badge ${badgeClass}">${badgeText}</span></span>
-                    </div>
-                    <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(percentage,100)}%; background: ${percentage >= 100 ? '#ef4444' : (percentage >= 80 ? '#f59e0b' : '#10b981')}"></div></div>
-                    <div class="student-list">${alunosHtml || '<div style="text-align:center; color:#94a3b8; padding:10px;">Nenhum aluno</div>'}</div>
-                    <div class="actions">
-                        <button class="btn btn-remove" onclick="removerUltimoAluno(${horario.id})">- Remover</button>
-                        <button class="btn btn-add" onclick="abrirModalCadastro()">+ Aluno</button>
-                        <button class="btn btn-view" onclick="abrirModalHorario(${horario.id})">🔍</button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function removerUltimoAluno(horarioId) {
-    const alunosHorario = getAlunosPorHorario(horarioId);
-    if (alunosHorario.length === 0) return;
-    removerAluno(alunosHorario[alunosHorario.length-1].codigo);
-}
-
-// ============================================================
-// RENDERIZAÇÃO DA TABELA DE ALUNOS
-// ============================================================
-function renderStudentTable() {
-    const body = document.getElementById('studentTableBody');
-    if (!body) return;
-    
-    const search = document.getElementById('studentTableSearch')?.value.toLowerCase() || '';
-    let filtrados = [...alunos];
-    
-    if (search) {
-        filtrados = filtrados.filter(a => String(a.nome || '').toLowerCase().includes(search) || String(a.telefone || '').includes(search));
-    }
-    if (alunoFilterStatus === 'VENCIDOS') {
-        filtrados = filtrados.filter(a => verificarVencimento(a.vencimento).vencido);
-    } else if (alunoFilterStatus === 'EM_DIA') {
-        filtrados = filtrados.filter(a => !verificarVencimento(a.vencimento).vencido);
-    }
-    
-    body.innerHTML = filtrados.map(a => {
-        const status = verificarVencimento(a.vencimento);
-        
-        // Formatar os dias com os horários
-        const diasFormatados = [];
-        if (a.seg) diasFormatados.push(`Seg: ${a.seg}`);
-        if (a.ter) diasFormatados.push(`Ter: ${a.ter}`);
-        if (a.qua) diasFormatados.push(`Qua: ${a.qua}`);
-        if (a.qui) diasFormatados.push(`Qui: ${a.qui}`);
-        if (a.sex) diasFormatados.push(`Sex: ${a.sex}`);
-        if (a.sab) diasFormatados.push(`Sáb: ${a.sab}`);
-        const diasStr = diasFormatados.length > 0 ? diasFormatados.join(' | ') : '—';
-        
-        return `
-            <tr class="${status.vencido ? 'vencido' : ''}">
-                <td>#${a.codigo}</td>
-                <td><strong>${a.nome}</strong></td>
-                <td>${a.telefone}</td>
-                <td><span class="badge ${status.vencido ? 'badge-vencido' : 'badge-emdia'}">${status.texto}</span></td>
-                <td>${a.aniversario ? String(a.aniversario).split('/').slice(0,2).join('/') : '—'}</td>
-                <td><span style="color:var(--primary); font-weight:600; font-size:0.65rem;">${diasStr}</span></td>
-                <td>${a.modalidade}</td>
-                <td>
-                    <a href="https://wa.me/${String(a.telefone || '').replace(/\D/g,'')}" target="_blank" class="btn-whatsapp" style="display:inline-block; margin-right:5px;">💬</a>
-                    <button onclick="editarAluno(${a.codigo})" style="background:#e0f2fe; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; margin-right:5px;">✏️</button>
-                    <button onclick="removerAluno(${a.codigo})" style="background:#fee2e2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">🗑️</button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-    
-    renderVencidosList();
-    atualizarWidgets();
-}
-
-function renderVencidosList() {
-    const container = document.getElementById('vencidosList');
-    if (!container) return;
-    
-    const vencidos = alunos.filter(a => verificarVencimento(a.vencimento).vencido);
-    const vencidosUnicos = [];
-    const nomesVistos = [];
-    vencidos.forEach(v => {
-        const nomeSeguro = String(v.nome || '').toLowerCase();
-        if (!nomesVistos.includes(nomeSeguro)) {
-            nomesVistos.push(nomeSeguro);
-            vencidosUnicos.push(v);
-        }
-    });
-    
-    if (vencidosUnicos.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:20px; color:#16a34a;">✅ Todos os alunos estão em dia!</div>';
-        return;
-    }
-    
-    container.innerHTML = vencidosUnicos.map(v => `
-        <div class="vencido-card">
-            <div><strong>#${v.codigo}</strong> 👤 ${v.nome} - 📞 ${v.telefone}</div>
-            <a href="https://wa.me/${String(v.telefone || '').replace(/\D/g,'')}" target="_blank" class="btn-whatsapp">💬 Cobrar</a>
-        </div>
-    `).join('');
-}
-
-// ============================================================
-// RENDERIZAÇÃO DOS INCOMPLETOS (ALUNOS SEM DIAS DEFINIDOS)
-// ============================================================
-function renderIncompletos() {
-    const body = document.getElementById('incompletosBody');
-    if (!body) return;
-    
-    const incompletos = alunos.filter(a => {
-        return !a.seg && !a.ter && !a.qua && !a.qui && !a.sex && !a.sab;
-    });
-    
-    if (incompletos.length === 0) {
-        body.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px;">✅ Nenhum aluno incompleto! Todos têm dias de treino definidos.</td></tr>';
-        return;
-    }
-    
-    body.innerHTML = incompletos.map(a => {
-        const diasOptions = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-        const selectsHtml = diasOptions.map(dia => {
-            const campo = diasMap[dia];
-            const valorAtual = a[campo] || '';
-            return `
-                <div style="margin-bottom: 5px;">
-                    <span style="font-size:0.65rem; font-weight:600;">${dia}:</span>
-                    <select class="correcao-dia-${a.codigo}" data-dia="${campo}" style="width:100px; padding:3px; margin-left:5px; font-size:0.65rem;">
-                        <option value="">--</option>
-                        ${horariosConfig.filter(h => h.dias.includes(dia)).map(h => `<option value="${h.id}" ${valorAtual == h.id ? 'selected' : ''}>${h.horario}</option>`).join('')}
-                    </select>
-                </div>
-            `;
-        }).join('');
-        
-        return `
-            <tr>
-                <td>#${a.codigo}</td>
-                <td><strong>${a.nome}</strong></td>
-                <td>${a.telefone}</td>
-                <td><span style="color:#ef4444;">⚠️ Não definido</span></td>
-                <td><div style="display:flex; flex-wrap:wrap; gap:10px;">${selectsHtml}</div></td>
-                <td><button class="btn-salvar-dias" onclick="salvarDiasIncompletos(${a.codigo})">💾 Salvar</button></td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function salvarDiasIncompletos(codigo) {
-    const aluno = alunos.find(a => a.codigo == codigo);
-    if (!aluno) return;
-    
-    const dias = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-    for (const dia of dias) {
-        const select = document.querySelector(`.correcao-dia-${codigo}[data-dia="${dia}"]`);
-        if (select) {
-            aluno[dia] = select.value ? parseInt(select.value) : '';
-        }
-    }
-    
-    renderizarTudo();
-    alert(`✅ Dias de ${aluno.nome} atualizados com sucesso!`);
-}
-
-// ============================================================
-// RENDERIZAÇÃO DO RESUMO E SIDEBAR
-// ============================================================
-function renderResumo() {
-    const container = document.getElementById('resumoContainer');
-    if (!container) return;
-    
-    const total = alunos.length;
-    const porModalidade = {};
-    alunos.forEach(a => { porModalidade[a.modalidade] = (porModalidade[a.modalidade] || 0) + 1; });
-    
-    container.innerHTML = `
-        <div style="background:white; border-radius:12px; padding:20px;">
-            <h3 style="margin-bottom:15px;">📊 Resumo da Academia</h3>
-            <div style="background:#f1f5f9; padding:20px; border-radius:12px; text-align:center; margin-bottom:20px;">
-                <div style="font-size:2.5rem; font-weight:700; color:#006994;">${total}</div>
-                <div>Total de Alunos Matriculados</div>
-            </div>
-            <h4>📋 Por Modalidade</h4>
-            ${Object.entries(porModalidade).map(([mod, qtd]) => `
-                <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
-                    <span>${mod}</span><span><strong>${qtd}</strong> alunos</span>
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-function renderizarSidebar() {
-    const ranking = [...horariosConfig].sort((a,b) => getOcupacaoHorario(b.id) - getOcupacaoHorario(a.id)).slice(0,5);
-    document.getElementById('rankingList').innerHTML = ranking.map(h => {
-        const ocup = getOcupacaoHorario(h.id);
-        const pct = Math.round((ocup / h.capacidade) * 100);
-        return `<div class="ranking-item"><span>${h.modalidade.split(' ').slice(0,2).join(' ')} ${h.horario.split('-')[0]}</span><span><strong>${ocup}/${h.capacidade}</strong> (${pct}%)</span></div>`;
-    }).join('');
-    
-    const aniversariantes = getAniversariantesMes();
-    document.getElementById('aniversariantesList').innerHTML = aniversariantes.length ?
-        aniversariantes.map(a => `<div class="ranking-item"><span>🎂 ${a.nome}</span><span>${a.aniversario}</span></div>`).join('') :
-        '<div class="ranking-item" style="color:#94a3b8;">Nenhum aniversariante</div>';
-    
-    const totalAlunos = alunos.length;
-    const vencidos = alunos.filter(a => verificarVencimento(a.vencimento).vencido).length;
-    document.getElementById('statsSidebar').innerHTML = `
-        <div class="sidebar-stat"><span>👥 Alunos</span><span><strong>${totalAlunos}</strong></span></div>
-        <div class="sidebar-stat"><span>⚠️ Vencidos</span><span><strong style="color:#dc2626;">${vencidos}</strong></span></div>
-        <div class="sidebar-stat"><span>✅ Em dia</span><span><strong style="color:#16a34a;">${totalAlunos - vencidos}</strong></span></div>
-    `;
-}
-
-function renderizarTurmas() {
-    const container = document.getElementById('turmasContainer');
-    if (!container) return;
-    
-    container.innerHTML = horariosConfig.map(config => {
-        const ocupacao = getOcupacaoHorario(config.id);
-        const percentual = Math.min((ocupacao / (config.capacidade || 1)) * 100, 100);
-        
-        return `
-            <div class="card" style="background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                <h3>${config.modalidade}</h3>
-                <p><strong>${config.horario}</strong></p>
-                <div class="progress-bar" style="background:#e5e7eb; height:8px; border-radius:4px; margin: 10px 0;">
-                    <div class="progress" style="width: ${percentual}%; background:#0284c7; height:100%; border-radius:4px;"></div>
-                </div>
-                <p style="font-size:0.8rem;">${ocupacao} de ${config.capacidade} alunos</p>
-            </div>
-        `;
-    }).join('');
-}
-
-function atualizarWidgets() {
-    const totalAlunos = alunos.length;
-    const vencidos = alunos.filter(a => verificarVencimento(a.vencimento).vencido).length;
-    const emDia = totalAlunos - vencidos;
-    
-    let manha = 0, tarde = 0, noite = 0, sabado = 0;
-    alunos.forEach(a => {
-        const dias = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-        for (const dia of dias) {
-            const horarioId = a[dia];
-            if (horarioId) {
-                const horario = horariosConfig.find(h => h.id == horarioId);
-                if (horario) {
-                    if (horario.turno === 'manha') manha++;
-                    else if (horario.turno === 'tarde') tarde++;
-                    else if (horario.turno === 'noite') noite++;
-                    else if (horario.turno === 'sabado') sabado++;
-                }
-            }
-        }
-    });
-    
-    const totalMatriculas = manha + tarde + noite + sabado;
-    const capacidadeTotal = horariosConfig.reduce((s, h) => s + h.capacidade, 0);
-    const pctOcupacao = capacidadeTotal > 0 ? Math.round((totalMatriculas / capacidadeTotal) * 100) : 0;
-    
-    document.getElementById('widgetTotalAlunosCount').innerText = totalAlunos;
-    document.getElementById('widgetTotalAlunos').innerText = totalAlunos;
-    document.getElementById('widgetVencidos').innerText = vencidos;
-    document.getElementById('widgetEmDia').innerText = emDia;
-    document.getElementById('widgetManha').innerText = manha;
-    document.getElementById('widgetTarde').innerText = tarde;
-    document.getElementById('widgetNoite').innerText = noite;
-    document.getElementById('widgetSabado').innerText = sabado;
-    document.getElementById('widgetOcupacao').innerText = `${pctOcupacao}%`;
-    document.getElementById('progressGeral').style.width = `${pctOcupacao}%`;
-    document.getElementById('topGlobalAlunos').innerText = `${totalAlunos} alunos`;
-    document.getElementById('topGlobalVagas').innerText = `${totalMatriculas} matrículas`;
-    
-    const turnos = ['Manha', 'Tarde', 'Noite', 'Sabado'];
-    const valores = [manha, tarde, noite, sabado];
-    turnos.forEach((t, i) => {
-        const maxCap = t === 'Sabado' ? 200 : 300;
-        const pct = Math.min((valores[i] / maxCap) * 100, 100);
-        document.getElementById(`progress${t}`).style.width = `${pct}%`;
-    });
-}
-
-function renderizarTudo() {
-    renderizarTurmas();
-    renderizarHorarios();
-    renderStudentTable();
-    renderIncompletos();
-    renderResumo();
-    renderizarSidebar();
-    atualizarWidgets();
-}
-
-// ============================================================
-// FILTROS
-// ============================================================
-function limparFiltrosDia(btn) {
-    document.querySelectorAll('.dia-filtro-cb').forEach(cb => cb.checked = false);
-    currentDiasFiltro = [];
-    document.querySelectorAll('#filterDays .btn-select').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    renderizarHorarios();
-}
-
-function filtrarHorarios() {
-    currentDiasFiltro = Array.from(document.querySelectorAll('.dia-filtro-cb:checked')).map(cb => cb.value);
-    const btnTodos = document.querySelector('#filterDays .btn-select');
-    if (btnTodos) btnTodos.classList.toggle('active', currentDiasFiltro.length === 0);
-    renderizarHorarios();
-}
-
-function filtrarPorModalidade(modalidade) {
-    activeFilters.modalidade = modalidade;
-    document.querySelectorAll('#filterModalities .btn-select').forEach(b => b.classList.remove('active'));
-    if (event && event.target) event.target.classList.add('active');
-    renderizarHorarios();
-}
-
-function filtrarPorTurno(turno) {
-    activeFilters.turno = turno;
-    document.querySelectorAll('#filterTurno .btn-select').forEach(b => b.classList.remove('active'));
-    if (event && event.target) event.target.classList.add('active');
-    renderizarHorarios();
-}
-
-function filtrarPorOcupacao(ocupacao) {
-    activeFilters.ocupacao = ocupacao;
-    document.querySelectorAll('#filterOcupacao .btn-select').forEach(b => b.classList.remove('active'));
-    if (event && event.target) event.target.classList.add('active');
-    renderizarHorarios();
-}
-
-function setFilterAluno(status) {
-    alunoFilterStatus = status;
-    document.querySelectorAll('#tab-alunos .filter-options .btn-select').forEach(b => b.classList.remove('active'));
-    if (event && event.target) event.target.classList.add('active');
-    renderStudentTable();
-}
-
-function filtrarIncompletos(filter) {
-    renderIncompletos();
-}
-
-// ============================================================
-// MODAIS
-// ============================================================
-function abrirModalHorario(horarioId) {
-    const horario = horariosConfig.find(h => h.id === horarioId);
-    if (!horario) return;
-    const alunosHorario = getAlunosPorHorario(horarioId);
-    
-    document.getElementById('modalTitulo').innerHTML = `${horario.modalidade} - ${horario.horario}`;
-    const body = document.getElementById('modalBody');
-    body.innerHTML = `
-        <div style="margin-bottom:15px;"><strong>📅 Dias:</strong> ${horario.dias.join(', ')}<br><strong>👥 Ocupação:</strong> ${alunosHorario.length}/${horario.capacidade}</div>
-        <div style="border-top:1px solid #eee; padding-top:10px;"><h4>👤 Alunos (${alunosHorario.length})</h4>
-        ${alunosHorario.map(a => `
-            <div class="modal-student-row">
-                <div><strong>${a.nome}</strong><br><span style="font-size:0.65rem;">📞 ${a.telefone}</span></div>
-                <div><a href="https://wa.me/${String(a.telefone || '').replace(/\D/g,'')}" target="_blank" class="btn-whatsapp">💬</a>
-                <button onclick="removerAluno(${a.codigo}); fecharModal();" style="background:#fee2e2; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">🗑️</button></div>
-            </div>
-        `).join('') || '<div style="text-align:center;">Nenhum aluno</div>'}</div>
-    `;
-    document.getElementById('modal').classList.add('active');
-}
-
-function abrirModalCadastro() {
-    document.getElementById('modalTitulo').innerHTML = '➕ Cadastrar Aluno';
-    document.getElementById('modalBody').innerHTML = `
-        <div>
-            <input type="text" id="modalNome" placeholder="Nome" style="width:100%; padding:8px; margin-bottom:8px; border:1px solid #ddd; border-radius:6px;">
-            <input type="text" id="modalTelefone" placeholder="Telefone" style="width:100%; padding:8px; margin-bottom:8px; border:1px solid #ddd; border-radius:6px;">
-            <input type="text" id="modalVencimento" placeholder="Vencimento (DD/MM)" style="width:100%; padding:8px; margin-bottom:8px; border:1px solid #ddd; border-radius:6px;" value="${formatarData()}">
-            <select id="modalModalidade" style="width:100%; padding:8px; margin-bottom:8px; border:1px solid #ddd; border-radius:6px;">
-                <option value="">Selecione Modalidade</option>
-                <option value="Natação Adulto">Natação Adulto</option>
-                <option value="Hidroginástica">Hidroginástica</option>
-                <option value="Natação Infantil Nível 1">Infantil N1</option>
-                <option value="Natação Infantil Nível 2">Infantil N2</option>
-                <option value="Natação Infantil Nível 3">Infantil N3</option>
-                <option value="Natação Baby">Baby</option>
-                <option value="Personal Class">Personal</option>
-            </select>
-            <button onclick="salvarCadastroModal()" style="width:100%; background:#006994; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer;">✅ Cadastrar</button>
-        </div>
-    `;
-    document.getElementById('modal').classList.add('active');
-}
-
-function salvarCadastroModal() {
-    const nome = document.getElementById('modalNome')?.value.trim();
-    const telefone = document.getElementById('modalTelefone')?.value.trim();
-    const vencimento = document.getElementById('modalVencimento')?.value.trim() || formatarData();
-    const modalidade = document.getElementById('modalModalidade')?.value;
-    
-    if (!nome || !telefone || !modalidade) {
-        alert('Preencha Nome, Telefone e Modalidade!');
-        return;
-    }
-    
-    alunos.push({
-        codigo: gerarCodigo(),
-        nome, telefone, vencimento,
-        aniversario: '',
-        modalidade,
-        seg: '', ter: '', qua: '', qui: '', sex: '', sab: '',
-        obs: '',
-        status: 'ATIVO'
-    });
-    
-    renderizarTudo();
-    fecharModal();
-    alert(`✅ ${nome} cadastrado com sucesso!`);
-}
-
-function fecharModal(event) {
-    if (event && event.target !== event.currentTarget) return;
-    document.getElementById('modal').classList.remove('active');
-}
-
-// ============================================================
-// EXPORTAÇÃO E BUSCA
-// ============================================================
-function exportarCSV() {
-    let csv = "Código,Nome,Telefone,Vencimento,Aniversário,Modalidade,Segunda,Terça,Quarta,Quinta,Sexta,Sábado,OBS\n";
-    alunos.forEach(a => {
-        csv += `"${a.codigo}","${a.nome}","${a.telefone}","${a.vencimento}","${a.aniversario || ''}","${a.modalidade}","${a.seg || ''}","${a.ter || ''}","${a.qua || ''}","${a.qui || ''}","${a.sex || ''}","${a.sab || ''}","${a.obs || ''}"\n`;
-    });
-    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `aquacontrol_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-}
-
-function buscarGlobal() {
-    const termo = document.getElementById('globalSearchHeader')?.value.toLowerCase();
-    if (!termo) return;
-    const encontrados = alunos.filter(a => String(a.nome || '').toLowerCase().includes(termo) || String(a.telefone || '').includes(termo));
-    if (encontrados.length > 0) {
-        mudarAba('alunos');
-        document.getElementById('studentTableSearch').value = termo;
-        renderStudentTable();
-    }
-}
-
-// ============================================================
-// CARREGAMENTO DE DADOS DA PLANILHA
-// ============================================================
-async function carregarDados() {
-    const statusEl = document.getElementById('googleStatus');
-    statusEl.innerText = '🔄 Carregando...';
-    document.getElementById('loadingBanner').style.display = 'block';
-    
-    try {
-        const resposta = await fetch(GOOGLE_SCRIPT_URL);
-        const dados = await resposta.json();
-        
-        if (dados.alunos && dados.alunos.length > 0) {
-            alunos = dados.alunos.map(a => ({
-                codigo: a.codigo,
-                nome: a.nome,
-                telefone: a.telefone,
-                vencimento: a.vencimento,
-                aniversario: a.aniversario || '',
-                modalidade: a.modalidade,
-                seg: a.seg || '',
-                ter: a.ter || '',
-                qua: a.qua || '',
-                qui: a.qui || '',
-                sex: a.sex || '',
-                sab: a.sab || '',
-                obs: a.obs || '',
-                status: a.status || 'ATIVO'
-            }));
-            const maxCodigo = Math.max(...alunos.map(a => a.codigo || 0), 1000);
-            studentIdCounter = maxCodigo;
-        } else {
-            alunos = [];
-        }
-        
-        statusEl.innerText = '✅ Online';
-        statusEl.classList.add('online');
-        googleConnected = true;
-    } catch (erro) {
-        console.error("Erro na sincronização:", erro);
-        statusEl.innerText = '⚠️ Offline';
-        googleConnected = false;
-    } finally {
-        document.getElementById('loadingBanner').style.display = 'none';
-        renderizarTudo();
-        
-        // Popular os selects de horário no formulário de cadastro
-        const selects = ['horarioSeg', 'horarioTer', 'horarioQua', 'horarioQui', 'horarioSex', 'horarioSab'];
-        selects.forEach(selectId => {
-            const select = document.getElementById(selectId);
-            if (select && select.options.length <= 1) {
-                const dia = selectId.replace('horario', '');
-                const diaMap = { 'Seg': 'Segunda', 'Ter': 'Terça', 'Qua': 'Quarta', 'Qui': 'Quinta', 'Sex': 'Sexta', 'Sab': 'Sábado' };
-                const diaNome = diaMap[dia] || '';
-                select.innerHTML = '<option value="">--</option>';
-                horariosConfig.filter(h => h.dias.includes(diaNome)).forEach(h => {
-                    const opt = document.createElement('option');
-                    opt.value = h.id;
-                    opt.innerText = `${h.modalidade} (${h.horario})`;
-                    select.appendChild(opt);
-                });
-            }
-        });
-    }
-}
-
-// ============================================================
-// NAVEGAÇÃO E LOGIN
-// ============================================================
-function mudarAba(aba) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    
-    if (aba === 'horarios') {
-        document.querySelector('.tab:first-child').classList.add('active');
-        document.getElementById('tab-horarios').classList.add('active');
-        renderizarHorarios();
-    } else if (aba === 'alunos') {
-        document.querySelectorAll('.tab')[1].classList.add('active');
-        document.getElementById('tab-alunos').classList.add('active');
-        renderStudentTable();
-    } else if (aba === 'resumo') {
-        document.querySelectorAll('.tab')[2].classList.add('active');
-        document.getElementById('tab-resumo').classList.add('active');
-        renderResumo();
-    } else if (aba === 'incompletos') {
-        document.querySelectorAll('.tab')[3].classList.add('active');
-        document.getElementById('tab-incompletos').classList.add('active');
-        renderIncompletos();
-    } else if (aba === 'turmas') {
-        document.querySelectorAll('.tab')[4].classList.add('active');
-        document.getElementById('tab-turmas').classList.add('active');
-        renderizarTurmas();
-    }
-}
-
 function checkPassword() {
     if (document.getElementById("passwordInput").value === MASTER_PASSWORD) {
         localStorage.setItem("aqua_authenticated", "true");
@@ -929,12 +109,779 @@ function checkPassword() {
         document.getElementById("loginError").style.display = "block";
     }
 }
-
 function handleKeyPress(e) { if (e.key === "Enter") checkPassword(); }
+function logout() { localStorage.removeItem("aqua_authenticated"); location.reload(); }
 
-function logout() {
-    localStorage.removeItem("aqua_authenticated");
-    location.reload();
+async function carregarDados() {
+    const statusEl = document.getElementById('googleStatus');
+    if (statusEl) statusEl.innerText = '🔄 Sincronizando...';
+    document.getElementById('loadingBanner').style.display = 'block';
+    
+    try {
+        const resposta = await fetch(GOOGLE_SCRIPT_URL);
+        const dados = await resposta.json();
+        
+        alunos = dados.alunos || [];
+        experimentais = dados.experimentais || [];
+        
+        studentIdCounter = alunos.length > 0 ? Math.max(...alunos.map(a => a.codigo || 0), 1000) : 1000;
+        expIdCounter = experimentais.length > 0 ? Math.max(...experimentais.map(e => e.id || 0), 1000) : 1000;
+        
+        if (statusEl) { statusEl.innerText = '✅ Online'; statusEl.classList.add('online'); }
+    } catch (erro) {
+        console.error("Erro de sincronização:", erro);
+        if (statusEl) statusEl.innerText = '⚠️ Modo Local';
+    } finally {
+        document.getElementById('loadingBanner').style.display = 'none';
+        renderizarTudo();
+    }
+}
+
+// ============================================================
+// RELATÓRIOS E COMPILADORES DE CAPACIDADE
+// ============================================================
+function getAlunosPorHorario(horarioId) {
+    const horario = horariosConfig.find(h => h.id == horarioId);
+    if (!horario) return [];
+    return alunos.filter(aluno => {
+        for (const dia of horario.dias) {
+            if (aluno[diasMap[dia]] == horarioId) return true;
+        }
+        return false;
+    });
+}
+
+function getOcupacaoHorario(horarioId) { return getAlunosPorHorario(horarioId).length; }
+function formatarData() { const h = new Date(); return `${String(h.getDate()).padStart(2,'0')}/${String(h.getMonth()+1).padStart(2,'0')}`; }
+
+function verificarVencimento(dataVenc) {
+    if (!dataVenc) return { vencido: false, texto: "Sem data" };
+    const partes = String(dataVenc).split('/');
+    if (partes.length !== 2) return { vencido: false, texto: dataVenc };
+    const hoje = new Date();
+    const dataComp = new Date(hoje.getFullYear(), parseInt(partes[1])-1, parseInt(partes[0]));
+    const diff = Math.ceil((dataComp - hoje) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return { vencido: true, texto: `⚠️ Vencido` };
+    if (diff === 0) return { vencido: true, texto: `⚠️ Vence hoje` };
+    return { vencido: false, texto: `🟢 ${partes[0]}/${partes[1]}` };
+}
+
+// ============================================================
+// INTEGRAÇÃO DOS MULTI-FILTROS NO HUB ETERNO
+// ============================================================
+function filtrarTurnoHub(t, b) { activeFilters.turno = t; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
+function filtrarModalidadeHub(m, b) { activeFilters.modalidade = m; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
+function filtrarOcupacaoHub(o, b) { activeFilters.ocupacao = o; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
+// ============================================================
+// WIDGETS GLOBAIS: CONVERSÃO DOS 8 MARCADORES DE FLUXO
+// ============================================================
+function atualizarWidgets() {
+    const totalAlunos = alunos.length;
+    let vencidos = 0;
+    let emDia = 0;
+    
+    alunos.forEach(a => {
+        if (verificarVencimento(a.vencimento).vencido) vencidos++;
+        else emDia++;
+    });
+
+    let manha = 0, tarde = 0, noite = 0, sabado = 0;
+    alunos.forEach(a => {
+        const dias = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+        dias.forEach(d => {
+            const hId = a[d];
+            if (hId) {
+                const h = horariosConfig.find(hc => hc.id == hId);
+                if (h) {
+                    if (h.turno === 'manha') manha++;
+                    else if (h.turno === 'tarde') tarde++;
+                    else if (h.turno === 'noite') noite++;
+                    else if (h.turno === 'sabado') sabado++;
+                }
+            }
+        });
+    });
+
+    const totalMatriculas = manha + tarde + noite + sabado;
+    const capTotal = horariosConfig.reduce((s, h) => s + h.capacidade, 0);
+    const pctOcupacao = capTotal > 0 ? Math.round((totalMatriculas / capTotal) * 100) : 0;
+
+    const widget = document.getElementById('macroStatsWidget');
+    if (!widget) return;
+
+    widget.innerHTML = `
+        <div class="widget aluno-counter">
+            <div class="val">${totalAlunos}</div>
+            <div class="lbl">🎯 Total Alunos</div>
+            <div class="sub">No Sistema</div>
+        </div>
+        <div class="widget vencidos-border">
+            <div class="val" style="color: #ef4444;">${vencidos}</div>
+            <div class="lbl">⚠️ Vencidos</div>
+            <div class="sub">Planos Atrasados</div>
+        </div>
+        <div class="widget emdia-border">
+            <div class="val" style="color: #10b981;">${emDia}</div>
+            <div class="lbl">✅ Em Dia</div>
+            <div class="sub">Planos Ativos</div>
+        </div>
+        <div class="widget">
+            <div class="val">${manha}</div>
+            <div class="lbl">🌅 Manhã</div>
+            <div class="sub">Matrículas</div>
+        </div>
+        <div class="widget">
+            <div class="val">${tarde}</div>
+            <div class="lbl">☀️ Tarde</div>
+            <div class="sub">Matrículas</div>
+        </div>
+        <div class="widget">
+            <div class="val">${noite}</div>
+            <div class="lbl">🌙 Noite</div>
+            <div class="sub">Matrículas</div>
+        </div>
+        <div class="widget">
+            <div class="val">${sabado}</div>
+            <div class="lbl">📅 Sábados</div>
+            <div class="sub">Matrículas</div>
+        </div>
+        <div class="widget">
+            <div class="val">${pctOcupacao}%</div>
+            <div class="lbl">📊 Ocupação</div>
+            <div class="progress-mini"><div class="progress-mini-fill" style="width: ${pctOcupacao}%"></div></div>
+        </div>
+    `;
+}
+
+// ============================================================
+// DESIGN DO APP: RENDERIZAÇÃO DA HOME PRINCIPAL (CARDS)
+// ============================================================
+// ============================================================
+// DESIGN DO APP: RENDERIZAÇÃO DA HOME PRINCIPAL (CARDS)
+// ============================================================
+function renderizarTudo() {
+    const grid = document.getElementById('cardsGrid');
+    if (!grid) return;
+
+    atualizarWidgets();
+
+    const diaFiltro = document.getElementById('filtroDiaSemana')?.value || 'TODOS';
+    const query = document.getElementById('searchBar')?.value.toLowerCase() || '';
+
+    let filtrados = horariosConfig.filter(h => {
+        const matchTurno = activeFilters.turno === 'TODOS' || h.turno === activeFilters.turno;
+        const matchMod = activeFilters.modalidade === 'TODAS' || h.modalidade === activeFilters.modalidade;
+        
+        let matchOcup = true;
+        const qtd = getOcupacaoHorario(h.id);
+        if (activeFilters.ocupacao === 'COM_ALUNOS') matchOcup = qtd > 0;
+        else if (activeFilters.ocupacao === 'VAZIAS') matchOcup = qtd === 0;
+        else if (activeFilters.ocupacao === 'LOTADAS') matchOcup = qtd >= h.capacidade;
+        else if (activeFilters.ocupacao === 'COM_VAGAS') matchOcup = qtd < h.capacidade;
+        else if (activeFilters.ocupacao === 'VENCIDOS') matchOcup = getAlunosPorHorario(h.id).some(a => verificarVencimento(a.vencimento).vencido);
+
+        return matchTurno && matchMod && matchOcup;
+    });
+
+    if (diaFiltro !== 'TODOS') {
+        filtrados = filtrados.filter(h => h.dias.includes(diaFiltro));
+    }
+
+    if (query) {
+        filtrados = filtrados.filter(h => {
+            const matchHor = h.horario.includes(query) || h.modalidade.toLowerCase().includes(query);
+            const matchAl = getAlunosPorHorario(h.id).some(a => String(a.nome).toLowerCase().includes(query));
+            return matchHor || matchAl;
+        });
+    }
+
+    if (filtrados.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:#94a3b8; font-weight:600;">🔍 Nenhum horário atende aos filtros aplicados.</div>';
+        return;
+    }
+
+    grid.innerHTML = filtrados.map(h => {
+        const qtd = getOcupacaoHorario(h.id);
+        const pct = Math.min((qtd / h.capacidade) * 100, 100);
+        const corBarra = pct >= 100 ? '#ef4444' : (pct >= 80 ? '#f59e0b' : '#10b981');
+        // CORREÇÃO: experimentais escrito corretamente!
+        const expQtd = experimentais.filter(e => e.horario_id === h.id && e.status === 'agendado').length;
+
+        return `
+            <div class="card" onclick="abrirModalHorario(${h.id})" style="border-top-color: ${corBarra};">
+                <div class="card-header">
+                    <h3><span>${h.modalidade}</span> <span class="horario">${h.horario}</span></h3>
+                    <div class="dias">📅 ${h.dias.join(' • ')}</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:0.9rem; font-weight:700; color:#475569;">
+                    <span>👥 Alunos: ${qtd}/${h.capacidade}</span>
+                    ${expQtd > 0 ? `<span style="background:#b45309; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">🧪 ${expQtd} exp</span>` : ''}
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%; background: ${corBarra};"></div></div>
+            </div>
+        `;
+    }).join('');
+
+    atualizarMonitorTempoReal();
+}
+
+// ============================================================
+// ACESSIBILIDADE: SOBRETELA DO CARD DA TURMA E CENTRAL DE ALUNOS
+// ============================================================
+function abrirModalHorario(horarioId) {
+    const horario = horariosConfig.find(h => h.id === horarioId);
+    if (!horario) return;
+
+    const alunosMatriculados = getAlunosPorHorario(horarioId);
+    const listaExp = experimentais.filter(e => e.horario_id === horarioId);
+
+    const modal = document.getElementById('globalSuperModal');
+    const titulo = document.getElementById('superModalTitulo');
+    const corpo = document.getElementById('superModalCorpo');
+    if (!modal || !corpo || !titulo) return;
+
+    titulo.innerHTML = `🏊‍♂️ Turma: ${horario.modalidade} (${horario.horario})`;
+
+    corpo.innerHTML = `
+        <div style="margin-bottom: 20px; font-size: 1.1rem; background: #e0f2fe; padding: 15px; border-radius: 10px; border-left: 5px solid #006994; color:#0369a1; font-weight:600;">
+            📅 Dias Fixos: ${horario.dias.join(', ')} | 👥 Lotação: ${alunosMatriculados.length}/${horario.capacidade} Matrículas
+        </div>
+        
+        <div id="centralFormEdicaoContainer" style="display:none; background:#f8fafc; padding:22px; border-radius:12px; margin-bottom:25px; border:2px dashed #006994;"></div>
+
+        <div style="display: flex; gap: 25px; flex-wrap: wrap; align-items: flex-start;">
+            <div style="flex: 1; min-width: 320px; background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px;">
+                <h3 style="font-size: 1.25rem; color: #006994; border-bottom: 3px solid #006994; padding-bottom: 8px; margin-bottom: 15px;">👥 Alunos Fixos (${alunosMatriculados.length})</h3>
+                <div style="max-height: 450px; overflow-y: auto;">
+                    ${alunosMatriculados.map(a => {
+                        const fin = verificarVencimento(a.vencimento);
+                        let dateClean = a.vencimento || '—';
+                        if (String(dateClean).includes('T')) {
+                            const p = String(dateClean).split('T')[0].split('-');
+                            if (p.length === 3) dateClean = `${p[2]}/${p[1]}`;
+                        }
+
+                        let dParticipa = [];
+                        if (a.seg) dParticipa.push("Seg"); if (a.ter) dParticipa.push("Ter");
+                        if (a.qua) dParticipa.push("Qua"); if (a.qui) dParticipa.push("Qui");
+                        if (a.sex) dParticipa.push("Sex"); if (a.sab) dParticipa.push("Sáb");
+
+                        return `
+                            <div class="aluno-box-item" style="flex-direction: column; align-items: stretch; gap: 10px;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <div>
+                                        <div style="font-size:1.25rem; font-weight:bold; color:#0f172a;">${a.nome}</div>
+                                        <div style="font-size:0.95rem; color:#475569; margin-top:3px;">📞 Fone: <strong>${a.telefone}</strong> | Venc: <strong>${dateClean}</strong></div>
+                                        <div style="font-size:0.9rem; color:#0284c7; font-weight:bold; margin-top:4px;">🗓️ Dias: ${dParticipa.join(' • ') || 'Nenhum'}</div>
+                                    </div>
+                                    <span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${fin.texto}</span>
+                                </div>
+                                <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #f1f5f9; padding-top: 8px;">
+                                    <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WhatsApp</a>
+                                    <button onclick="abrirEdicaoCompletaInline(${a.codigo}, ${horarioId})" style="background:#e0f2fe; color:#0369a1; border:none; padding:8px 14px; border-radius:6px; font-weight:bold; font-size:0.85rem; cursor:pointer;">✏️ Editar Aluno</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('') || '<p style="text-align:center; padding:20px; color:#64748b;">Nenhum aluno matriculado.</p>'}
+                </div>
+            </div>
+            
+            <div style="flex: 1; min-width: 320px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 20px;">
+                <h3 style="font-size: 1.25rem; color: #b45309; border-bottom: 3px solid #b45309; padding-bottom: 8px; margin-bottom: 15px;">🧪 Experimentais Hoje (${listaExp.length})</h3>
+                <div style="max-height: 450px; overflow-y: auto;">
+                    ${listaExp.map(exp => {
+                        const faltas = historicoFaltasExperimentais[exp.telefone] || 0;
+                        const alerta = faltas >= 2 ? `<div style="background:#fee2e2; color:#b91c1c; font-size:0.9rem; font-weight:bold; padding:6px; border-radius:6px; margin-top:5px;">⚠️ ALERTA: Faltou ${faltas} vezes anteriores!</div>` : '';
+                        let ind = '', btns = '';
+
+                        if (exp.status === 'agendado') {
+                            ind = '<span class="badge" style="background:#fef3c7; color:#b45309;">📅 Agendado</span>';
+                            btns = `
+                                <button onclick="marcarPresencaExp(${exp.id}, 'compareceu', ${horarioId})" style="background:#10b981; color:white; border:none; padding:10px 14px; border-radius:6px; font-weight:bold; cursor:pointer;">✔️ Veio</button>
+                                <button onclick="marcarPresencaExp(${exp.id}, 'nao_compareceu', ${horarioId})" style="background:#ef4444; color:white; border:none; padding:10px 14px; border-radius:6px; font-weight:bold; cursor:pointer;">❌ Faltou</button>
+                            `;
+                        } else if (exp.status === 'compareceu') {
+                            ind = '<span class="badge" style="background:#dcfce7; color:#15803d;">✅ Veio</span>';
+                            btns = `<button onclick="matricularExperimentalInSuper(${exp.id})" style="background:#006994; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold; width:100%; cursor:pointer;">📋 Efetivar Matrícula</button>`;
+                        } else if (exp.status === 'nao_compareceu') {
+                            ind = '<span class="badge" style="background:#fee2e2; color:#b91c1c;">❌ Faltou</span>';
+                            btns = `<button onclick="marcarPresencaExp(${exp.id}, 'agendado', ${horarioId})" style="background:#64748b; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer;">🔄 Refazer</button>`;
+                        }
+
+                        return `
+                            <div style="background:white; padding:14px; border-radius:10px; border:1px solid #fde68a; margin-bottom:10px;">
+                                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                    <div>
+                                        <strong style="font-size:1.15rem; color:#78350f;">${exp.nome}</strong>
+                                        <div style="font-size:0.9rem; color:#b45309; margin-top:2px;">📞 ${exp.telefone}</div>
+                                        ${alerta}
+                                    </div>
+                                    <div>${ind}</div>
+                                </div>
+                                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+                                    <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g, '')}" target="_blank" class="btn-whatsapp-speed">💬 WhatsApp</a>
+                                    ${btns}
+                                </div>
+                            </div>
+                        `;
+                    }).join('') || '<p style="text-align:center; padding:20px; color:#b45309;">Nenhuma experimental agendada hoje.</p>'}
+                </div>
+            </div>
+        </div>
+    `;
+    modal.classList.add('active');
+}
+
+function marcarPresencaExp(id, st, hId) {
+    const exp = experimentais.find(e => e.id === id);
+    if (!exp) return;
+    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
+    else if (st === 'agendado' && exp.status === 'nao_compareceu' && historicoFaltasExperimentais[exp.telefone] > 0) historicoFaltasExperimentais[exp.telefone]--;
+    exp.status = st;
+    renderizarTudo();
+    abrirModalHorario(hId);
+}
+
+// ============================================================
+// 🧠 CENTRAL DE EDIÇÃO COMPLETA (FUNCIONAL NO CARD E NA BUSCA)
+// ============================================================
+function abrirEdicaoCompletaInline(cod, hId) {
+    const a = alunos.find(al => al.codigo == cod);
+    if (!a) return;
+
+    // Se hId existir, estamos no Modal da Turma. Se for null, estamos na Busca Central de Alunos
+    const divId = hId ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
+    const div = document.getElementById(divId);
+    if (!div) return;
+    
+    div.style.display = 'block';
+
+    const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const selectGradeHtml = diasSemana.map(dia => {
+        const campo = diasMap[dia];
+        const valorAtual = a[campo] || '';
+        const opcoesDoDia = horariosConfig.filter(hc => hc.dias.includes(dia));
+
+        return `
+            <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:0.85rem; font-weight:bold; color:#475569;">${dia}:</label>
+                <select id="editGrade${campo}" class="form-select-field" style="width:100%; min-width:100%; padding:8px; font-size:0.85rem;">
+                    <option value="">[ -- Não treina -- ]</option>
+                    ${opcoesDoDia.map(hc => `<option value="${hc.id}" ${valorAtual == hc.id ? 'selected' : ''}>${hc.modalidade} (${hc.horario})</option>`).join('')}
+                </select>
+            </div>
+        `;
+    }).join('');
+
+    const btnVoltarHtml = hId 
+        ? `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal" style="padding:10px 22px; font-size:0.95rem;">⬅️ Voltar para a Turma</button>`
+        : `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal" style="padding:10px 22px; font-size:0.95rem;">⬅️ Cancelar Edição</button>`;
+
+    div.innerHTML = `
+        <h3 style="color:#006994; margin-bottom:15px; font-size:1.3rem; font-weight:bold; border-left:4px solid #006994; padding-left:8px;">✏️ Editar Ficha: #${a.codigo} - ${a.nome}</h3>
+        
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:15px; margin-bottom:20px;">
+            <div><label style="font-size:0.85rem; font-weight:bold; color:#334155;">Nome Completo:</label><input type="text" id="editFullN" class="search-input-field" style="padding:10px;" value="${a.nome}"></div>
+            <div><label style="font-size:0.85rem; font-weight:bold; color:#334155;">Telefone:</label><input type="text" id="editFullP" class="search-input-field" style="padding:10px;" value="${a.telefone}"></div>
+            <div><label style="font-size:0.85rem; font-weight:bold; color:#334155;">Vencimento:</label><input type="text" id="editFullV" class="search-input-field" style="padding:10px;" value="${a.vencimento || ''}"></div>
+        </div>
+
+        <div style="background:#edf2f7; padding:15px; border-radius:8px; margin-bottom:15px;">
+            <span style="font-weight:bold; font-size:0.9rem; color:#1e293b; display:block; margin-bottom:10px;">🗓️ Remanejamento de Grade Semanal:</span>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+                ${selectGradeHtml}
+            </div>
+        </div>
+
+        <div style="display:flex; gap:12px; justify-content:flex-end;">
+            <button onclick="salvarEdicaoCompleta(${a.codigo}, ${hId})" class="btn-save-modal" style="padding:10px 22px; font-size:0.95rem;">💾 Salvar Alterações</button>
+            ${btnVoltarHtml}
+        </div>
+    `;
+    div.scrollIntoView({ behavior: 'smooth' });
+}
+
+function salvarEdicaoCompleta(cod, hId) {
+    const a = alunos.find(al => al.codigo == cod);
+    if (!a) return;
+
+    a.nome = document.getElementById('editFullN').value.trim();
+    a.telefone = document.getElementById('editFullP').value.trim();
+    a.vencimento = document.getElementById('editFullV').value.trim();
+
+    a.seg = document.getElementById('editGradeseg').value ? parseInt(document.getElementById('editGradeseg').value) : '';
+    a.ter = document.getElementById('editGradeter').value ? parseInt(document.getElementById('editGradeter').value) : '';
+    a.qua = document.getElementById('editGradequa').value ? parseInt(document.getElementById('editGradequa').value) : '';
+    a.qui = document.getElementById('editGradequi').value ? parseInt(document.getElementById('editGradequi').value) : '';
+    a.sex = document.getElementById('editGradesex').value ? parseInt(document.getElementById('editGradesex').value) : '';
+    a.sab = document.getElementById('editGradesab').value ? parseInt(document.getElementById('editGradesab').value) : '';
+
+    const divId = hId ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
+    document.getElementById(divId).style.display = 'none';
+    
+    renderizarTudo();
+    
+    // Atualiza a tela correspondente
+    if (hId) {
+        abrirModalHorario(hId);
+    } else {
+        renderStudentTableSuper();
+    }
+    alert(`✅ Ficha de ${a.nome} atualizada com sucesso!`);
+}
+
+// ============================================================
+// OUTRAS ABAS DO SUPER MODAL (ALUNOS, RESUMO, INCOMPLETOS)
+// ============================================================
+function abrirSuperModal(tipo) {
+    const modal = document.getElementById('globalSuperModal');
+    const titulo = document.getElementById('superModalTitulo');
+    const corpo = document.getElementById('superModalCorpo');
+    if (!modal || !corpo || !titulo) return;
+
+    document.getElementById('fabContainer')?.classList.remove('active');
+    modal.classList.add('active');
+
+    if (tipo === 'alunos') {
+        titulo.innerHTML = '👥 Central de Gestão de Alunos';
+        corpo.innerHTML = `
+            <input type="text" id="superStudentSearch" class="search-input-field" style="margin-bottom:15px;" placeholder="🔍 Digite o nome, código ou telefone..." oninput="renderStudentTableSuper()">
+            
+            <div id="superFormEdicaoContainer" style="display:none; background:#f8fafc; padding:20px; border-radius:12px; margin-bottom:20px; border:2px dashed #006994;"></div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Dias de Treino</th><th>Ações</th></tr>
+                    </thead>
+                    <tbody id="superStudentTableBody"></tbody>
+                </table>
+            </div>
+        `;
+        renderStudentTableSuper();
+    }
+    else if (tipo === 'resumo') {
+        titulo.innerHTML = '📊 Resumo Estatístico por Categoria (Lotação)';
+        let totalVagasOferecidas = horariosConfig.reduce((s, h) => s + (h.capacidade || 10), 0);
+        let totalMatriculasOcupadas = 0;
+        alunos.forEach(a => {
+            if (a.seg) totalMatriculasOcupadas++; if (a.ter) totalMatriculasOcupadas++;
+            if (a.qua) totalMatriculasOcupadas++; if (a.qui) totalMatriculasOcupadas++;
+            if (a.sex) totalMatriculasOcupadas++; if (a.sab) totalMatriculasOcupadas++;
+        });
+        const pctOcupacao = totalVagasOferecidas > 0 ? ((totalMatriculasOcupadas / totalVagasOferecidas) * 100).toFixed(1) : 0;
+        const resumoCategorias = {};
+        horariosConfig.forEach(h => {
+            if (!resumoCategorias[h.modalidade]) resumoCategorias[h.modalidade] = { ocupadas: 0, totais: 0 };
+            resumoCategorias[h.modalidade].totais += h.capacidade;
+            resumoCategorias[h.modalidade].ocupadas += getOcupacaoHorario(h.id);
+        });
+
+        corpo.innerHTML = `
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:25px;">
+                <div style="background:#f0fdf4; padding:20px; border-radius:12px; border:1px solid #bbf7d0; text-align:center;">
+                    <div style="font-size:2.6rem; font-weight:800; color:#16a34a;">${totalMatriculasOcupadas} / ${totalVagasOferecidas}</div>
+                    <div style="font-weight:700; color:#475569; margin-top:5px;">Matrículas Preenchidas na Academia</div>
+                </div>
+                <div style="background:#f0f9ff; padding:20px; border-radius:12px; border:1px solid #bae6fd; text-align:center;">
+                    <div style="font-size:2.6rem; font-weight:800; color:#0284c7;">${pctOcupacao}%</div>
+                    <div style="font-weight:700; color:#475569; margin-top:5px;">Taxa de Ocupação Geral</div>
+                </div>
+            </div>
+            <h3 style="font-size:1.2rem; color:#1e293b; margin-bottom:15px; border-left:4px solid #006994; padding-left:8px;">📊 Lotação e Limite Máximo por Categoria:</h3>
+            <div style="display:flex; flex-direction:column; gap:15px; background:white; border:1px solid #cbd5e1; border-radius:12px; padding:20px;">
+                ${Object.entries(resumoCategorias).map(([modalidade, dados]) => {
+                    const pctCat = ((dados.ocupadas / dados.totais) * 100).toFixed(1);
+                    return `
+                        <div>
+                            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.05rem; margin-bottom:6px;">
+                                <span>🔹 ${modalidade}</span>
+                                <span style="color:#006994;">${dados.ocupadas} ocupadas / ${dados.totais} limites (${pctCat}%)</span>
+                            </div>
+                            <div style="background:#e2e8f0; height:10px; border-radius:5px; overflow:hidden;">
+                                <div style="width:${pctCat}%; background:#006994; height:100%;"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+    else if (tipo === 'incompletos') {
+        titulo.innerHTML = '⚠️ Alunos sem Dias de Treino Vinculados';
+        corpo.innerHTML = `
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vincular a uma Turma</th><th>Ação</th></tr>
+                    </thead>
+                    <tbody id="superIncompletosBody"></tbody>
+                </table>
+            </div>
+        `;
+        renderIncompletosSuper();
+    }
+    else if (tipo === 'turmas') {
+        titulo.innerHTML = '🏢 Visão Geral Macro de Ocupação';
+        corpo.innerHTML = `<div class="turmas-grid" id="superTurmasGrid"></div>`;
+        renderTurmasSuper();
+    }
+}
+
+function fecharSuperModal(e) { if (e && e.target !== e.currentTarget) return; document.getElementById('globalSuperModal').classList.remove('active'); }
+
+function renderStudentTableSuper() {
+    const body = document.getElementById('superStudentTableBody');
+    if (!body) return;
+    const txt = document.getElementById('superStudentSearch')?.value.toLowerCase() || '';
+    let filtrados = alunos.filter(a => String(a.nome).toLowerCase().includes(txt) || String(a.telefone).includes(txt) || String(a.codigo).includes(txt));
+    
+    body.innerHTML = filtrados.map(a => {
+        const fin = verificarVencimento(a.vencimento);
+        
+        // CORREÇÃO: Limpando a data feia de banco de dados
+        let dateClean = a.vencimento || '—';
+        if (String(dateClean).includes('T')) {
+            const p = String(dateClean).split('T')[0].split('-');
+            if (p.length === 3) dateClean = `${p[2]}/${p[1]}`;
+        }
+
+        let dParticipa = [];
+        if (a.seg) dParticipa.push("Seg"); if (a.ter) dParticipa.push("Ter");
+        if (a.qua) dParticipa.push("Qua"); if (a.qui) dParticipa.push("Qui");
+        if (a.sex) dParticipa.push("Sex"); if (a.sab) dParticipa.push("Sáb");
+        
+        // CORREÇÃO: Botão de WhatsApp E Botão de Editar alinhados
+        return `
+            <tr>
+                <td>#${a.codigo}</td>
+                <td><strong>${a.nome}</strong></td>
+                <td>${a.telefone}</td>
+                <td><span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${dateClean}</span></td>
+                <td style="font-size:0.9rem; font-weight:bold; color:#006994;">${dParticipa.join(', ') || 'Nenhum'}</td>
+                <td style="display: flex; gap: 8px;">
+                    <a href="https://wa.me/55${String(a.telefone).replace(/\D/g, '')}" target="_blank" class="btn-whatsapp-speed" style="padding:6px 10px; font-size:0.8rem;">💬 WA</a>
+                    <button onclick="abrirEdicaoCompletaInline(${a.codigo}, null)" style="background:#e0f2fe; color:#0369a1; border:none; padding:6px 10px; border-radius:6px; font-weight:bold; font-size:0.8rem; cursor:pointer;">✏️ Editar</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderIncompletosSuper() {
+    const body = document.getElementById('superIncompletosBody');
+    if (!body) return;
+    const inc = alunos.filter(a => !a.seg && !a.ter && !a.qua && !a.qui && !a.sex && !a.sab);
+    if (inc.length === 0) { body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#16a34a; font-weight:bold; padding:25px;">✅ Nenhum aluno incompleto! Todos possuem turmas associadas.</td></tr>'; return; }
+    
+    body.innerHTML = inc.map(a => `
+        <tr>
+            <td>#${a.codigo}</td>
+            <td><strong>${a.nome}</strong></td>
+            <td>${a.telefone}</td>
+            <td>
+                <select class="inc-sel-${a.codigo} form-select-field" style="padding:6px; border-radius:6px; font-size:0.9rem;">
+                    <option value="">-- Escolha uma Turma Alvo --</option>
+                    ${horariosConfig.map(h => `<option value="${h.id}">${h.modalidade} (${h.horario})</option>`).join('')}
+                </select>
+            </td>
+            <td><button onclick="vincularIncompleto(${a.codigo})" class="btn-save-modal" style="padding:8px 14px; font-size:0.85rem;">💾 Vincular</button></td>
+        </tr>
+    `).join('');
+}
+
+function vincularIncompleto(cod) {
+    const al = alunos.find(a => a.codigo == cod);
+    const sel = document.querySelector(`.inc-sel-${cod}`);
+    if (al && sel && sel.value) {
+        const h = horariosConfig.find(hc => hc.id == sel.value);
+        if (h.dias.includes('Segunda')) al.seg = h.id;
+        if (h.dias.includes('Terça')) al.ter = h.id;
+        if (h.dias.includes('Quarta')) al.qua = h.id;
+        if (h.dias.includes('Quinta')) al.qui = h.id;
+        if (h.dias.includes('Sexta')) al.sex = h.id;
+        if (h.dias.includes('Sábado')) al.sab = h.id;
+        renderizarTudo();
+        abrirSuperModal('incompletos');
+        alert(`✅ Aluno ${al.nome} vinculado com sucesso!`);
+    }
+}
+
+function renderTurmasSuper() {
+    const grid = document.getElementById('superTurmasGrid');
+    if (!grid) return;
+    grid.innerHTML = horariosConfig.map(h => {
+        const q = getOcupacaoHorario(h.id);
+        const p = Math.min((q / h.capacidade) * 100, 100);
+        return `
+            <div class="card" style="border-top-color: ${p>=100?'#ef4444':'#006994'}">
+                <h3>${h.modalidade} <span style="color:#006994;">${h.horario}</span></h3>
+                <p style="font-size:0.8rem; color:#64748b; margin-bottom:10px;">${h.dias.join(', ')}</p>
+                <div style="background:#e2e8f0; height:10px; border-radius:5px; overflow:hidden;"><div style="width:${p}%; background:${p>=100?'#ef4444':'#006994'}; height:100%;"></div></div>
+                <div style="text-align:right; font-weight:bold; font-size:0.9rem; margin-top:5px;">${q} de ${h.capacidade} vagas</div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ============================================================
+// ➕ FORMULÁRIO COMPLETO DO BOTÃO FLUTUANTE DE CADASTRO
+// ============================================================
+function toggleFabMenu() { document.getElementById('fabContainer')?.classList.toggle('active'); }
+
+function abrirFormularioSobreposto(tipo) {
+    const modal = document.getElementById('globalSuperModal');
+    const titulo = document.getElementById('superModalTitulo');
+    const corpo = document.getElementById('superModalCorpo');
+    if (!modal || !corpo || !titulo) return;
+    document.getElementById('fabContainer')?.classList.remove('active');
+    modal.classList.add('active');
+    
+    if (tipo === 'cadastro') {
+        titulo.innerHTML = '📋 Matricular Novo Aluno Definitivo';
+        
+        // CORREÇÃO: Construindo a mini grade dos 6 dias também para o Cadastro!
+        const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        const selectGradeHtml = diasSemana.map(dia => {
+            const campo = diasMap[dia];
+            const opcoesDoDia = horariosConfig.filter(hc => hc.dias.includes(dia));
+            return `
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <label style="font-size:0.85rem; font-weight:bold; color:#475569;">${dia}:</label>
+                    <select id="cadGrade${campo}" class="form-select-field" style="width:100%; padding:8px; font-size:0.85rem;">
+                        <option value="">[ Não treina neste dia ]</option>
+                        ${opcoesDoDia.map(hc => `<option value="${hc.id}">${hc.modalidade} (${hc.horario})</option>`).join('')}
+                    </select>
+                </div>
+            `;
+        }).join('');
+
+        corpo.innerHTML = `
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; font-size:1.1rem; margin-bottom:20px;">
+                <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Nome do Aluno *</label><input type="text" id="fName" class="search-input-field"></div>
+                <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Telefone *</label><input type="text" id="fPhone" class="search-input-field" placeholder="(00) 00000-0000"></div>
+                <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Vencimento Plano</label><input type="text" id="fVenc" class="search-input-field" value="${formatarData()}"></div>
+                <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Modalidade Principal *</label>
+                    <select id="fMod" class="form-select-field" style="width:100%; height:48px;">
+                        <option value="Natação Adulto">Natação Adulto</option><option value="Hidroginástica">Hidroginástica</option><option value="Natação Infantil Nível 1">Natação Infantil Nível 1</option><option value="Natação Infantil Nível 2">Natação Infantil Nível 2</option><option value="Natação Infantil Nível 3">Natação Infantil Nível 3</option><option value="Natação Baby">Natação Baby</option><option value="Personal Class">Personal Class</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="background:#edf2f7; padding:15px; border-radius:8px; margin-bottom:15px;">
+                <span style="font-weight:bold; font-size:0.9rem; color:#1e293b; display:block; margin-bottom:10px;">🗓️ Vincular Turmas (Opcional - Pode deixar em branco e definir depois):</span>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+                    ${selectGradeHtml}
+                </div>
+            </div>
+
+            <div class="form-actions-row"><button class="btn-save-modal" onclick="salvarMatriculaFab()">💾 Efetivar Matrícula</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
+        `;
+    } else if (tipo === 'experimental') {
+        titulo.innerHTML = '🧪 Agendar Nova Aula Experimental';
+        corpo.innerHTML = `
+            <div style="font-size:1.1rem;">
+                <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Nome do Visitante *</label><input type="text" id="fExpN" class="search-input-field"></div>
+                <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Telefone (WhatsApp) *</label><input type="text" id="fExpP" class="search-input-field" placeholder="(00) 00000-0000"></div>
+                <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Vincular à Turma *</label>
+                    <select id="fExpH" class="form-select-field" style="width:100%; height:48px;">
+                        ${horariosConfig.map(h => `<option value="${h.id}">${h.modalidade} - ${h.dias.join(',')} (${h.horario})</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions-row"><button class="btn-save-modal" style="background:#b45309;" onclick="salvarExpFab()">💾 Confirmar Agendamento</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
+        `;
+    }
+}
+
+function salvarMatriculaFab() {
+    const nome = document.getElementById('fName').value.trim();
+    const telefone = document.getElementById('fPhone').value.trim();
+    const modalidade = document.getElementById('fMod').value;
+    const vencimento = document.getElementById('fVenc').value;
+    
+    // Captura as opções de horários preenchidas
+    const seg = document.getElementById('cadGradeseg').value ? parseInt(document.getElementById('cadGradeseg').value) : '';
+    const ter = document.getElementById('cadGradeter').value ? parseInt(document.getElementById('cadGradeter').value) : '';
+    const qua = document.getElementById('cadGradequa').value ? parseInt(document.getElementById('cadGradequa').value) : '';
+    const qui = document.getElementById('cadGradequi').value ? parseInt(document.getElementById('cadGradequi').value) : '';
+    const sex = document.getElementById('cadGradesex').value ? parseInt(document.getElementById('cadGradesex').value) : '';
+    const sab = document.getElementById('cadGradesab').value ? parseInt(document.getElementById('cadGradesab').value) : '';
+
+    if (!nome || !telefone) { alert('⚠️ Nome e Telefone são obrigatórios!'); return; }
+    
+    alunos.push({ codigo: gerarCodigo(), nome, telefone, vencimento, modalidade, seg, ter, qua, qui, sex, sab, status:'ATIVO' });
+    renderizarTudo(); 
+    fecharSuperModal();
+    alert(`✅ Aluno ${nome} matriculado e turmas vinculadas com sucesso!`);
+}
+
+function salvarExpFab() {
+    const nome = document.getElementById('fExpN').value.trim(), telefone = document.getElementById('fExpP').value.trim(), hId = document.getElementById('fExpH').value;
+    if (!nome || !telefone) { alert('⚠️ Preencha os campos obrigatórios!'); return; }
+    experimentais.push({ id: ++expIdCounter, nome, telefone, data: formatarData(), horario_id: parseInt(hId), status: 'agendado' });
+    renderizarTudo(); fecharSuperModal();
+    alert('✅ Aula experimental reservada com sucesso!');
+}
+
+function matricularExperimentalInSuper(id) {
+    const exp = experimentais.find(e => e.id === id);
+    if (!exp) return;
+    fecharSuperModal();
+    abrirFormularioSobreposto('cadastro');
+    setTimeout(() => {
+        document.getElementById('fName').value = exp.nome;
+        document.getElementById('fPhone').value = exp.telefone;
+        experimentais = experimentais.filter(e => e.id !== id);
+        renderizarTudo();
+    }, 250);
+}
+
+// ============================================================
+// CLASSE RELÓGIO: MONITORAMENTO PRESENCIAL EM TEMPO REAL (2 HORAS)
+// ============================================================
+function atualizarMonitorTempoReal() {
+    const agora = new Date();
+    const dias = ["Sábado", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+    const hojeStr = dias[agora.getDay()];
+    const minAtuais = (agora.getHours() * 60) + agora.getMinutes();
+
+    document.querySelectorAll('.card').forEach(card => {
+        card.style.borderColor = "";
+        card.querySelector('.badge-andamento')?.remove();
+    });
+
+    horariosConfig.forEach(h => {
+        if (!h.dias.includes(hojeStr)) return;
+        const partes = h.horario.split('-');
+        if (partes.length !== 2) return;
+        const [hIn, mIn] = partes[0].split(':').map(Number);
+        const minIn = (hIn * 60) + mIn;
+        const diff = minIn - minAtuais;
+
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => {
+            const txtMod = card.querySelector('h3 span')?.innerText;
+            const txtHor = card.querySelector('.horario')?.innerText;
+            
+            if (txtMod === h.modalidade && txtHor === h.horario) {
+                if (minAtuais >= minIn && minAtuais <= (minIn + 45)) {
+                    card.style.borderColor = "#f59e0b";
+                    if (!card.querySelector('.badge-andamento')) {
+                        const b = document.createElement('span'); b.className = 'badge badge-andamento'; b.innerText = '🚀 EM ANDAMENTO';
+                        card.querySelector('h3').appendChild(b);
+                    }
+                } 
+                else if (diff > 0 && diff <= 120) {
+                    card.style.borderColor = "#0284c7";
+                    if (!card.querySelector('.badge-andamento')) {
+                        const b = document.createElement('span'); b.className = 'badge'; b.style.background='#0284c7'; b.style.color='white'; b.innerText = '⏱️ PRÓX. 2H';
+                        card.querySelector('h3').appendChild(b);
+                    }
+                }
+            }
+        });
+    });
 }
 
 window.onload = function() {
@@ -943,4 +890,5 @@ window.onload = function() {
         document.getElementById("appContainer").style.display = "block";
         carregarDados();
     }
+    setInterval(atualizarMonitorTempoReal, 30000); 
 };

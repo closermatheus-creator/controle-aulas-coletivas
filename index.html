@@ -4,462 +4,128 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>AquaControl - Controle de Turmas</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
-        body { background: #f0f2f5; padding-bottom: 40px; }
-        
-        .header { background: linear-gradient(135deg, #006994, #004d6e); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .logo h1 { font-size: 1.3rem; display: flex; align-items: center; gap: 8px; }
-        .logo p { font-size: 0.7rem; opacity: 0.8; }
-        .status { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; }
-        .status.online { background: #10b981; }
-        
-        .tabs { display: flex; background: white; overflow-x: auto; padding: 0 10px; border-bottom: 1px solid #ddd; }
-        .tab { padding: 12px 16px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
-        .tab.active { border-bottom-color: #006994; color: #006994; }
-        
-        .container { padding: 15px; max-width: 1400px; margin: 0 auto; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        
-        .summary-widgets { display: flex; gap: 15px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 8px; }
-        .summary-widgets::-webkit-scrollbar { display: none; }
-        .widget { background: white; border-radius: 12px; padding: 15px 20px; text-align: center; min-width: 140px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .widget .val { font-size: 1.8rem; font-weight: 700; color: #006994; }
-        .widget .lbl { font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 600; }
-        .widget .sub { font-size: 0.6rem; color: #94a3b8; margin-top: 4px; }
-        .widget .progress-mini { background: #e2e8f0; height: 4px; border-radius: 2px; margin-top: 8px; overflow: hidden; }
-        .widget .progress-mini-fill { height: 100%; background: #006994; transition: width 0.3s; }
-        
-        .aluno-counter { background: linear-gradient(135deg, #006994, #0088b0); color: white; }
-        .aluno-counter .val { color: white; }
-        .aluno-counter .lbl { color: rgba(255,255,255,0.8); }
-        
-        .filter-panel { background: white; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .search-bar { width: 100%; max-width: 400px; padding: 10px 16px; border: 1px solid #ddd; border-radius: 30px; font-size: 0.8rem; outline: none; margin-bottom: 12px; }
-        .search-bar:focus { border-color: #006994; }
-        .filter-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-        .filter-label { font-size: 0.7rem; font-weight: 700; color: #64748b; min-width: 80px; text-transform: uppercase; }
-        .filter-options { display: flex; gap: 6px; flex-wrap: wrap; }
-        .btn-select { background: #f1f5f9; border: 1px solid #ddd; padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; cursor: pointer; color: #475569; }
-        .btn-select.active, .btn-select:hover { background: #006994; color: white; border-color: #006994; }
-        
-        .fast-form { display: flex; gap: 10px; flex-wrap: wrap; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 15px; align-items: center; }
-        .form-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.75rem; outline: none; }
-        .form-input:focus { border-color: #006994; }
-        .form-select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.75rem; background: white; }
-        .btn-submit { background: #006994; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }
-        .btn-submit:hover { opacity: 0.9; }
-        
-        .dashboard-layout { display: flex; gap: 20px; align-items: flex-start; }
-        .turmas-grid { flex: 3; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 15px; }
-        .ranking-sidebar { flex: 1; min-width: 250px; background: white; border-radius: 12px; padding: 15px; position: sticky; top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .ranking-sidebar h3 { font-size: 0.8rem; color: #006994; border-bottom: 2px solid #006994; padding-bottom: 8px; margin-bottom: 12px; }
-        .ranking-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 0.7rem; }
-        .sidebar-stat { display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 6px; color: #475569; }
-        
-        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-top: 4px solid #006994; }
-        .card-header { padding: 12px 15px; background: #f8fafc; border-bottom: 1px solid #eee; cursor: pointer; }
-        .card-header h3 { font-size: 0.9rem; color: #1e293b; }
-        .card-header .dias { font-size: 0.65rem; color: #64748b; margin-top: 3px; }
-        .card-header .horario { font-size: 0.75rem; color: #006994; font-weight: 600; margin-top: 5px; display: inline-block; background: #e0f2fe; padding: 2px 10px; border-radius: 15px; }
-        .card-body { padding: 12px 15px; }
-        .info-row { display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 8px; }
-        .progress-bar { background: #e2e8f0; height: 6px; border-radius: 3px; overflow: hidden; margin: 8px 0; }
-        .progress-fill { height: 100%; background: #10b981; width: 0%; transition: width 0.3s; }
-        .student-list { max-height: 150px; overflow-y: auto; border-top: 1px solid #eee; margin-top: 8px; padding-top: 8px; }
-        .student-item { font-size: 0.65rem; padding: 6px 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px; }
-        .student-name { font-weight: 600; }
-        .student-phone { color: #64748b; font-family: monospace; font-size: 0.6rem; }
-        .btn-whatsapp { background: #25d366; color: white; text-decoration: none; padding: 2px 6px; border-radius: 4px; font-size: 0.55rem; font-weight: bold; }
-        .actions { display: flex; gap: 8px; margin-top: 10px; }
-        .btn { flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.65rem; }
-        .btn-add { background: #dcfce7; color: #15803d; }
-        .btn-remove { background: #fee2e2; color: #b91c1c; }
-        .btn-view { background: #f1f5f9; color: #475569; max-width: 45px; }
-        
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.55rem; font-weight: 600; }
-        .badge-lotado { background: #fee2e2; color: #dc2626; }
-        .badge-disponivel { background: #dcfce7; color: #16a34a; }
-        .badge-vazio { background: #f1f5f9; color: #64748b; }
-        .badge-vencido { background: #fee2e2; color: #dc2626; }
-        .badge-emdia { background: #dcfce7; color: #16a34a; }
-        
-        .table-container { background: white; border-radius: 12px; overflow-x: auto; padding: 10px; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.7rem; min-width: 900px; }
-        th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: #f8fafc; font-weight: 600; color: #64748b; }
-        tr.vencido { background-color: #fef2f2; }
-        
-        .vencidos-list { background: white; border-radius: 12px; padding: 15px; margin-top: 20px; }
-        .vencidos-list h3 { font-size: 0.8rem; color: #dc2626; margin-bottom: 12px; }
-        .vencido-card { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fef2f2; border-radius: 8px; border-left: 4px solid #dc2626; margin-bottom: 8px; font-size: 0.7rem; flex-wrap: wrap; gap: 10px; }
-        
-        .dias-correcao-group { display: flex; gap: 6px; flex-wrap: wrap; }
-        .dia-correcao-label { display: inline-flex; align-items: center; gap: 4px; font-size: 0.6rem; font-weight: 600; cursor: pointer; padding: 3px 8px; border-radius: 15px; background: #f1f5f9; border: 1px solid #ddd; }
-        .dia-correcao-label:has(input:checked) { background: #006994; color: white; }
-        .dia-correcao-label input { display: none; }
-        .btn-salvar-dias { background: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.6rem; }
-        
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal.active { display: flex; }
-        .modal-content { background: white; border-radius: 16px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto; }
-        .modal-header { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .modal-header h3 { font-size: 1rem; }
-        .modal-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; }
-        .modal-body { padding: 15px; }
-        .modal-student-row { padding: 10px; background: #f8fafc; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        
-        /* Estilo para os selects de horário por dia */
-        .dias-horarios-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            background: #f1f5f9;
-            padding: 10px;
-            border-radius: 8px;
-            margin: 8px 0;
-        }
-        .dia-horario-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.7rem;
-        }
-        .dia-horario-item label {
-            font-weight: 600;
-            color: #475569;
-            min-width: 35px;
-        }
-        .dia-horario-item select {
-            width: 130px;
-            padding: 5px 8px;
-            font-size: 0.7rem;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-            background: white;
-        }
-        
-        .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f0f2f5; display: flex; align-items: center; justify-content: center; z-index: 10000; }
-        .login-card { background: white; padding: 40px; border-radius: 16px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .login-logo { font-size: 48px; margin-bottom: 15px; }
-        .login-card h2 { font-size: 1.3rem; color: #1e293b; }
-        .login-card p { font-size: 0.7rem; color: #64748b; margin-bottom: 20px; }
-        .login-input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.8rem; text-align: center; margin-bottom: 15px; outline: none; }
-        .login-input:focus { border-color: #006994; }
-        .btn-login { width: 100%; background: linear-gradient(135deg, #006994, #004d6e); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .login-error { color: #dc2626; font-size: 0.7rem; margin-top: 10px; display: none; }
-        #appContainer { display: none; }
-        
-        @media (max-width: 768px) {
-            header { flex-direction: column; text-align: center; }
-            .dashboard-layout { flex-direction: column; }
-            .ranking-sidebar { position: static; width: 100%; }
-            .fast-form { flex-direction: column; align-items: stretch; }
-            .form-select, .form-input { width: 100%; }
-            .dias-horarios-row { flex-direction: column; align-items: stretch; }
-            .dia-horario-item select { width: 100%; }
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="loginScreen" class="login-screen">
         <div class="login-card">
-            <div class="login-logo">🔑</div>
-            <h2>Acesso Restrito</h2>
-            <p>Insira a senha para continuar.</p>
-            <input type="password" id="passwordInput" class="login-input" placeholder="Digite a senha..." onkeypress="handleKeyPress(event)">
+            <div class="login-logo">🌊</div>
+            <h2>AquaControl</h2>
+            <p>Digite a senha de acesso da recepção</p>
+            <input type="password" id="passwordInput" class="login-input" placeholder="••••••••" onkeypress="handleKeyPress(event)">
             <button class="btn-login" onclick="checkPassword()">Entrar no Sistema</button>
-            <div id="loginError" class="login-error">❌ Senha incorreta!</div>
+            <div id="loginError" class="login-error">⚠️ Senha incorreta!</div>
         </div>
     </div>
     
     <div id="appContainer">
         <div class="header">
             <div class="logo">
-                <h1>🏊 AquaControl</h1>
+                <h1>🏊 AquaControl <span>v3.0</span></h1>
                 <p>Gestão de Horários - Academia</p>
             </div>
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <div style="background: rgba(255,255,255,0.15); border-radius: 30px; padding: 5px 15px; display: flex; align-items: center; gap: 8px;">
-                    <span>🔍</span>
-                    <input type="text" id="globalSearchHeader" placeholder="Buscar aluno..." style="background: transparent; border: none; outline: none; color: white; width: 160px;" oninput="buscarGlobal()">
-                </div>
-                <button onclick="exportarCSV()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 12px; border-radius: 20px; cursor: pointer;">📥 CSV</button>
-                <span id="googleStatus" class="status">📡 Offline</span>
-                <div style="text-align: right;">
-                    <div id="topGlobalAlunos">0 alunos</div>
-                    <div class="vagas" id="topGlobalVagas">0 matrículas</div>
-                </div>
-                <button onclick="logout()" style="background: rgba(255,255,255,0.15); border: none; color: white; padding: 5px 12px; border-radius: 20px; cursor: pointer;">Sair</button>
+            <div class="header-controls">
+                <button onclick="exportarCSV()" class="btn-csv">📥 Exportar CSV</button>
+                <span id="googleStatus" class="status">📡 Carregando...</span>
+                <button onclick="logout()" class="btn-logout">Sair</button>
             </div>
-        </div>
-        
-        <div class="tabs">
-            <div class="tab active" onclick="mudarAba('horarios')">📅 Horários</div>
-            <div class="tab" onclick="mudarAba('alunos')">👥 Alunos</div>
-            <div class="tab" onclick="mudarAba('resumo')">📊 Resumo</div>
-            <div class="tab" onclick="mudarAba('incompletos')">⚠️ Incompletos</div>
-            <div class="tab" onclick="mudarAba('turmas')">🏢 Turmas</div>
         </div>
         
         <div class="container">
-            <div id="loadingBanner" style="background: #e0f2fe; color: #0369a1; padding: 8px; text-align: center; font-size: 0.75rem; border-radius: 8px; margin-bottom: 15px; display: none;">🔄 Sincronizando...</div>
+            <div id="loadingBanner" class="loading-banner">🔄 Sincronizando com o Google Sheets...</div>
             
-            <div class="summary-widgets">
-                <div class="widget aluno-counter">
-                    <div class="val" id="widgetTotalAlunosCount">0</div>
-                    <div class="lbl">🎯 TOTAL DE ALUNOS</div>
-                    <div class="sub">cadastrados no sistema</div>
+            <div class="summary-widgets" id="macroStatsWidget">
                 </div>
-                <div class="widget">
-                    <div class="val" id="widgetTotalAlunos">0</div>
-                    <div class="lbl">👤 Ativos</div>
-                    <div class="sub" id="widgetTotalCapacidade">matrículas</div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetVencidos" style="color: #ef4444;">0</div>
-                    <div class="lbl">⚠️ Vencidos</div>
-                    <div class="sub">pagamentos atrasados</div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetEmDia">0</div>
-                    <div class="lbl">✅ Em Dia</div>
-                    <div class="sub">pagamentos em dia</div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetManha">0</div>
-                    <div class="lbl">☀️ Manhã</div>
-                    <div class="sub">matrículas</div>
-                    <div class="progress-mini"><div class="progress-mini-fill" id="progressManha" style="width: 0%"></div></div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetTarde">0</div>
-                    <div class="lbl">🌤️ Tarde</div>
-                    <div class="sub">matrículas</div>
-                    <div class="progress-mini"><div class="progress-mini-fill" id="progressTarde" style="width: 0%"></div></div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetNoite">0</div>
-                    <div class="lbl">🌙 Noite</div>
-                    <div class="sub">matrículas</div>
-                    <div class="progress-mini"><div class="progress-mini-fill" id="progressNoite" style="width: 0%"></div></div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetSabado">0</div>
-                    <div class="lbl">📅 Sábados</div>
-                    <div class="sub">matrículas</div>
-                    <div class="progress-mini"><div class="progress-mini-fill" id="progressSabado" style="width: 0%"></div></div>
-                </div>
-                <div class="widget">
-                    <div class="val" id="widgetOcupacao">0%</div>
-                    <div class="lbl">🎯 Ocupação</div>
-                    <div class="progress-mini"><div class="progress-mini-fill" id="progressGeral" style="width: 0%"></div></div>
-                </div>
-            </div>
             
-            <!-- ABA HORÁRIOS -->
-            <div id="tab-horarios" class="tab-content active">
-                <div class="filter-panel">
-                    <input type="text" id="searchBar" class="search-bar" placeholder="🔍 Buscar horário ou aluno..." oninput="filtrarHorarios()">
-                    <div class="filter-group">
-                        <div class="filter-label">Dias:</div>
-                        <div class="filter-options" id="filterDays">
-                            <button class="btn-select active" onclick="limparFiltrosDia(this)">Todos</button>
-                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Segunda" onchange="filtrarHorarios()" style="margin-right: 3px;"> Seg</label>
-                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Terça" onchange="filtrarHorarios()" style="margin-right: 3px;"> Ter</label>
-                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Quarta" onchange="filtrarHorarios()" style="margin-right: 3px;"> Qua</label>
-                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Quinta" onchange="filtrarHorarios()" style="margin-right: 3px;"> Qui</label>
-                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Sexta" onchange="filtrarHorarios()" style="margin-right: 3px;"> Sex</label>
-                            <label style="display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; padding: 5px 10px; border-radius: 15px; font-size: 0.65rem; cursor: pointer;"><input type="checkbox" class="dia-filtro-cb" value="Sábado" onchange="filtrarHorarios()" style="margin-right: 3px;"> Sáb</label>
-                        </div>
+            <div class="filter-panel">
+                <div class="filter-row-top">
+                    <div class="filter-group flex-main">
+                        <div class="filter-label">🔍 Buscar Horário ou Aluno:</div>
+                        <input type="text" id="searchBar" class="search-input-field" placeholder="Digite o nome de uma modalidade, horário ou aluno..." oninput="renderizarTudo()">
                     </div>
                     <div class="filter-group">
-                        <div class="filter-label">Modalidade:</div>
-                        <div class="filter-options" id="filterModalities">
-                            <button class="btn-select active" onclick="filtrarPorModalidade('TODAS')">Todas</button>
-                            <button class="btn-select" onclick="filtrarPorModalidade('Natação Adulto')">Adulto</button>
-                            <button class="btn-select" onclick="filtrarPorModalidade('Hidroginástica')">Hidro</button>
-                            <button class="btn-select" onclick="filtrarPorModalidade('Natação Infantil Nível 1')">Inf N1</button>
-                            <button class="btn-select" onclick="filtrarPorModalidade('Natação Infantil Nível 2')">Inf N2</button>
-                            <button class="btn-select" onclick="filtrarPorModalidade('Natação Infantil Nível 3')">Inf N3</button>
-                            <button class="btn-select" onclick="filtrarPorModalidade('Natação Baby')">Baby</button>
-                            <button class="btn-select" onclick="filtrarPorModalidade('Personal Class')">Personal</button>
-                        </div>
+                        <div class="filter-label">Dia da Semana:</div>
+                        <select id="filtroDiaSemana" class="form-select-field" onchange="renderizarTudo()">
+                            <option value="TODOS">📅 Todos os Dias</option>
+                            <option value="Segunda">Segunda-feira</option>
+                            <option value="Terça">Terça-feira</option>
+                            <option value="Quarta">Quarta-feira</option>
+                            <option value="Quinta">Quinta-feira</option>
+                            <option value="Sexta">Sexta-feira</option>
+                            <option value="Sábado">Sábado</option>
+                        </select>
                     </div>
+                </div>
+                
+                <div class="filter-group row-spacing">
+                    <div class="filter-label">Modalidade:</div>
+                    <div class="filter-options" id="filterModalities">
+                        <button class="btn-select active" onclick="filtrarModalidadeHub('TODAS', this)">Todas</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Adulto', this)">Adulto</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Hidroginástica', this)">Hidro</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 1', this)">Inf N1</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 2', this)">Inf N2</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 3', this)">Inf N3</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Baby', this)">Baby</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Personal Class', this)">Personal</button>
+                    </div>
+                </div>
+                
+                <div class="filter-row-bottom">
                     <div class="filter-group">
                         <div class="filter-label">Turno:</div>
                         <div class="filter-options" id="filterTurno">
-                            <button class="btn-select active" onclick="filtrarPorTurno('TODOS')">Todos</button>
-                            <button class="btn-select" onclick="filtrarPorTurno('manha')">Manhã</button>
-                            <button class="btn-select" onclick="filtrarPorTurno('tarde')">Tarde</button>
-                            <button class="btn-select" onclick="filtrarPorTurno('noite')">Noite</button>
+                            <button class="btn-select active" onclick="filtrarTurnoHub('TODOS', this)">Todos</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('manha', this)">🌅 Manhã</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('tarde', this)">☀️ Tarde</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('noite', this)">🌙 Noite</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('sabado', this)">📅 Sábado</button>
                         </div>
                     </div>
                     <div class="filter-group">
                         <div class="filter-label">Ocupação:</div>
                         <div class="filter-options" id="filterOcupacao">
-                            <button class="btn-select active" onclick="filtrarPorOcupacao('TODOS')">Todos</button>
-                            <button class="btn-select" onclick="filtrarPorOcupacao('COM_ALUNOS')">Com Alunos</button>
-                            <button class="btn-select" onclick="filtrarPorOcupacao('VENCIDOS')">🔴 Vencidos</button>
-                            <button class="btn-select" onclick="filtrarPorOcupacao('COM_VAGAS')">Com Vagas</button>
-                            <button class="btn-select" onclick="filtrarPorOcupacao('LOTADAS')">Lotadas</button>
-                            <button class="btn-select" onclick="filtrarPorOcupacao('VAZIAS')">Vazias</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="dashboard-layout">
-                    <div class="turmas-grid" id="cardsGrid"></div>
-                    <div class="ranking-sidebar" id="rankingSidebar">
-                        <h3>🏆 Ranking de Ocupação</h3>
-                        <div id="rankingList"></div>
-                        <div style="margin-top: 20px;">
-                            <h3>🎂 Aniversariantes do Mês</h3>
-                            <div id="aniversariantesList"></div>
-                        </div>
-                        <div style="margin-top: 20px;">
-                            <h3>📊 Estatísticas</h3>
-                            <div id="statsSidebar"></div>
+                            <button class="btn-select active" onclick="filtrarOcupacaoHub('TODOS', this)">Todos</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('COM_ALUNOS', this)">Com Alunos</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('VENCIDOS', this)">🔴 Vencidos</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('COM_VAGAS', this)">Com Vagas</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('LOTADAS', this)">Lotadas</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('VAZIAS', this)">Vazias</button>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- ABA ALUNOS (com selects por dia) -->
-            <div id="tab-alunos" class="tab-content">
-                <div class="filter-panel">
-                    <div class="fast-form" id="cadastroForm">
-                        <input type="hidden" id="editStudentId">
-                        <input type="text" id="addStudentName" class="form-input" placeholder="Nome *" style="flex:2">
-                        <input type="text" id="addStudentPhone" class="form-input" placeholder="Telefone *" style="flex:1">
-                        <input type="text" id="addStudentDueDate" class="form-input" placeholder="Vencimento (DD/MM)" style="width: 100px">
-                        <input type="text" id="addStudentBirthday" class="form-input" placeholder="Aniversário (DD/MM)" style="width: 100px">
-                        <select id="addStudentModality" class="form-select" style="min-width: 160px;">
-                            <option value="">Modalidade *</option>
-                            <option value="Natação Adulto">Natação Adulto</option>
-                            <option value="Hidroginástica">Hidroginástica</option>
-                            <option value="Natação Infantil Nível 1">Infantil N1</option>
-                            <option value="Natação Infantil Nível 2">Infantil N2</option>
-                            <option value="Natação Infantil Nível 3">Infantil N3</option>
-                            <option value="Natação Baby">Baby</option>
-                            <option value="Personal Class">Personal</option>
-                        </select>
-                        
-                        <!-- SELETORES DE HORÁRIO POR DIA -->
-                        <div class="dias-horarios-row">
-                            <div class="dia-horario-item">
-                                <label>Segunda:</label>
-                                <select id="horarioSeg" class="form-select">
-                                    <option value="">--</option>
-                                </select>
-                            </div>
-                            <div class="dia-horario-item">
-                                <label>Terça:</label>
-                                <select id="horarioTer" class="form-select">
-                                    <option value="">--</option>
-                                </select>
-                            </div>
-                            <div class="dia-horario-item">
-                                <label>Quarta:</label>
-                                <select id="horarioQua" class="form-select">
-                                    <option value="">--</option>
-                                </select>
-                            </div>
-                            <div class="dia-horario-item">
-                                <label>Quinta:</label>
-                                <select id="horarioQui" class="form-select">
-                                    <option value="">--</option>
-                                </select>
-                            </div>
-                            <div class="dia-horario-item">
-                                <label>Sexta:</label>
-                                <select id="horarioSex" class="form-select">
-                                    <option value="">--</option>
-                                </select>
-                            </div>
-                            <div class="dia-horario-item">
-                                <label>Sábado:</label>
-                                <select id="horarioSab" class="form-select">
-                                    <option value="">--</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <input type="text" id="addStudentObs" class="form-input" placeholder="OBS" style="flex:1">
-                        <button class="btn-submit" onclick="cadastrarAluno()">➕ Cadastrar</button>
-                        <button class="btn-submit" onclick="cancelarEdicao()" id="btnCancelar" style="display:none; background:#94a3b8;">Cancelar</button>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <div class="filter-label">Status:</div>
-                        <div class="filter-options">
-                            <button class="btn-select active" onclick="setFilterAluno('TODOS')">Todos</button>
-                            <button class="btn-select" onclick="setFilterAluno('VENCIDOS')">🔴 Vencidos</button>
-                            <button class="btn-select" onclick="setFilterAluno('EM_DIA')">🟢 Em Dia</button>
-                        </div>
-                    </div>
-                    <input type="text" id="studentTableSearch" class="search-bar" placeholder="🔍 Filtrar aluno..." oninput="renderStudentTable()" style="margin-top: 10px;">
-                </div>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Aniversário</th><th>Dias/Horários</th><th>Modalidade</th><th>Situação</th><th>Ações</th></tr>
-                        </thead>
-                        <tbody id="studentTableBody"></tbody>
-                    </table>
-                </div>
-                <div class="vencidos-list">
-                    <h3>⚠️ ALUNOS VENCIDOS (Últimos 30 dias)</h3>
-                    <div id="vencidosList"></div>
-                </div>
+            <div class="action-tabs-row">
+                <button onclick="abrirSuperModal('alunos')" class="btn-action-tab btn-blue-highlight">👥 Buscar / Editar Alunos</button>
+                <button onclick="abrirSuperModal('resumo')" class="btn-action-tab">📊 Resumo Estatístico</button>
+                <button onclick="abrirSuperModal('incompletos')" class="btn-action-tab">⚠️ Alunos Incompletos</button>
+                <button onclick="abrirSuperModal('turmas')" class="btn-action-tab">🏢 Ocupação Macro</button>
             </div>
             
-            <!-- ABA RESUMO -->
-            <div id="tab-resumo" class="tab-content">
-                <div id="resumoContainer"></div>
-            </div>
-            
-            <!-- ABA INCOMPLETOS -->
-            <div id="tab-incompletos" class="tab-content">
-                <div class="filter-panel">
-                    <div class="filter-group">
-                        <div class="filter-label">Filtrar:</div>
-                        <div class="filter-options">
-                            <button class="btn-select active" onclick="filtrarIncompletos('TODOS')">Todos</button>
-                            <button class="btn-select" onclick="filtrarIncompletos('SEM_DIAS')">📅 Sem Dias</button>
-                        </div>
+            <div class="dashboard-layout">
+                <div class="turmas-grid" id="cardsGrid">
                     </div>
-                    <div style="background: #fef3c7; padding: 10px; border-radius: 8px; color: #92400e; font-size: 0.7rem; margin-top: 10px;">
-                        💡 Alunos com dias não identificados aparecem aqui. Selecione os dias corretos e clique em Salvar.
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Dias Atual</th><th>Corrigir Dias</th><th>Ação</th></tr>
-                        </thead>
-                        <tbody id="incompletosBody"></tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <!-- ABA TURMAS -->
-            <div id="tab-turmas" class="tab-content">
-                <h2 style="margin-bottom: 15px;">📋 Painel de Ocupação por Turma</h2>
-                <div id="turmasContainer" class="turmas-grid"></div>
             </div>
         </div>
     </div>
     
-    <!-- MODAL -->
-    <div id="modal" class="modal" onclick="fecharModal(event)">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="modal-header">
-                <h3 id="modalTitulo">Horário</h3>
-                <button class="modal-close" onclick="fecharModal()">✕</button>
+    <div class="fab-container" id="fabContainer">
+        <button class="fab-main" onclick="toggleFabMenu()">➕</button>
+        <div class="fab-menu" id="fabMenu">
+            <button class="fab-item" onclick="abrirFormularioSobreposto('cadastro')">📋 Matricular Aluno</button>
+            <button class="fab-item" onclick="abrirFormularioSobreposto('experimental')">🧪 Nova Experimental</button>
+        </div>
+    </div>
+    
+    <div id="globalSuperModal" class="super-modal" onclick="fecharSuperModal(event)">
+        <div class="super-modal-content" onclick="event.stopPropagation()">
+            <div class="super-modal-header">
+                <h3 id="superModalTitulo">📌 Carregando...</h3>
+                <button class="super-modal-close" onclick="fecharSuperModal()">✕</button>
             </div>
-            <div class="modal-body" id="modalBody"></div>
+            <div class="super-modal-body" id="superModalCorpo">
+                </div>
         </div>
     </div>
     
