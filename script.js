@@ -822,116 +822,80 @@ function abrirFormularioSobreposto(tipo) {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    if (!modal || !corpo || !titulo) return;
-    document.getElementById('fabContainer')?.classList.remove('active');
-    modal.classList.add('active');
-    
+
     if (tipo === 'cadastro') {
-        titulo.innerHTML = '📋 Matricular Novo Aluno Definitivo';
-        
-        // CORREÇÃO: Construindo a mini grade dos 6 dias também para o Cadastro!
-        const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-        const selectGradeHtml = diasSemana.map(dia => {
-            const campo = diasMap[dia];
-            const opcoesDoDia = horariosConfig.filter(hc => hc.dias.includes(dia));
-            return `
-                <div style="display:flex; flex-direction:column; gap:4px;">
-                    <label style="font-size:0.85rem; font-weight:bold; color:#475569;">${dia}:</label>
-                    <select id="cadGrade${campo}" class="form-select-field" style="width:100%; padding:8px; font-size:0.85rem;">
-                        <option value="">[ Não treina neste dia ]</option>
-                        ${opcoesDoDia.map(hc => `<option value="${hc.id}">${hc.modalidade} (${hc.horario})</option>`).join('')}
-                    </select>
-                </div>
-            `;
-        }).join('');
-
+        titulo.innerHTML = '📋 Matricular Novo Aluno';
         corpo.innerHTML = `
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; font-size:1.1rem; margin-bottom:20px;">
-                <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Nome do Aluno *</label><input type="text" id="fName" class="search-input-field"></div>
-                <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Telefone *</label><input type="text" id="fPhone" class="search-input-field" placeholder="(00) 00000-0000"></div>
-                <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Vencimento Plano</label><input type="text" id="fVenc" class="search-input-field" value="${formatarData()}"></div>
-                <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Modalidade Principal *</label>
-                    <select id="fMod" class="form-select-field" style="width:100%; height:48px;">
-                        <option value="Natação Adulto">Natação Adulto</option><option value="Hidroginástica">Hidroginástica</option><option value="Natação Infantil Nível 1">Natação Infantil Nível 1</option><option value="Natação Infantil Nível 2">Natação Infantil Nível 2</option><option value="Natação Infantil Nível 3">Natação Infantil Nível 3</option><option value="Natação Baby">Natação Baby</option><option value="Personal Class">Personal Class</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div style="background:#edf2f7; padding:15px; border-radius:8px; margin-bottom:15px;">
-                <span style="font-weight:bold; font-size:0.9rem; color:#1e293b; display:block; margin-bottom:10px;">🗓️ Vincular Turmas (Opcional - Pode deixar em branco e definir depois):</span>
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
-                    ${selectGradeHtml}
-                </div>
-            </div>
+            <div style="padding: 15px;">
+                <label style="font-size:0.8rem; font-weight:bold;">Código do Aluno (Sistema Externo):</label>
+                <input type="number" id="fabCodigo" placeholder="Ex: 1050" required style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
 
-            <div class="form-actions-row"><button class="btn-save-modal" onclick="salvarMatriculaFab()">💾 Efetivar Matrícula</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
+                <label style="font-size:0.8rem; font-weight:bold;">Nome Completo:</label>
+                <input type="text" id="fabNome" placeholder="Ex: Maria Silva" required style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
+
+                <label style="font-size:0.8rem; font-weight:bold;">Telefone:</label>
+                <input type="text" id="fabTelefone" placeholder="(XX) 9XXXX-XXXX" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
+
+                <label style="font-size:0.8rem; font-weight:bold;">Modalidade Inicial:</label>
+                <select id="fabModalidade" style="width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
+                    <option value="Natação Adulto">Natação Adulto</option>
+                    <option value="Natação Infantil Nível 1">Natação Infantil Nível 1</option>
+                    <option value="Natação Infantil Nível 2">Natação Infantil Nível 2</option>
+                    <option value="Natação Infantil Nível 3">Natação Infantil Nível 3</option>
+                    <option value="Natação Baby">Natação Baby</option>
+                    <option value="Hidroginástica">Hidroginástica</option>
+                </select>
+
+                <button onclick="salvarMatriculaFab()" class="btn-save-modal" style="width: 100%; padding: 12px; font-size: 1rem;">✅ Efetivar Matrícula</button>
+            </div>
         `;
     } else if (tipo === 'experimental') {
-        titulo.innerHTML = '🧪 Agendar Nova Aula Experimental';
-
-        const modalidades = [...new Set(horariosConfig.map(h => h.modalidade))];
-
+        titulo.innerHTML = '🧪 Agendar Aula Experimental';
         corpo.innerHTML = `
-            <div style="font-size:1rem;">
-                <div style="margin-bottom:12px;">
-                    <label style="font-weight:bold; display:block; margin-bottom:5px;">Nome do Visitante *</label>
-                    <input type="text" id="fExpN" class="search-input-field">
-                </div>
-                <div style="margin-bottom:12px;">
-                    <label style="font-weight:bold; display:block; margin-bottom:5px;">Telefone (WhatsApp) *</label>
-                    <input type="text" id="fExpP" class="search-input-field" placeholder="(00) 00000-0000">
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
-                    <div>
-                        <label style="font-weight:bold; display:block; margin-bottom:5px;">1. Modalidade *</label>
-                        <select id="fExpMod" class="form-select-field" style="width:100%;" onchange="filtrarExpDias()">
-                            <option value="">-- Selecione --</option>
-                            ${modalidades.map(m => `<option value="${m}">${m}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-weight:bold; display:block; margin-bottom:5px;">2. Dia *</label>
-                        <select id="fExpDia" class="form-select-field" style="width:100%;" onchange="filtrarExpHorarios()" disabled>
-                            <option value="">-- Primeiro selecione a modalidade --</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-weight:bold; display:block; margin-bottom:5px;">3. Horário *</label>
-                        <select id="fExpH" class="form-select-field" style="width:100%;" disabled>
-                            <option value="">-- Primeiro selecione o dia --</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="form-actions-row">
-                <button class="btn-save-modal" style="background:#b45309;" onclick="salvarExpFab()">💾 Confirmar Agendamento</button>
-                <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
+            <div style="padding: 15px; text-align:center;">
+                <p>Função de Experimental em desenvolvimento.</p>
             </div>
         `;
     }
+
+    modal.style.display = 'flex';
+    document.getElementById('fabMenu').classList.remove('active'); // Fecha o menuzinho
 }
 function salvarMatriculaFab() {
-    const nome = document.getElementById('fName').value.trim();
-    const telefone = document.getElementById('fPhone').value.trim();
-    const modalidade = document.getElementById('fMod').value;
-    const vencimento = document.getElementById('fVenc').value;
-    
-    const seg = document.getElementById('cadGradeseg').value ? parseInt(document.getElementById('cadGradeseg').value) : '';
-    const ter = document.getElementById('cadGradeter').value ? parseInt(document.getElementById('cadGradeter').value) : '';
-    const qua = document.getElementById('cadGradequa').value ? parseInt(document.getElementById('cadGradequa').value) : '';
-    const qui = document.getElementById('cadGradequi').value ? parseInt(document.getElementById('cadGradequi').value) : '';
-    const sex = document.getElementById('cadGradesex').value ? parseInt(document.getElementById('cadGradesex').value) : '';
-    const sab = document.getElementById('cadGradesab').value ? parseInt(document.getElementById('cadGradesab').value) : '';
+    // Pega os dados digitados na tela
+    const codigoDigitado = document.getElementById('fabCodigo').value;
+    const nome = document.getElementById('fabNome').value;
+    const telefone = document.getElementById('fabTelefone').value;
+    const modalidade = document.getElementById('fabModalidade').value;
 
-    if (!nome || !telefone) { alert('⚠️ Nome e Telefone são obrigatórios!'); return; }
-    
-    const novoAluno = { codigo: gerarCodigo(), nome, telefone, vencimento, modalidade, seg, ter, qua, qui, sex, sab, status: 'ATIVO' };
-    alunos.push(novoAluno);
+    // Verificações de segurança (para não salvar cadastro vazio)
+    if (!codigoDigitado) {
+        alert("⚠️ Por favor, digite o código do aluno vindo do outro sistema!");
+        return;
+    }
+    if (!nome) {
+        alert("⚠️ Por favor, digite o nome do aluno!");
+        return;
+    }
+
+    // Cria o pacote de dados do aluno
+    const novoAluno = {
+        codigo: parseInt(codigoDigitado),
+        nome: nome,
+        telefone: telefone,
+        vencimento: "", // Fica vazio para ser preenchido na planilha depois
+        modalidade: modalidade,
+        obs: "",
+        status: "PENDENTE", // Ele entra como pendente para aparecer na tela de Incompletos!
+        seg: "", ter: "", qua: "", qui: "", sex: "", sab: ""
+    };
+
+    // Dispara para o Google Sheets
+    console.log("Enviando nova matrícula:", novoAluno);
     salvarNoGoogle(novoAluno);
-    renderizarTudo(); 
+    
+    // Fecha a janela
     fecharSuperModal();
-    alert(`✅ Aluno ${nome} matriculado e turmas vinculadas com sucesso!`);
 }
 function salvarExpFab() {
     const nome = document.getElementById('fExpN').value.trim();
