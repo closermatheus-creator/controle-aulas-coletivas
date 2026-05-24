@@ -698,7 +698,7 @@ function renderIncompletosSuper() {
 }
 
 // LÓGICA DE SALVAMENTO QUE ATUALIZA A PLANILHA E MUDA O STATUS
-ffunction vincularIncompleto(cod) {
+function vincularIncompleto(cod) {
     const al = alunos.find(a => a.codigo == cod);
     if (!al) { alert("Aluno não encontrado!"); return; }
 
