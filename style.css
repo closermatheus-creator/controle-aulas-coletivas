@@ -738,3 +738,10 @@ body.dark .btn-theme-toggle { background: rgba(255,255,255,0.1); }
 .card-lotado { border-top: 4px solid #ef4444 !important; }
 .card-quase { border-top: 4px solid #f59e0b !important; }
 .card-ok { border-top: 4px solid #10b981 !important; }
+body.dark .super-modal-content { background: #1e293b; }
+body.dark .super-modal-header { background: #0f172a; border-color: #334155; }
+body.dark .super-modal-header h3 { color: #38bdf8; }
+body.dark .super-modal-body { background: #1e293b; }
+body.dark .aluno-box-item { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+body.dark .aluno-box-item:hover { background: #1e3a5f; }
+body.dark .aluno-box-item div { color: #e2e8f0; }
