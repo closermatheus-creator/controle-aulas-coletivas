@@ -307,6 +307,7 @@ function renderizarTudo() {
         else if (activeFilters.ocupacao === 'LOTADAS') matchOcup = qtd >= h.capacidade;
         else if (activeFilters.ocupacao === 'COM_VAGAS') matchOcup = qtd < h.capacidade;
         else if (activeFilters.ocupacao === 'VENCIDOS') matchOcup = getAlunosPorHorario(h.id).some(a => verificarVencimento(a.vencimento).vencido);
+        else if (activeFilters.ocupacao === 'COM_EXPERIMENTAIS') matchOcup = experimentais.some(e => e.horario_id === h.id && e.status === 'agendado');
 
         return matchTurno && matchMod && matchOcup;
     });
