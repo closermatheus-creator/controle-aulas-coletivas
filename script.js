@@ -347,18 +347,19 @@ function renderizarTudo() {
         const expQtd = experimentais.filter(e => e.horario_id === h.id && e.status === 'agendado').length;
 
       return `
-    <div class="card" onclick="abrirModalHorario(${h.id})" style="border-top: 4px solid ${corBarra};">
-        <div class="card-header">
-            <h3><span>${h.modalidade}</span> <span class="horario">${h.horario}</span></h3>
-            <div class="dias">📅 ${h.dias.join(' • ')}</div>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:0.9rem; font-weight:700; color:#475569;">
-            <span>👥 Alunos: ${qtd}/${h.capacidade}</span>
-            ${expQtd > 0 ? `<span style="background:#b45309; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">🧪 ${expQtd} exp</span>` : ''}
-        </div>
-        <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%; background: ${corBarra};"></div></div>
-    </div>
-`;
+            <div class="card" onclick="abrirModalHorario(${h.id})" style="border-top: 4px solid ${corBarra};">
+                <div class="card-header">
+                    <h3><span>${h.modalidade}</span> <span class="horario">${h.horario}</span></h3>
+                    <div class="dias">📅 ${h.dias.join(' • ')}</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:0.9rem; font-weight:700; color:#475569;">
+                    <span>👥 Alunos: ${qtd}/${h.capacidade}</span>
+                    ${expQtd > 0 ? `<span style="background:#b45309; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">🧪 ${expQtd} exp</span>` : ''}
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%; background: ${corBarra};"></div></div>
+            </div>
+        `;
+    }).join('');
 
     atualizarMonitorTempoReal();
 }
@@ -555,17 +556,12 @@ function salvarEdicaoCompleta(cod, hId) {
     a.sex = document.getElementById('editGradesex').value ? parseInt(document.getElementById('editGradesex').value) : '';
     a.sab = document.getElementById('editGradesab').value ? parseInt(document.getElementById('editGradesab').value) : '';
 
+    salvarNoGoogle(a); // ← LINHA ADICIONADA
+    
     const divId = hId ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
     document.getElementById(divId).style.display = 'none';
-    
     renderizarTudo();
-    
-    // Atualiza a tela correspondente
-    if (hId) {
-        abrirModalHorario(hId);
-    } else {
-        renderStudentTableSuper();
-    }
+    if (hId) { abrirModalHorario(hId); } else { renderStudentTableSuper(); }
     alert(`✅ Ficha de ${a.nome} atualizada com sucesso!`);
 }
 
@@ -702,23 +698,19 @@ function renderIncompletosSuper() {
 }
 
 // LÓGICA DE SALVAMENTO QUE ATUALIZA A PLANILHA E MUDA O STATUS
-function vincularIncompleto(cod) {
+ffunction vincularIncompleto(cod) {
     const al = alunos.find(a => a.codigo == cod);
     if (!al) { alert("Aluno não encontrado!"); return; }
 
-    // Captura os valores
     ['seg', 'ter', 'qua', 'qui', 'sex', 'sab'].forEach(campo => {
         const select = document.querySelector(`.inc-select-${al.codigo}-${campo}`);
         if(select) al[campo] = select.value ? parseInt(select.value) : '';
     });
 
     al.status = 'ATIVO';
-
-    console.log("Tentando salvar:", al);
     salvarNoGoogle(al);
-    abrirSuperModal('incompletos'); // 👈 ADICIONA ESSA LINHA
+    abrirSuperModal('incompletos');
 }
-
 
 function renderTurmasSuper() {
     const grid = document.getElementById('superTurmasGrid');
@@ -975,7 +967,6 @@ function atualizarMonitorTempoReal() {
     const minAtuais = (agora.getHours() * 60) + agora.getMinutes();
 
     document.querySelectorAll('.card').forEach(card => {
-        card.style.borderColor = "";
         card.querySelector('.badge-andamento')?.remove();
     });
 
