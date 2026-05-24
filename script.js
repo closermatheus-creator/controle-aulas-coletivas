@@ -781,6 +781,43 @@ function salvarNoGoogle(dadosAluno) {
 // ============================================================
 function toggleFabMenu() { document.getElementById('fabContainer')?.classList.toggle('active'); }
 
+function filtrarExpDias() {
+    const mod = document.getElementById('fExpMod').value;
+    const selectDia = document.getElementById('fExpDia');
+    const selectH = document.getElementById('fExpH');
+
+    selectDia.innerHTML = '<option value="">-- Selecione o dia --</option>';
+    selectH.innerHTML = '<option value="">-- Primeiro selecione o dia --</option>';
+    selectH.disabled = true;
+
+    if (!mod) { selectDia.disabled = true; return; }
+
+    const dias = [...new Set(horariosConfig.filter(h => h.modalidade === mod).flatMap(h => h.dias))];
+    const ordem = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    dias.sort((a, b) => ordem.indexOf(a) - ordem.indexOf(b));
+
+    dias.forEach(dia => {
+        selectDia.innerHTML += `<option value="${dia}">${dia}</option>`;
+    });
+    selectDia.disabled = false;
+}
+
+function filtrarExpHorarios() {
+    const mod = document.getElementById('fExpMod').value;
+    const dia = document.getElementById('fExpDia').value;
+    const selectH = document.getElementById('fExpH');
+
+    selectH.innerHTML = '<option value="">-- Selecione o horário --</option>';
+
+    if (!dia) { selectH.disabled = true; return; }
+
+    const turmas = horariosConfig.filter(h => h.modalidade === mod && h.dias.includes(dia));
+    turmas.forEach(h => {
+        selectH.innerHTML += `<option value="${h.id}_${dia}">${h.horario}</option>`;
+    });
+    selectH.disabled = false;
+}
+
 function abrirFormularioSobreposto(tipo) {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
@@ -831,17 +868,40 @@ function abrirFormularioSobreposto(tipo) {
         `;
     } else if (tipo === 'experimental') {
         titulo.innerHTML = '🧪 Agendar Nova Aula Experimental';
+
+        const modalidades = [...new Set(horariosConfig.map(h => h.modalidade))];
+
         corpo.innerHTML = `
-            <div style="font-size:1.1rem;">
-                <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Nome do Visitante *</label><input type="text" id="fExpN" class="search-input-field"></div>
-                <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Telefone (WhatsApp) *</label><input type="text" id="fExpP" class="search-input-field" placeholder="(00) 00000-0000"></div>
-                <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Dia e Turma *</label>
-                    <select id="fExpH" class="form-select-field" style="width:100%;">
-                        <option value="">-- Selecione o dia e turma --</option>
-                        ${horariosConfig.flatMap(h => 
-                            h.dias.map(dia => `<option value="${h.id}_${dia}">${h.modalidade} — ${dia} (${h.horario})</option>`)
-                        ).join('')}
-                    </select>
+            <div style="font-size:1rem;">
+                <div style="margin-bottom:12px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">Nome do Visitante *</label>
+                    <input type="text" id="fExpN" class="search-input-field">
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">Telefone (WhatsApp) *</label>
+                    <input type="text" id="fExpP" class="search-input-field" placeholder="(00) 00000-0000">
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:5px;">1. Modalidade *</label>
+                        <select id="fExpMod" class="form-select-field" style="width:100%;" onchange="filtrarExpDias()">
+                            <option value="">-- Selecione --</option>
+                            ${modalidades.map(m => `<option value="${m}">${m}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:5px;">2. Dia *</label>
+                        <select id="fExpDia" class="form-select-field" style="width:100%;" onchange="filtrarExpHorarios()" disabled>
+                            <option value="">-- Primeiro selecione a modalidade --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:5px;">3. Horário *</label>
+                        <select id="fExpH" class="form-select-field" style="width:100%;" disabled>
+                            <option value="">-- Primeiro selecione o dia --</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <div class="form-actions-row">
@@ -851,7 +911,6 @@ function abrirFormularioSobreposto(tipo) {
         `;
     }
 }
-
 function salvarMatriculaFab() {
     const nome = document.getElementById('fName').value.trim();
     const telefone = document.getElementById('fPhone').value.trim();
