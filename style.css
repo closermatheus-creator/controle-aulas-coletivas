@@ -733,3 +733,8 @@ body.dark .login-card { background: #1e293b; }
 body.dark .login-card h2 { color: #e2e8f0; }
 body.dark .login-input { background: #0f172a; border-color: #475569; color: #e2e8f0; }
 body.dark .btn-theme-toggle { background: rgba(255,255,255,0.1); }
+
+/* Cores de ocupação nos cards */
+.card-lotado { border-top: 4px solid #ef4444 !important; }
+.card-quase { border-top: 4px solid #f59e0b !important; }
+.card-ok { border-top: 4px solid #10b981 !important; }

@@ -347,7 +347,7 @@ function renderizarTudo() {
         const expQtd = experimentais.filter(e => e.horario_id === h.id && e.status === 'agendado').length;
 
         return `
-            <div class="card" onclick="abrirModalHorario(${h.id})" style="border-top: 4px solid ${corBarra}; ${pct >= 100 ? 'background: #fff5f5;' : pct >= 70 ? 'background: #fffbeb;' : ''}">
+            <div class="card" onclick="abrirModalHorario(${h.id})" style="border-top: 4px solid ${corBarra};"
                 <div class="card-header">
                     <h3><span>${h.modalidade}</span> <span class="horario">${h.horario}</span></h3>
                     <div class="dias">📅 ${h.dias.join(' • ')}</div>
