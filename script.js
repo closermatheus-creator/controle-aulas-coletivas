@@ -343,7 +343,7 @@ function renderizarTudo() {
         const qtd = getOcupacaoHorario(h.id);
         const pct = Math.min((qtd / h.capacidade) * 100, 100);
         const corBarra = pct >= 100 ? '#ef4444' : (pct >= 70 ? '#f59e0b' : '#10b981');
-        // CORREÇÃO: experimentais escrito corretamente!
+        // experimentais agendados neste horario
         const expQtd = experimentais.filter(e => e.horario_id === h.id && e.status === 'agendado').length;
 
       return `
