@@ -830,25 +830,26 @@ function abrirFormularioSobreposto(tipo) {
             <div class="form-actions-row"><button class="btn-save-modal" onclick="salvarMatriculaFab()">💾 Efetivar Matrícula</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
         `;
     } else if (tipo === 'experimental') {
-    titulo.innerHTML = '🧪 Agendar Nova Aula Experimental';
-    corpo.innerHTML = `
-        <div style="font-size:1.1rem;">
-            <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Nome do Visitante *</label><input type="text" id="fExpN" class="search-input-field"></div>
-            <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Telefone (WhatsApp) *</label><input type="text" id="fExpP" class="search-input-field" placeholder="(00) 00000-0000"></div>
-            <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Dia e Turma *</label>
-                <select id="fExpH" class="form-select-field" style="width:100%;">
-                    <option value="">-- Selecione o dia e turma --</option>
-                    ${horariosConfig.flatMap(h => 
-                        h.dias.map(dia => `<option value="${h.id}_${dia}">${h.modalidade} — ${dia} (${h.horario})</option>`)
-                    ).join('')}
-                </select>
+        titulo.innerHTML = '🧪 Agendar Nova Aula Experimental';
+        corpo.innerHTML = `
+            <div style="font-size:1.1rem;">
+                <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Nome do Visitante *</label><input type="text" id="fExpN" class="search-input-field"></div>
+                <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Telefone (WhatsApp) *</label><input type="text" id="fExpP" class="search-input-field" placeholder="(00) 00000-0000"></div>
+                <div style="margin-bottom:12px;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Dia e Turma *</label>
+                    <select id="fExpH" class="form-select-field" style="width:100%;">
+                        <option value="">-- Selecione o dia e turma --</option>
+                        ${horariosConfig.flatMap(h => 
+                            h.dias.map(dia => `<option value="${h.id}_${dia}">${h.modalidade} — ${dia} (${h.horario})</option>`)
+                        ).join('')}
+                    </select>
+                </div>
             </div>
-        </div>
-        <div class="form-actions-row">
-            <button class="btn-save-modal" style="background:#b45309;" onclick="salvarExpFab()">💾 Confirmar Agendamento</button>
-            <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
-        </div>
-    `;
+            <div class="form-actions-row">
+                <button class="btn-save-modal" style="background:#b45309;" onclick="salvarExpFab()">💾 Confirmar Agendamento</button>
+                <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
+            </div>
+        `;
+    }
 }
 
 function salvarMatriculaFab() {
