@@ -2,7 +2,19 @@
 // CONFIGURAÇÕES GLOBAIS E LINKS DE INTEGRAÇÃO
 // ============================================================
 const MASTER_PASSWORD = "aqua123";
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzGpaP6Kg3DRLojUee1Nb44SPwt2BixO5w4Sg_qjBPGSr1Ajiye9hSAGweLBde3fBzH/exec";
+
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyCMGMg8ITNtDK7J0ZFxAxkcot5PmU3znt0",
+  authDomain: "aquacontrol-453ab.firebaseapp.com",
+  projectId: "aquacontrol-453ab",
+  storageBucket: "aquacontrol-453ab.firebasestorage.app",
+  messagingSenderId: "519539395936",
+  appId: "1:519539395936:web:61a37956c32bc24d506205"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 // ============================================================
 // GRADE HORÁRIA COMPLETA DA ACADEMIA (73 HORÁRIOS ORIGINAIS)
@@ -116,24 +128,22 @@ async function carregarDados() {
     const statusEl = document.getElementById('googleStatus');
     if (statusEl) statusEl.innerText = '🔄 Sincronizando...';
     document.getElementById('loadingBanner').style.display = 'block';
-    
+
     try {
-        const resposta = await fetch(GOOGLE_SCRIPT_URL);
-        const dados = await resposta.json();
-        
-        // Mágica aqui: Pegamos a aba principal e a aba de incompletos (se existir) e unimos na memória!
-        const alunosPrincipais = dados.alunos || [];
-        const alunosIncompletos = dados.incompletos || [];
-        alunos = [...alunosPrincipais, ...alunosIncompletos];
-        
-        experimentais = dados.experimentais || [];
-        
+        const [snapAlunos, snapExperimentais] = await Promise.all([
+            db.collection('alunos').get(),
+            db.collection('experimentais').get()
+        ]);
+
+        alunos = snapAlunos.docs.map(doc => ({ ...doc.data(), _docId: doc.id }));
+        experimentais = snapExperimentais.docs.map(doc => ({ ...doc.data(), _docId: doc.id }));
+
         studentIdCounter = alunos.length > 0 ? Math.max(...alunos.map(a => a.codigo || 0), 1000) : 1000;
         expIdCounter = experimentais.length > 0 ? Math.max(...experimentais.map(e => e.id || 0), 1000) : 1000;
-        
+
         if (statusEl) { statusEl.innerText = '✅ Online'; statusEl.classList.add('online'); }
     } catch (erro) {
-        console.error("Erro de sincronização:", erro);
+        console.error("Erro Firebase:", erro);
         if (statusEl) statusEl.innerText = '⚠️ Modo Local';
     } finally {
         document.getElementById('loadingBanner').style.display = 'none';
@@ -758,23 +768,21 @@ function toggleTheme() {
     }
 })();
 
-function salvarNoGoogle(dadosAluno) {
-    console.log("Iniciando envio para o Google...");
-    const url = "https://script.google.com/macros/s/AKfycbwhU7UOTnRCWTtBwVPLa88armwTcHk9iLgu_vsIEiYHsWsW9sYrSPQDz1t2wYdxMQVC/exec";
-    fetch(url, {
-        method: "POST",
-        mode: "no-cors",
-        cache: "no-cache",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dadosAluno)
-    })
-    .then(() => {
-        mostrarToast('✅ Salvo com sucesso na planilha!');
-    })
-    .catch(error => {
-        mostrarToast('❌ Erro ao salvar: ' + error, 'erro');
-        console.error("Erro detalhado:", error);
-    });
+async function salvarNoGoogle(dadosAluno) {
+    try {
+        if (dadosAluno._docId) {
+            // Aluno já existe — atualiza
+            await db.collection('alunos').doc(dadosAluno._docId).set(dadosAluno);
+        } else {
+            // Aluno novo — cria
+            const docRef = await db.collection('alunos').add(dadosAluno);
+            dadosAluno._docId = docRef.id;
+        }
+        mostrarToast('✅ Salvo com sucesso no Firebase!');
+    } catch (erro) {
+        mostrarToast('❌ Erro ao salvar: ' + erro, 'erro');
+        console.error(erro);
+    }
 }
 
 // ============================================================
@@ -918,7 +926,6 @@ function salvarMatriculaFab() {
     const modalidade = document.getElementById('fMod').value;
     const vencimento = document.getElementById('fVenc').value;
     
-    // Captura as opções de horários preenchidas
     const seg = document.getElementById('cadGradeseg').value ? parseInt(document.getElementById('cadGradeseg').value) : '';
     const ter = document.getElementById('cadGradeter').value ? parseInt(document.getElementById('cadGradeter').value) : '';
     const qua = document.getElementById('cadGradequa').value ? parseInt(document.getElementById('cadGradequa').value) : '';
@@ -928,7 +935,9 @@ function salvarMatriculaFab() {
 
     if (!nome || !telefone) { alert('⚠️ Nome e Telefone são obrigatórios!'); return; }
     
-    alunos.push({ codigo: gerarCodigo(), nome, telefone, vencimento, modalidade, seg, ter, qua, qui, sex, sab, status:'ATIVO' });
+    const novoAluno = { codigo: gerarCodigo(), nome, telefone, vencimento, modalidade, seg, ter, qua, qui, sex, sab, status: 'ATIVO' };
+    alunos.push(novoAluno);
+    salvarNoGoogle(novoAluno);
     renderizarTudo(); 
     fecharSuperModal();
     alert(`✅ Aluno ${nome} matriculado e turmas vinculadas com sucesso!`);
