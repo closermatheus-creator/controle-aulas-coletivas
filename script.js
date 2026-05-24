@@ -346,20 +346,19 @@ function renderizarTudo() {
         // CORREÇÃO: experimentais escrito corretamente!
         const expQtd = experimentais.filter(e => e.horario_id === h.id && e.status === 'agendado').length;
 
-        return `
-            <div class="card" onclick="abrirModalHorario(${h.id})" style="border-top: 4px solid ${corBarra};"
-                <div class="card-header">
-                    <h3><span>${h.modalidade}</span> <span class="horario">${h.horario}</span></h3>
-                    <div class="dias">📅 ${h.dias.join(' • ')}</div>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:0.9rem; font-weight:700; color:#475569;">
-                    <span>👥 Alunos: ${qtd}/${h.capacidade}</span>
-                    ${expQtd > 0 ? `<span style="background:#b45309; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">🧪 ${expQtd} exp</span>` : ''}
-                </div>
-                <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%; background: ${corBarra};"></div></div>
-            </div>
-        `;
-    }).join('');
+      return `
+    <div class="card" onclick="abrirModalHorario(${h.id})" style="border-top: 4px solid ${corBarra};">
+        <div class="card-header">
+            <h3><span>${h.modalidade}</span> <span class="horario">${h.horario}</span></h3>
+            <div class="dias">📅 ${h.dias.join(' • ')}</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:0.9rem; font-weight:700; color:#475569;">
+            <span>👥 Alunos: ${qtd}/${h.capacidade}</span>
+            ${expQtd > 0 ? `<span style="background:#b45309; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">🧪 ${expQtd} exp</span>` : ''}
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%; background: ${corBarra};"></div></div>
+    </div>
+`;
 
     atualizarMonitorTempoReal();
 }
