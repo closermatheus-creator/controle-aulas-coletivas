@@ -735,12 +735,13 @@ function toggleTheme() {
     document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
 }
  
-// Aplica tema salvo ao carregar
+/// Aplica tema salvo ao carregar
 (function() {
     const saved = localStorage.getItem('aqua_theme');
     if (saved === 'dark') {
         document.body.classList.add('dark');
     }
+})();
 
 function salvarNoGoogle(dadosAluno) {
     console.log("Iniciando envio para o Google...");
