@@ -342,12 +342,12 @@ function renderizarTudo() {
     grid.innerHTML = filtrados.map(h => {
         const qtd = getOcupacaoHorario(h.id);
         const pct = Math.min((qtd / h.capacidade) * 100, 100);
-        const corBarra = pct >= 100 ? '#ef4444' : (pct >= 80 ? '#f59e0b' : '#10b981');
+        const corBarra = pct >= 100 ? '#ef4444' : (pct >= 70 ? '#f59e0b' : '#10b981');
         // CORREÇÃO: experimentais escrito corretamente!
         const expQtd = experimentais.filter(e => e.horario_id === h.id && e.status === 'agendado').length;
 
         return `
-            <div class="card" onclick="abrirModalHorario(${h.id})" style="border-top-color: ${corBarra};">
+            <div class="card" onclick="abrirModalHorario(${h.id})" style="border-top: 4px solid ${corBarra}; ${pct >= 100 ? 'background: #fff5f5;' : pct >= 70 ? 'background: #fffbeb;' : ''}">
                 <div class="card-header">
                     <h3><span>${h.modalidade}</span> <span class="horario">${h.horario}</span></h3>
                     <div class="dias">📅 ${h.dias.join(' • ')}</div>
