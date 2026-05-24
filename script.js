@@ -387,8 +387,9 @@ function abrirModalHorario(horarioId) {
                             <div class="aluno-box-item" style="flex-direction: column; align-items: stretch; gap: 10px;">
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                     <div>
-                                        <div style="font-size:1.25rem; font-weight:bold; color:#0f172a;">${a.nome}</div>
-                                        <div style="font-size:0.95rem; color:#475569; margin-top:3px;">📞 Fone: <strong>${a.telefone}</strong> | Venc: <strong>${dateClean}</strong></div>
+                                        <div style="font-size:1.25rem; font-weight:bold; color:var(--text-primary);">${a.nome}</div>
+
+                                        <div style="font-size:0.95rem; color:var(--text-secondary); margin-top:3px;">>📞 Fone: <strong>${a.telefone}</strong> | Venc: <strong>${dateClean}</strong></div>
                                         <div style="font-size:0.9rem; color:#0284c7; font-weight:bold; margin-top:4px;">🗓️ Dias: ${dParticipa.join(' • ') || 'Nenhum'}</div>
                                     </div>
                                     <span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${fin.texto}</span>
@@ -648,9 +649,9 @@ function renderIncompletosSuper() {
             const campo = diasMap[dia];
             const turmasCompativeis = horariosConfig.filter(h => h.modalidade === a.modalidade && h.dias.includes(dia));
             return `
-                <div style="margin-bottom:5px;">
-                    <label>${dia}:</label>
-                    <select class="inc-select-${a.codigo}-${campo}">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:0.7rem; font-weight:700; color:var(--text-muted); width:50px; flex-shrink:0;">${dia.substring(0,3)}:</span>
+                    <select class="inc-select-${a.codigo}-${campo}" style="flex:1; padding:4px 6px; border-radius:6px; border:1px solid var(--border); background:var(--bg-surface-2); color:var(--text-primary); font-size:0.75rem;">
                         <option value="">--</option>
                         ${turmasCompativeis.map(h => `<option value="${h.id}">${h.horario}</option>`).join('')}
                     </select>
@@ -658,17 +659,19 @@ function renderIncompletosSuper() {
             `;
         }).join('');
 
-        // BOTÃO COM ID ÚNICO E EVENTO DE CLIQUE
         return `
             <tr>
-                <td>${a.nome}</td>
-                <td>${gradeHtml}</td>
-                <td><button id="btn-save-${a.codigo}" class="btn-save" data-codigo="${a.codigo}">💾 SALVAR AGORA</button></td>
+                <td style="font-weight:700; color:var(--text-primary); white-space:nowrap;">${a.nome}</td>
+                <td>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px;">
+                        ${gradeHtml}
+                    </div>
+                </td>
+                <td><button id="btn-save-${a.codigo}" class="btn-save" data-codigo="${a.codigo}">💾 Salvar</button></td>
             </tr>
         `;
     }).join('');
 
-    // Adiciona o ouvinte de clique em todos os botões novos
     document.querySelectorAll('.btn-save').forEach(btn => {
         btn.addEventListener('click', function() {
             const cod = this.getAttribute('data-codigo');
