@@ -159,11 +159,22 @@ function formatarData() { const h = new Date(); return `${String(h.getDate()).pa
 
 function verificarVencimento(dataVenc) {
     if (!dataVenc) return { vencido: false, texto: "Sem data" };
-    const partes = String(dataVenc).split('/');
-    if (partes.length !== 2) return { vencido: false, texto: dataVenc };
+    
+    let dataStr = String(dataVenc);
+    
+    // Limpa formato ISO: "2026-07-10T03:00:00.000Z" → "10/07"
+    if (dataStr.includes('T')) {
+        const p = dataStr.split('T')[0].split('-');
+        if (p.length === 3) dataStr = `${p[2]}/${p[1]}`;
+    }
+    
+    const partes = dataStr.split('/');
+    if (partes.length !== 2) return { vencido: false, texto: dataStr };
+    
     const hoje = new Date();
     const dataComp = new Date(hoje.getFullYear(), parseInt(partes[1])-1, parseInt(partes[0]));
     const diff = Math.ceil((dataComp - hoje) / (1000 * 60 * 60 * 24));
+    
     if (diff < 0) return { vencido: true, texto: `⚠️ Vencido` };
     if (diff === 0) return { vencido: true, texto: `⚠️ Vence hoje` };
     return { vencido: false, texto: `🟢 ${partes[0]}/${partes[1]}` };
