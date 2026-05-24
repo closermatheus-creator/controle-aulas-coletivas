@@ -818,6 +818,35 @@ function filtrarExpHorarios() {
     selectH.disabled = false;
 }
 
+// FUNÇÃO DE CASCATA: Filtra os horários dos dias da semana pela modalidade escolhida
+function filtrarTurmasPorModalidade() {
+    const modalidadeSelecionada = document.getElementById('fMod').value;
+    const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const mapaDias = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 'qui', 'Sexta': 'sex', 'Sábado': 'sab' };
+
+    diasSemana.forEach(dia => {
+        const campo = mapaDias[dia];
+        const selectElement = document.getElementById('cadGrade' + campo);
+        if (!selectElement) return;
+
+        // 1. Filtra apenas as turmas do dia específico E da modalidade selecionada
+        const turmasFiltradas = horariosConfig.filter(hc => 
+            hc.dias.includes(dia) && hc.modalidade === modalidadeSelecionada
+        );
+
+        // 2. Reconstrói as opções daquela caixa de seleção (começando sempre pela opção vazia)
+        let htmlOpcoes = '<option value="">[ Não treina neste dia ]</option>';
+        
+        turmasFiltradas.forEach(hc => {
+            // Agora mostra apenas o horário, já que a modalidade já foi escolhida em cima
+            htmlOpcoes += `<option value="${hc.id}">${hc.horario}</option>`;
+        });
+
+        // 3. Atualiza a caixa de seleção na tela
+        selectElement.innerHTML = htmlOpcoes;
+    });
+}
+
 function abrirFormularioSobreposto(tipo) {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
@@ -829,38 +858,43 @@ function abrirFormularioSobreposto(tipo) {
     if (tipo === 'cadastro') {
         titulo.innerHTML = '📋 Matricular Novo Aluno Definitivo';
         
-        // Grade dos 6 dias original
+        // Grade dos 6 dias (agora nascem apenas com a estrutura básica, a função de cascata vai preenchê-las)
         const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        const diasMap = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 'qui', 'Sexta': 'sex', 'Sábado': 'sab' };
+        
         const selectGradeHtml = diasSemana.map(dia => {
             const campo = diasMap[dia];
-            const opcoesDoDia = horariosConfig.filter(hc => hc.dias.includes(dia));
             return `
                 <div style="display:flex; flex-direction:column; gap:4px;">
                     <label style="font-size:0.85rem; font-weight:bold; color:#475569;">${dia}:</label>
                     <select id="cadGrade${campo}" class="form-select-field" style="width:100%; padding:8px; font-size:0.85rem;">
                         <option value="">[ Não treina neste dia ]</option>
-                        ${opcoesDoDia.map(hc => `<option value="${hc.id}">${hc.modalidade} (${hc.horario})</option>`).join('')}
                     </select>
                 </div>
             `;
         }).join('');
 
-        // Seu HTML original, apenas com o Código adicionado no começo
         corpo.innerHTML = `
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; font-size:1.1rem; margin-bottom:20px;">
                 <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Código do Sistema *</label><input type="number" id="fabCodigo" class="search-input-field" placeholder="Ex: 1050"></div>
                 <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Nome do Aluno *</label><input type="text" id="fName" class="search-input-field"></div>
                 <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Telefone *</label><input type="text" id="fPhone" class="search-input-field" placeholder="(00) 00000-0000"></div>
-                <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Vencimento Plano</label><input type="text" id="fVenc" class="search-input-field" value="${formatarData()}"></div>
+                <div><label style="font-weight:bold; display:block; margin-bottom:5px;">Vencimento Plano</label><input type="text" id="fVenc" class="search-input-field" value="${formatarData() || ''}"></div>
                 <div style="grid-column: 1 / -1;"><label style="font-weight:bold; display:block; margin-bottom:5px;">Modalidade Principal *</label>
-                    <select id="fMod" class="form-select-field" style="width:100%; height:48px;">
-                        <option value="Natação Adulto">Natação Adulto</option><option value="Hidroginástica">Hidroginástica</option><option value="Natação Infantil Nível 1">Natação Infantil Nível 1</option><option value="Natação Infantil Nível 2">Natação Infantil Nível 2</option><option value="Natação Infantil Nível 3">Natação Infantil Nível 3</option><option value="Natação Baby">Natação Baby</option><option value="Personal Class">Personal Class</option>
+                    <select id="fMod" class="form-select-field" style="width:100%; height:48px;" onchange="filtrarTurmasPorModalidade()">
+                        <option value="Natação Adulto">Natação Adulto</option>
+                        <option value="Hidroginástica">Hidroginástica</option>
+                        <option value="Natação Infantil Nível 1">Natação Infantil Nível 1</option>
+                        <option value="Natação Infantil Nível 2">Natação Infantil Nível 2</option>
+                        <option value="Natação Infantil Nível 3">Natação Infantil Nível 3</option>
+                        <option value="Natação Baby">Natação Baby</option>
+                        <option value="Personal Class">Personal Class</option>
                     </select>
                 </div>
             </div>
             
             <div style="background:#edf2f7; padding:15px; border-radius:8px; margin-bottom:15px;">
-                <span style="font-weight:bold; font-size:0.9rem; color:#1e293b; display:block; margin-bottom:10px;">🗓️ Vincular Turmas (Opcional - Pode deixar em branco e definir depois):</span>
+                <span style="font-weight:bold; font-size:0.9rem; color:#1e293b; display:block; margin-bottom:10px;">🗓️ Vincular Turmas (Apenas horários compatíveis):</span>
                 <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
                     ${selectGradeHtml}
                 </div>
@@ -868,8 +902,12 @@ function abrirFormularioSobreposto(tipo) {
 
             <div class="form-actions-row"><button class="btn-save-modal" onclick="salvarMatriculaFab()">💾 Efetivar Matrícula</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
         `;
+
+        // Executa a função imediatamente após criar o HTML para preencher os dias com a "Natação Adulto" (que é a padrão selecionada)
+        filtrarTurmasPorModalidade();
+
     } else if (tipo === 'experimental') {
-        // [O código da sua Experimental continua igual, não precisa mexer]
+        // O código da sua Experimental continua igual
         titulo.innerHTML = '🧪 Agendar Nova Aula Experimental';
         const modalidades = [...new Set(horariosConfig.map(h => h.modalidade))];
         corpo.innerHTML = `
