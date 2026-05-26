@@ -41,24 +41,27 @@
                 </div>
             
             <div class="filter-panel">
+                <!-- BLOCO MODIFICADO: filter-row-top sem o select de dia -->
                 <div class="filter-row-top">
                     <div class="filter-group flex-main">
                         <div class="filter-label">🔍 Buscar Horário ou Aluno:</div>
                         <input type="text" id="searchBar" class="search-input-field" placeholder="Digite o nome de uma modalidade, horário ou aluno..." oninput="renderizarTudo()">
                     </div>
-                    <div class="filter-row-top">
-    <div class="filter-group flex-main">   <!-- ← esse "flex-main" provavelmente está tomando 100% do espaço -->
-        <div class="filter-label">🔍 Buscar Horário ou Aluno:</div>
-        <input type="text" id="searchBar" ...>
-    </div>
-
-    <div class="filter-group">             <!-- ← o filtro de dia está AQUI, mas some por causa do CSS -->
-        <div class="filter-label">Dia da Semana:</div>
-        <select id="filtroDiaSemana" ...>
-            ...
-        </select>
-    </div>
-</div>
+                </div>
+                
+                <!-- NOVO BLOCO: Dias da semana como botões -->
+                <div class="filter-group row-spacing">
+                    <div class="filter-label">Dia da Semana:</div>
+                    <div class="filter-options" id="filterDias">
+                        <button class="btn-select active" onclick="filtrarDiaHub('TODOS', this)">Todos</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Segunda', this)">Seg</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Terça', this)">Ter</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Quarta', this)">Qua</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Quinta', this)">Qui</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Sexta', this)">Sex</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Sábado', this)">Sáb</button>
+                    </div>
+                </div>
                 
                 <div class="filter-group row-spacing">
                     <div class="filter-label">Modalidade:</div>
