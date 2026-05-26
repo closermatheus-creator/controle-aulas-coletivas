@@ -105,7 +105,7 @@ let expIdCounter = 1000;
 let historicoFaltasExperimentais = {};
 
 // Controle de Multi-Filtros do Hub Eterno
-let activeFilters = { modalidade: 'TODAS', turno: 'TODOS', ocupacao: 'TODOS' };
+let activeFilters = { modalidade: 'TODAS', turno: 'TODOS', ocupacao: 'TODOS', dias: [] };
 const diasMap = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 'qui', 'Sexta': 'sex', 'Sábado': 'sab' };
 
 // ============================================================
@@ -195,7 +195,26 @@ function verificarVencimento(dataVenc) {
 // ============================================================
 function filtrarTurnoHub(t, b) { activeFilters.turno = t; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
 function filtrarModalidadeHub(m, b) { activeFilters.modalidade = m; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
-function filtrarOcupacaoHub(o, b) { activeFilters.ocupacao = o; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
+function filtrarDiaHub(dia, btn) {
+    if (dia === 'TODOS') {
+        activeFilters.dias = [];
+        btn.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+        btn.classList.add('active');
+    } else {
+        btn.parentElement.querySelector('button:first-child').classList.remove('active');
+        if (btn.classList.contains('active')) {
+            btn.classList.remove('active');
+            activeFilters.dias = activeFilters.dias.filter(d => d !== dia);
+        } else {
+            btn.classList.add('active');
+            activeFilters.dias.push(dia);
+        }
+        if (activeFilters.dias.length === 0) {
+            btn.parentElement.querySelector('button:first-child').classList.add('active');
+        }
+    }
+    renderizarTudo();
+}
 // ============================================================
 // WIDGETS GLOBAIS: CONVERSÃO DOS 8 MARCADORES DE FLUXO
 // ============================================================
@@ -303,7 +322,6 @@ function renderizarTudo() {
 
     atualizarWidgets();
 
-    const diaFiltro = document.getElementById('filtroDiaSemana')?.value || 'TODOS';
     const query = document.getElementById('searchBar')?.value.toLowerCase() || '';
 
     let filtrados = horariosConfig.filter(h => {
@@ -322,9 +340,9 @@ function renderizarTudo() {
         return matchTurno && matchMod && matchOcup;
     });
 
-    if (diaFiltro !== 'TODOS') {
-        filtrados = filtrados.filter(h => h.dias.includes(diaFiltro));
-    }
+    if (activeFilters.dias.length > 0) {
+    filtrados = filtrados.filter(h => activeFilters.dias.every(dia => h.dias.includes(dia)));
+}
 
     if (query) {
         filtrados = filtrados.filter(h => {

@@ -747,6 +747,6 @@ body.dark .aluno-box-item:hover { background: #1e3a5f; }
 body.dark .aluno-box-item div { color: #e2e8f0; }
 /* FIX: Garante que o filtro de dia da semana não desapareça */
 .filter-row-top .filter-group:last-child {
-    flex-shrink: 0;
-    min-width: 220px;
+    flex: 1;
+    min-width: 280px;
 }

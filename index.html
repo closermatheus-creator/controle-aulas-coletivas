@@ -46,19 +46,19 @@
                         <div class="filter-label">🔍 Buscar Horário ou Aluno:</div>
                         <input type="text" id="searchBar" class="search-input-field" placeholder="Digite o nome de uma modalidade, horário ou aluno..." oninput="renderizarTudo()">
                     </div>
-                    <div class="filter-group">
-                        <div class="filter-label">Dia da Semana:</div>
-                        <select id="filtroDiaSemana" class="form-select-field" onchange="renderizarTudo()">
-                            <option value="TODOS">📅 Todos os Dias</option>
-                            <option value="Segunda">Segunda-feira</option>
-                            <option value="Terça">Terça-feira</option>
-                            <option value="Quarta">Quarta-feira</option>
-                            <option value="Quinta">Quinta-feira</option>
-                            <option value="Sexta">Sexta-feira</option>
-                            <option value="Sábado">Sábado</option>
-                        </select>
-                    </div>
-                </div>
+                    <div class="filter-row-top">
+    <div class="filter-group flex-main">   <!-- ← esse "flex-main" provavelmente está tomando 100% do espaço -->
+        <div class="filter-label">🔍 Buscar Horário ou Aluno:</div>
+        <input type="text" id="searchBar" ...>
+    </div>
+
+    <div class="filter-group">             <!-- ← o filtro de dia está AQUI, mas some por causa do CSS -->
+        <div class="filter-label">Dia da Semana:</div>
+        <select id="filtroDiaSemana" ...>
+            ...
+        </select>
+    </div>
+</div>
                 
                 <div class="filter-group row-spacing">
                     <div class="filter-label">Modalidade:</div>
