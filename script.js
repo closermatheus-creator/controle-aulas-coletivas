@@ -341,7 +341,16 @@ function renderizarTudo() {
     });
 
     if (activeFilters.dias.length > 0) {
-    filtrados = filtrados.filter(h => activeFilters.dias.every(dia => h.dias.includes(dia)));
+    const alunosDoDia = alunos.filter(aluno =>
+        activeFilters.dias.every(dia => aluno[diasMap[dia]])
+    );
+    const horariosIds = new Set();
+    alunosDoDia.forEach(aluno => {
+        ['seg','ter','qua','qui','sex','sab'].forEach(campo => {
+            if (aluno[campo]) horariosIds.add(aluno[campo]);
+        });
+    });
+    filtrados = filtrados.filter(h => horariosIds.has(h.id));
 }
 
     if (query) {
