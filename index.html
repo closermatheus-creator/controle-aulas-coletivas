@@ -62,6 +62,21 @@
         .badge-status-ativo { background: #dcfce7; color: #15803d; }
         .badge-status-pausado { background: #fef3c7; color: #b45309; }
         .badge-status-trancado { background: #fee2e2; color: #b91c1c; }
+
+        /* =============================================
+           GRID DE TURMAS — 3 COLUNAS
+        ============================================= */
+        .cardsGrid {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 14px !important;
+        }
+        @media (max-width: 1100px) {
+            .cardsGrid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 650px) {
+            .cardsGrid { grid-template-columns: 1fr !important; }
+        }
     </style>
 </head>
 <body>
