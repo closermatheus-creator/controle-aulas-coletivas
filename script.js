@@ -486,6 +486,26 @@ function abrirEdicaoTurma(hId) {
     modal.classList.add('active');
 }
 
+function toggleEditNomeTurma(hId) {
+    const h = horariosConfig.find(x => x.id === hId);
+    if (!h) return;
+    const span = document.getElementById('nomeTurmaDisplay');
+    if (!span) return;
+
+    if (span.querySelector('input')) {
+        // Salvar
+        const input = span.querySelector('input');
+        h.modalidade = input.value.trim() || h.modalidade;
+        renderizarTudo();
+        abrirModalHorario(hId);
+        mostrarToast('✅ Nome da turma atualizado!');
+    } else {
+        // Abrir edição inline
+        span.innerHTML = `<input type="text" value="${h.modalidade}" style="font-size:0.95rem;padding:4px 8px;border-radius:6px;border:2px solid #006994;width:260px;" onkeydown="if(event.key==='Enter')toggleEditNomeTurma(${hId})" autofocus>`;
+        span.querySelector('input').focus();
+    }
+}
+
 function salvarEdicaoTurma(hId) {
     const h = horariosConfig.find(x => x.id === hId);
     if (!h) return;
@@ -514,7 +534,7 @@ function abrirModalHorario(horarioId) {
     if (!modal || !corpo || !titulo) return;
 
     const labelDia = diasFiltro.length > 0 ? `— ${diasFiltro.join(' + ')}` : '';
-    titulo.innerHTML = `🏊‍♂️ Turma: ${horario.modalidade} (${horario.horario}) ${labelDia}`;
+    titulo.innerHTML = `🏊‍♂️ <span id="nomeTurmaDisplay">${horario.modalidade}</span> (${horario.horario}) ${labelDia} <button onclick="toggleEditNomeTurma(${horarioId})" style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:0.75rem;cursor:pointer;color:#475569;margin-left:6px;" title="Editar nome">✏️</button>`;
 
     const capOcup = alunosMatriculados.filter(alunoContaOcupacao).length;
 
@@ -528,8 +548,8 @@ function abrirModalHorario(horarioId) {
 
         <div id="centralFormEdicaoContainer" style="display:none;background:#f8fafc;padding:22px;border-radius:12px;margin-bottom:25px;border:2px dashed #006994;"></div>
 
-        <div style="display:flex;gap:25px;flex-wrap:wrap;align-items:flex-start;">
-            <div style="flex:1;min-width:320px;background:white;border:1px solid #cbd5e1;border-radius:12px;padding:20px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:flex-start;margin-top:10px;">
+            <div style="background:white;border:1px solid #cbd5e1;border-radius:12px;padding:20px;">
                 <h3 style="font-size:1.2rem;color:#006994;border-bottom:3px solid #006994;padding-bottom:8px;margin-bottom:15px;">
                     👥 Alunos ${diasFiltro.length > 0 ? `(${diasFiltro.join('+')})` : 'Fixos'} (${alunosMatriculados.length})
                 </h3>
@@ -540,11 +560,15 @@ function abrirModalHorario(horarioId) {
                         const statusAtual = a.status || 'ATIVO';
                         const obsHtml = a.observacao ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;font-size:0.82rem;color:#78350f;margin-top:5px;">📝 ${a.observacao}</div>` : '';
 
+                        // Dias do aluno nesta turma
+                        const diasDoAluno = horario.dias.filter(dia => a[diasMap[dia]] == horarioId)
+                            .map(d => d.substring(0,3)).join(', ');
+
                         return `
                             <div class="aluno-box-item" style="flex-direction:column;align-items:stretch;gap:8px;margin-bottom:10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                                     <div>
-                                        <div style="font-size:1.15rem;font-weight:bold;color:var(--text-primary);">${a.nome}</div>
+                                        <div style="font-size:1.1rem;font-weight:bold;color:var(--text-primary);">${a.nome} <span style="font-weight:normal;font-size:0.82rem;color:#0369a1;background:#e0f2fe;border-radius:8px;padding:1px 7px;">📅 ${diasDoAluno || '—'}</span></div>
                                         <div style="font-size:0.9rem;color:var(--text-secondary);margin-top:2px;">📞 <strong>${a.telefone}</strong> | Venc: <strong>${dateClean}</strong></div>
                                         <div style="margin-top:4px;">${badgeStatus(statusAtual)}</div>
                                         ${obsHtml}
@@ -563,7 +587,7 @@ function abrirModalHorario(horarioId) {
                 </div>
             </div>
 
-            <div style="flex:1;min-width:280px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;">
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;">
                 <h3 style="font-size:1.2rem;color:#b45309;border-bottom:3px solid #b45309;padding-bottom:8px;margin-bottom:15px;">🧪 Experimentais (${listaExp.length})</h3>
                 <div style="max-height:450px;overflow-y:auto;">
                     ${listaExp.map(exp => {
@@ -837,7 +861,19 @@ function abrirSuperModal(tipo) {
     document.getElementById('fabContainer')?.classList.remove('active');
     modal.classList.add('active');
 
-    if (tipo === 'alunos') {
+    if (tipo === 'vencidos') {
+        titulo.innerHTML = '⚠️ Alunos com Plano Vencido';
+        corpo.innerHTML = `
+            <div id="superFormEdicaoContainer" style="display:none;background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:20px;border:2px dashed #006994;"></div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Dias</th><th>Ações</th></tr></thead>
+                    <tbody id="superVencidosBody"></tbody>
+                </table>
+            </div>
+        `;
+        renderVencidosSuper();
+    } else if (tipo === 'alunos') {
         titulo.innerHTML = '👥 Central de Gestão de Alunos';
         corpo.innerHTML = `
             <input type="text" id="superStudentSearch" class="search-input-field" style="margin-bottom:15px;" placeholder="🔍 Nome, código ou telefone..." oninput="renderStudentTableSuper()">
@@ -898,6 +934,45 @@ function renderStudentTableSuper() {
                 <td style="font-size:0.85rem;color:#006994;font-weight:bold;">${dParticipa.join(', ') || 'Nenhum'}</td>
                 <td style="display:flex;gap:6px;flex-wrap:wrap;">
                     <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed" style="padding:5px 8px;font-size:0.78rem;">💬 WA</a>
+                    <button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.78rem;cursor:pointer;">✏️ Editar</button>
+                    <button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.78rem;cursor:pointer;">📝 Obs</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderVencidosSuper() {
+    const body = document.getElementById('superVencidosBody');
+    if (!body) return;
+    const vencidos = alunos.filter(a => {
+        if (a.status === 'TRANCADO') return false;
+        return verificarVencimento(a.vencimento).vencido;
+    }).sort((a, b) => String(a.nome).localeCompare(String(b.nome)));
+
+    if (vencidos.length === 0) {
+        body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#15803d;">✅ Nenhum aluno com plano vencido!</td></tr>';
+        return;
+    }
+
+    body.innerHTML = vencidos.map(a => {
+        const fin = verificarVencimento(a.vencimento);
+        const dateClean = limparData(a.vencimento);
+        const statusAtual = a.status || 'ATIVO';
+        let dParticipa = [];
+        if (a.seg) dParticipa.push("Seg"); if (a.ter) dParticipa.push("Ter");
+        if (a.qua) dParticipa.push("Qua"); if (a.qui) dParticipa.push("Qui");
+        if (a.sex) dParticipa.push("Sex"); if (a.sab) dParticipa.push("Sáb");
+
+        return `
+            <tr style="background:#fff5f5;">
+                <td>#${a.codigo}</td>
+                <td><strong>${a.nome}</strong></td>
+                <td><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" style="color:#25d366;text-decoration:none;font-weight:bold;">💬 ${a.telefone}</a></td>
+                <td><span class="badge badge-vencido">${dateClean}</span></td>
+                <td>${badgeStatus(statusAtual)}</td>
+                <td style="font-size:0.85rem;color:#006994;font-weight:bold;">${dParticipa.join(', ') || 'Nenhum'}</td>
+                <td style="display:flex;gap:6px;flex-wrap:wrap;">
                     <button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.78rem;cursor:pointer;">✏️ Editar</button>
                     <button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.78rem;cursor:pointer;">📝 Obs</button>
                 </td>
