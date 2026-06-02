@@ -756,6 +756,7 @@ function marcarPresencaExpPainel(id, st) {
     if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
     else if (st === 'agendado' && exp.status === 'nao_compareceu' && historicoFaltasExperimentais[exp.telefone] > 0) historicoFaltasExperimentais[exp.telefone]--;
     exp.status = st;
+    salvarNoGoogle(exp, 'experimentais');
     renderizarTudo();
     renderPainelExperimentaisHoje();
 }
@@ -766,6 +767,7 @@ function marcarPresencaExp(id, st, hId) {
     if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
     else if (st === 'agendado' && exp.status === 'nao_compareceu' && historicoFaltasExperimentais[exp.telefone] > 0) historicoFaltasExperimentais[exp.telefone]--;
     exp.status = st;
+    salvarNoGoogle(exp, 'experimentais');
     renderizarTudo();
     renderPainelExperimentaisHoje();
     abrirModalHorario(hId);
@@ -1207,7 +1209,9 @@ function salvarExpFab() {
     const valor = document.getElementById('fExpH').value;
     if (!nome || !telefone || !valor) { alert('⚠️ Preencha todos os campos!'); return; }
     const [hId, diaExp] = valor.split('_');
-    experimentais.push({ id: ++expIdCounter, nome, telefone, data: formatarData(), horario_id: parseInt(hId), dia: diaExp, status: 'agendado' });
+    const novaExp = { id: ++expIdCounter, nome, telefone, data: formatarData(), horario_id: parseInt(hId), dia: diaExp, status: 'agendado' };
+    experimentais.push(novaExp);
+    salvarNoGoogle(novaExp, 'experimentais');
     renderizarTudo();
     renderPainelExperimentaisHoje();
     fecharSuperModal();
@@ -1225,26 +1229,36 @@ function matricularExperimentalInSuper(id) {
         if (nEl) nEl.value = exp.nome;
         if (pEl) pEl.value = exp.telefone;
         experimentais = experimentais.filter(e => e.id !== id);
+        deletarDoGoogle(exp._docId, 'experimentais');
         renderizarTudo();
         renderPainelExperimentaisHoje();
     }, 250);
 }
 
 // ============================================================
-// FIREBASE SAVE
+// FIREBASE SAVE (REFATORADO)
 // ============================================================
-async function salvarNoGoogle(dadosAluno) {
+async function salvarNoGoogle(dados, colecao = 'alunos') {
     try {
-        if (dadosAluno._docId) {
-            await db.collection('alunos').doc(dadosAluno._docId).set(dadosAluno);
+        if (dados._docId) {
+            await db.collection(colecao).doc(dados._docId).set(dados);
         } else {
-            const docRef = await db.collection('alunos').add(dadosAluno);
-            dadosAluno._docId = docRef.id;
+            const docRef = await db.collection(colecao).add(dados);
+            dados._docId = docRef.id;
         }
         mostrarToast('✅ Salvo no Firebase!');
     } catch (erro) {
         mostrarToast('❌ Erro ao salvar: ' + erro.message, 'erro');
         console.error(erro);
+    }
+}
+
+async function deletarDoGoogle(docId, colecao) {
+    if (!docId) return;
+    try {
+        await db.collection(colecao).doc(docId).delete();
+    } catch (erro) {
+        console.error("Erro ao deletar do Firebase:", erro);
     }
 }
 
