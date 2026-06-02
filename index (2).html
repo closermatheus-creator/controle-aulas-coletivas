@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>AquaControl - Controle de Turmas</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* =============================================
+           PAINEL LATERAL — EXPERIMENTAIS DO DIA
+        ============================================= */
+        .dashboard-layout {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .turmas-grid {
+            flex: 1;
+            min-width: 0;
+        }
+        .painel-exp-hoje {
+            width: 300px;
+            flex-shrink: 0;
+            background: var(--bg-surface, #fff);
+            border: 1px solid var(--border, #e2e8f0);
+            border-radius: 14px;
+            padding: 16px;
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        .painel-exp-hoje h4 {
+            font-size: 1rem;
+            color: #b45309;
+            border-bottom: 2px solid #fde68a;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .painel-exp-count {
+            background: #b45309;
+            color: white;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            font-weight: bold;
+        }
+        @media (max-width: 900px) {
+            .dashboard-layout { flex-direction: column; }
+            .painel-exp-hoje { width: 100%; position: static; max-height: none; }
+        }
+
+        /* Badge de status */
+        .badge-status-ativo { background: #dcfce7; color: #15803d; }
+        .badge-status-pausado { background: #fef3c7; color: #b45309; }
+        .badge-status-trancado { background: #fee2e2; color: #b91c1c; }
+    </style>
+</head>
+<body>
+    <div id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <div class="login-logo">🌊</div>
+            <div class="login-brand">AquaControl</div>
+            <p>Digite a senha de acesso da recepção</p>
+            <input type="password" id="passwordInput" class="login-input" placeholder="••••••••" onkeypress="handleKeyPress(event)">
+            <button class="btn-login" onclick="checkPassword()">Entrar no Sistema</button>
+            <div id="loginError" class="login-error">⚠️ Senha incorreta!</div>
+        </div>
+    </div>
+
+    <div id="appContainer">
+        <div class="header">
+            <div class="logo">
+                <h1>🏊 AquaControl <span>v4.0</span></h1>
+                <p>Gestão de Horários - Academia</p>
+            </div>
+            <div class="header-controls">
+                <button class="btn-theme-toggle" onclick="toggleTheme()" id="themeToggleBtn">
+                    <span id="themeIcon">🌙</span>
+                </button>
+                <button onclick="exportarCSV()" class="btn-csv">📥 Exportar CSV</button>
+                <span id="googleStatus" class="status">📡 Carregando...</span>
+                <button onclick="logout()" class="btn-logout">Sair</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div id="loadingBanner" class="loading-banner">🔄 Sincronizando com o Firebase...</div>
+
+            <div class="summary-widgets" id="macroStatsWidget"></div>
+
+            <div class="filter-panel">
+                <!-- Busca -->
+                <div class="filter-row-top">
+                    <div class="filter-group flex-main">
+                        <div class="filter-label">🔍 Buscar Horário ou Aluno:</div>
+                        <input type="text" id="searchBar" class="search-input-field"
+                            placeholder="Nome de modalidade, horário ou aluno..."
+                            oninput="renderizarTudo()">
+                    </div>
+                </div>
+
+                <!-- Dias (com botão "Hoje") -->
+                <div class="filter-group row-spacing">
+                    <div class="filter-label">Dia da Semana:</div>
+                    <div class="filter-options" id="filterDias">
+                        <button class="btn-select active" onclick="filtrarDiaHub('TODOS', this)">Todos</button>
+                        <button class="btn-select btn-hoje-destaque" onclick="filtrarDiaHub('HOJE', this)">📅 Hoje</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Segunda', this)">Seg</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Terça', this)">Ter</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Quarta', this)">Qua</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Quinta', this)">Qui</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Sexta', this)">Sex</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Sábado', this)">Sáb</button>
+                    </div>
+                </div>
+
+                <!-- Modalidade -->
+                <div class="filter-group row-spacing">
+                    <div class="filter-label">Modalidade:</div>
+                    <div class="filter-options" id="filterModalities">
+                        <button class="btn-select active" onclick="filtrarModalidadeHub('TODAS', this)">Todas</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Adulto', this)">Adulto</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Hidroginástica', this)">Hidro</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 1', this)">Inf N1</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 2', this)">Inf N2</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 3', this)">Inf N3</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Baby', this)">Baby</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Personal Class', this)">Personal</button>
+                    </div>
+                </div>
+
+                <div class="filter-row-bottom">
+                    <!-- Turno -->
+                    <div class="filter-group">
+                        <div class="filter-label">Turno:</div>
+                        <div class="filter-options" id="filterTurno">
+                            <button class="btn-select active" onclick="filtrarTurnoHub('TODOS', this)">Todos</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('manha', this)">🌅 Manhã</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('tarde', this)">☀️ Tarde</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('noite', this)">🌙 Noite</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('sabado', this)">📅 Sábado</button>
+                        </div>
+                    </div>
+                    <!-- Ocupação -->
+                    <div class="filter-group">
+                        <div class="filter-label">Ocupação:</div>
+                        <div class="filter-options" id="filterOcupacao">
+                            <button class="btn-select active" onclick="filtrarOcupacaoHub('TODOS', this)">Todos</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('COM_ALUNOS', this)">Com Alunos</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('VENCIDOS', this)">🔴 Vencidos</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('COM_VAGAS', this)">Com Vagas</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('LOTADAS', this)">Lotadas</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('VAZIAS', this)">Vazias</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('COM_EXPERIMENTAIS', this)">🧪 Experimentais</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ações rápidas -->
+            <div class="action-tabs-row">
+                <button onclick="abrirSuperModal('alunos')" class="btn-action-tab btn-blue-highlight">👥 Buscar / Editar Alunos</button>
+                <button onclick="abrirSuperModal('incompletos')" class="btn-action-tab">⚠️ Alunos Incompletos</button>
+            </div>
+
+            <!-- Grid + Painel Lateral -->
+            <div class="dashboard-layout">
+                <div class="turmas-grid">
+                    <div class="cardsGrid" id="cardsGrid"></div>
+                </div>
+
+                <!-- PAINEL LATERAL: Experimentais do Dia -->
+                <div class="painel-exp-hoje">
+                    <h4>
+                        🧪 Experimentais Hoje
+                        <span class="painel-exp-count" id="painelExpCount">0</span>
+                    </h4>
+                    <div id="painelExpHoje">
+                        <div style="text-align:center;padding:20px;color:#94a3b8;font-size:0.9rem;">
+                            Carregando...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAB -->
+    <div class="fab-container" id="fabContainer">
+        <button class="fab-main" onclick="toggleFabMenu()">➕</button>
+        <div class="fab-menu" id="fabMenu">
+            <button class="fab-item" onclick="abrirFormularioSobreposto('cadastro')">📋 Matricular Aluno</button>
+            <button class="fab-item" onclick="abrirFormularioSobreposto('experimental')">🧪 Nova Experimental</button>
+        </div>
+    </div>
+
+    <!-- SUPER MODAL GLOBAL -->
+    <div id="globalSuperModal" class="super-modal" onclick="fecharSuperModal(event)">
+        <div class="super-modal-content" onclick="event.stopPropagation()">
+            <div class="super-modal-header">
+                <h3 id="superModalTitulo">📌 Carregando...</h3>
+                <button class="super-modal-close" onclick="fecharSuperModal()">✕</button>
+            </div>
+            <div class="super-modal-body" id="superModalCorpo"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
