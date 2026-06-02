@@ -386,6 +386,19 @@ function renderizarTudo() {
     // Ordenação cronológica quando há filtro de dia
     if (diasFiltro.length > 0) {
         filtrados.sort((a, b) => horarioParaMinutos(a.horario) - horarioParaMinutos(b.horario));
+
+        // Se for filtro do dia de hoje, remove turmas já encerradas
+        const hojeStr = diasPtBr[new Date().getDay()];
+        const isDiaHoje = diasFiltro.length === 1 && diasFiltro[0] === hojeStr;
+        if (isDiaHoje) {
+            const agora = new Date();
+            const minAtuais = agora.getHours() * 60 + agora.getMinutes();
+            filtrados = filtrados.filter(h => {
+                const partesFim = h.horario.split('-')[1]?.split(':').map(Number);
+                const minFim = partesFim ? partesFim[0] * 60 + partesFim[1] : 9999;
+                return minAtuais <= minFim;
+            });
+        }
     }
 
     if (filtrados.length === 0) {
@@ -422,7 +435,8 @@ function renderizarTudo() {
                 cardStyle = `border-top: 4px solid #0284c7; opacity: 1;`;
                 badgeTempo = `<span style="background:#0284c7;color:white;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:bold;margin-left:6px;">⏱️ PRÓX. 2H</span>`;
             } else if (diff <= 0 && minAtuais > minFim) {
-                cardStyle = `border-top: 4px solid ${corBarra}; opacity: 0.55;`;
+                // Turma já encerrada - opacity removida pois essas turmas já foram filtradas
+                cardStyle = `border-top: 4px solid ${corBarra}; opacity: 1;`;
             }
         }
 
@@ -568,7 +582,7 @@ function abrirModalHorario(horarioId) {
                             <div class="aluno-box-item" style="flex-direction:column;align-items:stretch;gap:8px;margin-bottom:10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                                     <div>
-                                        <div style="font-size:1.1rem;font-weight:bold;color:var(--text-primary);">${a.nome} <span style="font-weight:normal;font-size:0.82rem;color:#0369a1;background:#e0f2fe;border-radius:8px;padding:1px 7px;">📅 ${diasDoAluno || '—'}</span></div>
+                                        <div style="font-size:1.1rem;font-weight:bold;color:var(--text-primary);">#${a.codigo} - ${a.nome} <span style="font-weight:normal;font-size:0.82rem;color:#0369a1;background:#e0f2fe;border-radius:8px;padding:1px 7px;">📅 ${diasDoAluno || '—'}</span></div>
                                         <div style="font-size:0.9rem;color:var(--text-secondary);margin-top:2px;">📞 <strong>${a.telefone}</strong> | Venc: <strong>${dateClean}</strong></div>
                                         <div style="margin-top:4px;">${badgeStatus(statusAtual)}</div>
                                         ${obsHtml}
