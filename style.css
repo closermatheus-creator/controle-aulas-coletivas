@@ -319,13 +319,32 @@ body {
 /* ============================================================
    GRID PRINCIPAL DE CARDS DO HUB
    ============================================================ */
-.dashboard-layout { 
+.dashboard-layout {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 20px;
+    align-items: flex-start;
     width: 100%;
 }
-.turmas-grid { 
-    display: grid; 
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
-    gap: 20px; 
+.turmas-grid {
+    min-width: 0;
+}
+.cardsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    width: 100%;
+}
+@media (max-width: 1200px) {
+    .dashboard-layout { grid-template-columns: 1fr 230px; }
+    .cardsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+    .dashboard-layout { grid-template-columns: 1fr; }
+    .cardsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 550px) {
+    .cardsGrid { grid-template-columns: 1fr; }
 }
 
 .card { 
