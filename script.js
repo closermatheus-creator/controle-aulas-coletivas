@@ -913,6 +913,7 @@ function abrirEdicaoCompletaInline(cod, hId) {
     div.innerHTML = `
         <h3 style="color:#006994;margin-bottom:15px;font-size:1.2rem;font-weight:bold;border-left:4px solid #006994;padding-left:8px;">✏️ Editar: #${a.codigo} — ${a.nome}</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:18px;">
+            <div><label style="font-size:0.85rem;font-weight:bold;color:#334155;">Código:</label><input type="number" id="editFullCodigo" class="search-input-field" style="padding:10px;" value="${a.codigo}"></div>
             <div><label style="font-size:0.85rem;font-weight:bold;color:#334155;">Nome:</label><input type="text" id="editFullN" class="search-input-field" style="padding:10px;" value="${a.nome}"></div>
             <div><label style="font-size:0.85rem;font-weight:bold;color:#334155;">Telefone:</label><input type="text" id="editFullP" class="search-input-field" style="padding:10px;" value="${a.telefone}"></div>
             <div><label style="font-size:0.85rem;font-weight:bold;color:#334155;">Vencimento:</label><input type="text" id="editFullV" class="search-input-field" style="padding:10px;" value="${a.vencimento || ''}"></div>
@@ -946,11 +947,28 @@ function salvarEdicaoCompleta(cod, hId) {
     const a = alunos.find(al => al.codigo == cod);
     if (!a) return;
 
-    a.nome = document.getElementById('editFullN').value.trim();
-    a.telefone = document.getElementById('editFullP').value.trim();
-    a.vencimento = document.getElementById('editFullV').value.trim();
-    a.modalidade = document.getElementById('editFullMod')?.value || a.modalidade;
-    a.status = document.getElementById('editFullStatus')?.value || a.status || 'ATIVO';
+    const novoCodigo = parseInt(document.getElementById('editFullCodigo').value);
+    const nome = document.getElementById('editFullN').value.trim();
+    const telefone = document.getElementById('editFullP').value.trim();
+    const vencimento = document.getElementById('editFullV').value.trim();
+    const modalidade = document.getElementById('editFullMod')?.value || a.modalidade;
+    const statusAluno = document.getElementById('editFullStatus')?.value || a.status || 'ATIVO';
+
+    // Verificar se o novo código já existe em outro aluno
+    if (novoCodigo !== a.codigo) {
+        const codigoExistente = alunos.find(al => al.codigo === novoCodigo && al._docId !== a._docId);
+        if (codigoExistente) {
+            alert(`⚠️ O código ${novoCodigo} já está sendo usado pelo aluno ${codigoExistente.nome}.`);
+            return;
+        }
+        a.codigo = novoCodigo;
+    }
+
+    a.nome = nome;
+    a.telefone = telefone;
+    a.vencimento = vencimento;
+    a.modalidade = modalidade;
+    a.status = statusAluno;
 
     a.seg = document.getElementById('editGradeseg').value ? parseInt(document.getElementById('editGradeseg').value) : '';
     a.ter = document.getElementById('editGradeter').value ? parseInt(document.getElementById('editGradeter').value) : '';
@@ -1459,6 +1477,13 @@ function salvarMatriculaFab() {
 
     if (!codigoDigitado) { alert('⚠️ Digite o código do aluno!'); return; }
     if (!nome || !telefone) { alert('⚠️ Nome e Telefone são obrigatórios!'); return; }
+
+    // Verificar se o código já existe
+    const codigoExistente = alunos.find(a => a.codigo == codigoDigitado);
+    if (codigoExistente) {
+        alert(`⚠️ O código ${codigoDigitado} já está sendo usado pelo aluno ${codigoExistente.nome}.`);
+        return;
+    }
 
     // Verificar lotação antes de salvar
     const diasParaVerificar = [];
