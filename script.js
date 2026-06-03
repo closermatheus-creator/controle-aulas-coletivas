@@ -1,5 +1,5 @@
 // ============================================================
-// AQUACONTROL v4.0 — CONFIGURAÇÕES GLOBAIS
+// AQUACONTROL v5.0 — SISTEMA COMPLETO
 // ============================================================
 const MASTER_PASSWORD = "aqua123";
 
@@ -16,7 +16,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 // ============================================================
-// GRADE HORÁRIA COMPLETA (73 HORÁRIOS) — editável via UI
+// GRADE HORÁRIA COMPLETA (73 HORÁRIOS)
 // ============================================================
 let horariosConfig = [
     { id: 1, modalidade: "Natação Adulto", dias: ["Segunda","Quarta","Sexta"], horario: "06:00-06:40", capacidade: 10, turno: "manha" },
@@ -94,17 +94,14 @@ let horariosConfig = [
     { id: 73, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "21:00-22:00", capacidade: 3, turno: "noite" }
 ];
 
-// Função para corrigir turnos baseado no horário (a partir das 17:00 é noite)
-function corrigirTurnoPorHorario(horario) {
-    const horaInicio = parseInt(horario.horario.split('-')[0].split(':')[0]);
-    if (horaInicio >= 17) {
-        horario.turno = "noite";
+// Corrigir turno baseado no horário (17h em diante = noite)
+horariosConfig = horariosConfig.map(h => {
+    const horaInicio = parseInt(h.horario.split('-')[0].split(':')[0]);
+    if (horaInicio >= 17 && h.turno !== 'sabado') {
+        h.turno = "noite";
     }
-    return horario;
-}
-
-// Aplicar correção em todos os horários
-horariosConfig = horariosConfig.map(h => corrigirTurnoPorHorario(h));
+    return h;
+});
 
 // ============================================================
 // ESTADOS GLOBAIS
@@ -179,6 +176,12 @@ function formatarDataISO() {
     return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`;
 }
 
+function formatarDataBR(dataISO) {
+    if (!dataISO) return '—';
+    const partes = dataISO.split('-');
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
 function horarioParaMinutos(horStr) {
     const p = horStr.split('-')[0].split(':').map(Number);
     return p[0] * 60 + p[1];
@@ -210,48 +213,18 @@ function limparData(dataVenc) {
     return dateClean;
 }
 
-// ============================================================
-// BADGE DE STATUS (ATIVO / PAUSADO / TRANCADO)
-// ============================================================
 function badgeStatus(status) {
     if (status === 'PAUSADO') return `<span style="background:#fef3c7;color:#b45309;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:bold;">⏸ PAUSADO</span>`;
     if (status === 'TRANCADO') return `<span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:bold;">🔒 TRANCADO</span>`;
     return `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:bold;">🟢 ATIVO</span>`;
 }
 
-// Alunos que contam na ocupação (PAUSADO e TRANCADO NÃO contam)
 function alunoContaOcupacao(a) {
     return a.status !== 'PAUSADO' && a.status !== 'TRANCADO';
 }
 
 // ============================================================
-// EXCLUIR ALUNO DA TURMA (remove o vínculo, não deleta o aluno)
-// ============================================================
-async function excluirAlunoDaTurma(codigo, horarioId, dia) {
-    const aluno = alunos.find(a => a.codigo == codigo);
-    if (!aluno) return;
-    
-    // Confirmar exclusão
-    if (!confirm(`⚠️ Tem certeza que deseja remover ${aluno.nome} da turma de ${dia}?`)) return;
-    
-    // Remover o vínculo do dia específico
-    const campo = diasMap[dia];
-    if (aluno[campo] == horarioId) {
-        aluno[campo] = '';
-    }
-    
-    // Salvar no Firebase
-    await salvarNoGoogle(aluno);
-    
-    // Re-renderizar
-    renderizarTudo();
-    renderPainelExperimentaisHoje();
-    abrirModalHorario(horarioId);
-    mostrarToast(`✅ ${aluno.nome} removido da turma de ${dia}`);
-}
-
-// ============================================================
-// RELATÓRIOS E OCUPAÇÃO — FILTRADOS POR DIA (inclui experimentais)
+// OCUPAÇÃO (inclui experimentais)
 // ============================================================
 function getAlunosPorHorarioDia(horarioId, diaFiltro) {
     const horario = horariosConfig.find(h => h.id == horarioId);
@@ -273,15 +246,8 @@ function getAlunosPorHorarioDia(horarioId, diaFiltro) {
     });
 }
 
-function getAlunosPorHorario(horarioId) {
-    return getAlunosPorHorarioDia(horarioId, null);
-}
-
-// OCUPAÇÃO: Alunos ativos (PAUSADO/TRANCADO não contam) + Experimentais agendados para hoje
 function getOcupacaoHorarioDia(horarioId, diaFiltro) {
     const alunosCount = getAlunosPorHorarioDia(horarioId, diaFiltro).filter(alunoContaOcupacao).length;
-    
-    // Conta experimentais agendados para este horário e dia
     const hojeStr = formatarDataISO();
     const expCount = experimentais.filter(e => {
         if (e.horario_id !== horarioId) return false;
@@ -289,37 +255,21 @@ function getOcupacaoHorarioDia(horarioId, diaFiltro) {
         if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
         return true;
     }).length;
-    
     return alunosCount + expCount;
 }
 
-function getOcupacaoHorario(horarioId) {
-    return getOcupacaoHorarioDia(horarioId, null);
-}
-
-// Cards de disponibilidade por dia
 function gerarCardsDisponibilidade(horario, diasFiltro) {
     const diasRef = diasFiltro && diasFiltro.length > 0 ? diasFiltro : horario.dias;
-    
     const cards = diasRef.map(dia => {
         const ocupacao = getOcupacaoHorarioDia(horario.id, [dia]);
         const capacidade = horario.capacidade;
         const pct = (ocupacao / capacidade) * 100;
-        
-        let cor = '#10b981';
-        let bg = '#dcfce7';
-        if (pct >= 100) {
-            cor = '#ef4444';
-            bg = '#fee2e2';
-        } else if (pct >= 70) {
-            cor = '#f59e0b';
-            bg = '#fef3c7';
-        }
-        
+        let cor = '#10b981', bg = '#dcfce7';
+        if (pct >= 100) { cor = '#ef4444'; bg = '#fee2e2'; }
+        else if (pct >= 70) { cor = '#f59e0b'; bg = '#fef3c7'; }
         const diaAbrev = dia.substring(0,3).toUpperCase();
         return `<span style="background:${bg};color:${cor};padding:6px 12px;border-radius:20px;font-size:0.8rem;font-weight:bold;">${diaAbrev}: ${ocupacao}/${capacidade}</span>`;
     }).join('');
-    
     return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;padding:10px;background:#f8fafc;border-radius:12px;">${cards}</div>`;
 }
 
@@ -361,7 +311,7 @@ function filtrarDiaHub(dia, btn) {
 }
 
 // ============================================================
-// WIDGETS GLOBAIS
+// WIDGETS
 // ============================================================
 function atualizarWidgets() {
     const totalAlunos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO').length;
@@ -396,7 +346,7 @@ function atualizarWidgets() {
     if (!widget) return;
 
     widget.innerHTML = `
-        <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl">🎯 Total Alunos</div><div class="sub">Ativos (exceto pausados)</div></div>
+        <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl">🎯 Total Alunos</div><div class="sub">Ativos</div></div>
         <div class="widget vencidos-border"><div class="val" style="color:#ef4444;">${vencidos}</div><div class="lbl">⚠️ Vencidos</div><div class="sub">Planos Atrasados</div></div>
         <div class="widget emdia-border"><div class="val" style="color:#10b981;">${emDia}</div><div class="lbl">✅ Em Dia</div><div class="sub">Planos Ativos</div></div>
         <div class="widget"><div class="val">${manha}</div><div class="lbl">🌅 Manhã</div><div class="sub">Matrículas</div></div>
@@ -417,12 +367,11 @@ function mostrarToast(msg, tipo = 'sucesso') {
 }
 
 // ============================================================
-// RENDERIZAÇÃO PRINCIPAL DOS CARDS
+// RENDERIZAÇÃO DOS CARDS
 // ============================================================
 function renderizarTudo() {
     const grid = document.getElementById('cardsGrid');
     if (!grid) return;
-
     atualizarWidgets();
 
     const query = document.getElementById('searchBar')?.value.toLowerCase() || '';
@@ -431,14 +380,10 @@ function renderizarTudo() {
     let filtrados = horariosConfig.filter(h => {
         const matchTurno = activeFilters.turno === 'TODOS' || h.turno === activeFilters.turno;
         const matchMod = activeFilters.modalidade === 'TODAS' || h.modalidade === activeFilters.modalidade;
-
         let matchDia = true;
-        if (diasFiltro.length > 0) {
-            matchDia = diasFiltro.some(d => h.dias.includes(d));
-        }
-
+        if (diasFiltro.length > 0) matchDia = diasFiltro.some(d => h.dias.includes(d));
         const diasRef = diasFiltro.length > 0 ? diasFiltro : null;
-        const qtd = diasRef ? getOcupacaoHorarioDia(h.id, diasRef) : getOcupacaoHorario(h.id);
+        const qtd = diasRef ? getOcupacaoHorarioDia(h.id, diasRef) : getOcupacaoHorarioDia(h.id, null);
         let matchOcup = true;
         if (activeFilters.ocupacao === 'COM_ALUNOS') matchOcup = qtd > 0;
         else if (activeFilters.ocupacao === 'VAZIAS') matchOcup = qtd === 0;
@@ -446,21 +391,19 @@ function renderizarTudo() {
         else if (activeFilters.ocupacao === 'COM_VAGAS') matchOcup = qtd < h.capacidade;
         else if (activeFilters.ocupacao === 'VENCIDOS') matchOcup = getAlunosPorHorarioDia(h.id, diasRef).some(a => verificarVencimento(a.vencimento).vencido);
         else if (activeFilters.ocupacao === 'COM_EXPERIMENTAIS') matchOcup = experimentais.some(e => e.horario_id === h.id && e.status === 'agendado');
-
         return matchTurno && matchMod && matchDia && matchOcup;
     });
 
     if (query) {
         filtrados = filtrados.filter(h => {
             const matchHor = h.horario.includes(query) || h.modalidade.toLowerCase().includes(query);
-            const matchAl = getAlunosPorHorario(h.id).some(a => String(a.nome).toLowerCase().includes(query));
+            const matchAl = getAlunosPorHorarioDia(h.id, null).some(a => String(a.nome).toLowerCase().includes(query));
             return matchHor || matchAl;
         });
     }
 
     if (diasFiltro.length > 0) {
         filtrados.sort((a, b) => horarioParaMinutos(a.horario) - horarioParaMinutos(b.horario));
-
         const hojeStr = diasPtBr[new Date().getDay()];
         const isDiaHoje = diasFiltro.length === 1 && diasFiltro[0] === hojeStr;
         if (isDiaHoje) {
@@ -475,7 +418,7 @@ function renderizarTudo() {
     }
 
     if (filtrados.length === 0) {
-        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#94a3b8;font-weight:600;">🔍 Nenhum horário atende aos filtros aplicados.</div>';
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#94a3b8;font-weight:600;">🔍 Nenhum horário atende aos filtros.</div>';
         return;
     }
 
@@ -485,7 +428,7 @@ function renderizarTudo() {
 
     grid.innerHTML = filtrados.map(h => {
         const diasRef = diasFiltro.length > 0 ? diasFiltro : null;
-        const qtd = diasRef ? getOcupacaoHorarioDia(h.id, diasRef) : getOcupacaoHorario(h.id);
+        const qtd = diasRef ? getOcupacaoHorarioDia(h.id, diasRef) : getOcupacaoHorarioDia(h.id, null);
         const pct = Math.min((qtd / h.capacidade) * 100, 100);
         const corBarra = pct >= 100 ? '#ef4444' : (pct >= 70 ? '#f59e0b' : '#10b981');
         const expQtd = experimentais.filter(e => e.horario_id === h.id && e.status === 'agendado').length;
@@ -513,14 +456,10 @@ function renderizarTudo() {
         return `
             <div class="card" onclick="abrirModalHorario(${h.id})" style="${cardStyle}">
                 <div class="card-header">
-                    <h3>
-                        <span>${h.modalidade}</span>
-                        <span class="horario">${h.horario}</span>
-                        ${badgeTempo}
-                    </h3>
+                    <h3><span>${h.modalidade}</span><span class="horario">${h.horario}</span>${badgeTempo}</h3>
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <div class="dias">📅 ${diasExibir.join(' • ')}</div>
-                        <button onclick="event.stopPropagation(); abrirEdicaoTurma(${h.id})" style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer;color:#475569;" title="Editar turma">✏️ Editar Turma</button>
+                        <button onclick="event.stopPropagation(); abrirEdicaoTurma(${h.id})" style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer;">✏️ Editar Turma</button>
                     </div>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:0.9rem;font-weight:700;color:#475569;">
@@ -539,29 +478,20 @@ function renderizarTudo() {
 function abrirEdicaoTurma(hId) {
     const h = horariosConfig.find(x => x.id === hId);
     if (!h) return;
-
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
     titulo.innerHTML = '✏️ Editar Turma';
     corpo.innerHTML = `
         <div style="display:grid;gap:15px;max-width:480px;">
-            <div>
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Modalidade / Nome:</label>
+            <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Modalidade:</label>
                 <select id="etMod" class="form-select-field" style="width:100%;height:44px;">
-                    ${["Natação Adulto","Hidroginástica","Natação Infantil Nível 1","Natação Infantil Nível 2","Natação Infantil Nível 3","Natação Baby","Personal Class"]
-                        .map(m => `<option value="${m}" ${h.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}
+                    ${["Natação Adulto","Hidroginástica","Natação Infantil Nível 1","Natação Infantil Nível 2","Natação Infantil Nível 3","Natação Baby","Personal Class"].map(m => `<option value="${m}" ${h.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}
                 </select>
             </div>
-            <div>
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Limite de Vagas:</label>
-                <input type="number" id="etCap" class="search-input-field" value="${h.capacidade}" min="1" max="100">
-            </div>
-            <div style="font-size:0.85rem;color:#64748b;">Horário: <strong>${h.horario}</strong> &nbsp;|&nbsp; Dias: <strong>${h.dias.join(', ')}</strong></div>
-            <div class="form-actions-row">
-                <button class="btn-save-modal" onclick="salvarEdicaoTurma(${hId})">💾 Salvar Turma</button>
-                <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
-            </div>
+            <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Limite de Vagas:</label><input type="number" id="etCap" class="search-input-field" value="${h.capacidade}" min="1" max="100"></div>
+            <div style="font-size:0.85rem;color:#64748b;">Horário: <strong>${h.horario}</strong> | Dias: <strong>${h.dias.join(', ')}</strong></div>
+            <div class="form-actions-row"><button class="btn-save-modal" onclick="salvarEdicaoTurma(${hId})">💾 Salvar</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
         </div>
     `;
     modal.classList.add('active');
@@ -572,7 +502,6 @@ function toggleEditNomeTurma(hId) {
     if (!h) return;
     const span = document.getElementById('nomeTurmaDisplay');
     if (!span) return;
-
     if (span.querySelector('input')) {
         const input = span.querySelector('input');
         h.modalidade = input.value.trim() || h.modalidade;
@@ -592,11 +521,11 @@ function salvarEdicaoTurma(hId) {
     h.capacidade = parseInt(document.getElementById('etCap').value) || h.capacidade;
     fecharSuperModal();
     renderizarTudo();
-    mostrarToast('✅ Turma atualizada com sucesso!');
+    mostrarToast('✅ Turma atualizada!');
 }
 
 // ============================================================
-// MODAL DA TURMA - COM BOTÃO DE EXCLUIR
+// MODAL DA TURMA
 // ============================================================
 function abrirModalHorario(horarioId) {
     const horario = horariosConfig.find(h => h.id === horarioId);
@@ -605,7 +534,7 @@ function abrirModalHorario(horarioId) {
     const diasFiltro = activeFilters.dias;
     const diasRef = diasFiltro.length > 0 ? diasFiltro : null;
     const alunosMatriculados = getAlunosPorHorarioDia(horarioId, diasRef);
-    const listaExp = experimentais.filter(e => e.horario_id === horarioId);
+    const listaExp = experimentais.filter(e => e.horario_id === horarioId && e.status === 'agendado');
 
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
@@ -613,100 +542,66 @@ function abrirModalHorario(horarioId) {
     if (!modal || !corpo || !titulo) return;
 
     const labelDia = diasFiltro.length > 0 ? `— ${diasFiltro.join(' + ')}` : '';
-    titulo.innerHTML = `🏊‍♂️ <span id="nomeTurmaDisplay">${horario.modalidade}</span> (${horario.horario}) ${labelDia} <button onclick="toggleEditNomeTurma(${horarioId})" style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:0.75rem;cursor:pointer;color:#475569;margin-left:6px;" title="Editar nome">✏️</button>`;
+    titulo.innerHTML = `🏊‍♂️ <span id="nomeTurmaDisplay">${horario.modalidade}</span> (${horario.horario}) ${labelDia} <button onclick="toggleEditNomeTurma(${horarioId})" style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:0.75rem;cursor:pointer;">✏️</button>`;
 
-    const capOcup = alunosMatriculados.filter(alunoContaOcupacao).length + listaExp.filter(e => e.status === 'agendado').length;
-    
+    const capOcup = alunosMatriculados.filter(alunoContaOcupacao).length + listaExp.length;
     const cardsDisponibilidade = gerarCardsDisponibilidade(horario, diasRef || horario.dias);
 
     corpo.innerHTML = `
-        <div style="margin-bottom:20px;font-size:1.05rem;background:#e0f2fe;padding:15px;border-radius:10px;border-left:5px solid #006994;color:#0369a1;font-weight:600;">
-            ${diasFiltro.length > 0
-                ? `📅 Exibindo: <strong>${diasFiltro.join(' + ')}</strong> &nbsp;|&nbsp; 👥 Ocupação (c/ exp): ${capOcup}/${horario.capacidade}`
-                : `📅 Dias: ${horario.dias.join(', ')} &nbsp;|&nbsp; 👥 Lotação: ${capOcup}/${horario.capacidade} Matrículas`
-            }
+        <div style="margin-bottom:20px;background:#e0f2fe;padding:15px;border-radius:10px;border-left:5px solid #006994;color:#0369a1;font-weight:600;">
+            ${diasFiltro.length > 0 ? `📅 Exibindo: <strong>${diasFiltro.join(' + ')}</strong> | 👥 Ocupação: ${capOcup}/${horario.capacidade}` : `📅 Dias: ${horario.dias.join(', ')} | 👥 Lotação: ${capOcup}/${horario.capacidade}`}
         </div>
         ${cardsDisponibilidade}
         <div id="centralFormEdicaoContainer" style="display:none;background:#f8fafc;padding:22px;border-radius:12px;margin-bottom:25px;border:2px dashed #006994;"></div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:flex-start;margin-top:10px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:flex-start;">
             <div style="background:white;border:1px solid #cbd5e1;border-radius:12px;padding:20px;">
-                <h3 style="font-size:1.2rem;color:#006994;border-bottom:3px solid #006994;padding-bottom:8px;margin-bottom:15px;">
-                    👥 Alunos ${diasFiltro.length > 0 ? `(${diasFiltro.join('+')})` : 'Fixos'} (${alunosMatriculados.length})
-                </h3>
+                <h3 style="font-size:1.2rem;color:#006994;border-bottom:3px solid #006994;padding-bottom:8px;margin-bottom:15px;">👥 Alunos (${alunosMatriculados.length})</h3>
                 <div style="max-height:450px;overflow-y:auto;">
                     ${alunosMatriculados.map(a => {
                         const fin = verificarVencimento(a.vencimento);
                         const dateClean = limparData(a.vencimento);
                         const statusAtual = a.status || 'ATIVO';
                         const obsHtml = a.observacao ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;font-size:0.82rem;color:#78350f;margin-top:5px;">📝 ${a.observacao}</div>` : '';
-
-                        const diasDoAluno = horario.dias.filter(dia => a[diasMap[dia]] == horarioId)
-                            .map(d => d.substring(0,3)).join(', ');
-
-                        // Botão de excluir para cada dia que o aluno participa
-                        const botoesExcluir = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(dia => 
-                            `<button onclick="excluirAlunoDaTurma(${a.codigo}, ${horarioId}, '${dia}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 8px;border-radius:6px;font-size:0.7rem;cursor:pointer;" title="Remover da ${dia}">🗑️ ${dia.substring(0,3)}</button>`
-                        ).join('');
-
+                        const diasDoAluno = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(d => d.substring(0,3)).join(', ');
+                        const botoesExcluir = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(dia => `<button onclick="excluirAlunoDaTurma(${a.codigo}, ${horarioId}, '${dia}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 8px;border-radius:6px;font-size:0.7rem;cursor:pointer;" title="Remover da ${dia}">🗑️ ${dia.substring(0,3)}</button>`).join('');
                         return `
-                            <div class="aluno-box-item" style="flex-direction:column;align-items:stretch;gap:8px;margin-bottom:10px;">
+                            <div style="margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                                    <div>
-                                        <div style="font-size:1.1rem;font-weight:bold;color:var(--text-primary);">#${a.codigo} - ${a.nome} <span style="font-weight:normal;font-size:0.82rem;color:#0369a1;background:#e0f2fe;border-radius:8px;padding:1px 7px;">📅 ${diasDoAluno || '—'}</span></div>
-                                        <div style="font-size:0.9rem;color:var(--text-secondary);margin-top:2px;">📞 <strong>${a.telefone}</strong> | Venc: <strong>${dateClean}</strong></div>
-                                        <div style="margin-top:4px;">${badgeStatus(statusAtual)}</div>
-                                        ${obsHtml}
-                                    </div>
+                                    <div><div style="font-size:1rem;font-weight:bold;">#${a.codigo} - ${a.nome} <span style="font-weight:normal;font-size:0.75rem;background:#e0f2fe;border-radius:8px;padding:1px 7px;">📅 ${diasDoAluno || '—'}</span></div>
+                                    <div style="font-size:0.85rem;">📞 ${a.telefone} | Venc: ${dateClean}</div>
+                                    <div>${badgeStatus(statusAtual)}</div>${obsHtml}</div>
                                     <span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${fin.texto}</span>
                                 </div>
-                                <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;border-top:1px solid #f1f5f9;padding-top:8px;">
+                                <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px;">
                                     ${botoesExcluir}
                                     <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WhatsApp</a>
-                                    <button onclick="abrirEdicaoCompletaInline(${a.codigo},${horarioId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.82rem;cursor:pointer;">✏️ Editar</button>
-                                    <button onclick="abrirModalObs(${a.codigo},${horarioId})" style="background:#fef9c3;color:#854d0e;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.82rem;cursor:pointer;">📝 Obs</button>
-                                    <button onclick="alternarStatusAluno(${a.codigo},${horarioId})" style="background:#f1f5f9;color:#334155;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.82rem;cursor:pointer;">🔄 Status</button>
+                                    <button onclick="abrirEdicaoCompletaInline(${a.codigo},${horarioId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">✏️ Editar</button>
+                                    <button onclick="abrirModalObs(${a.codigo},${horarioId})" style="background:#fef9c3;color:#854d0e;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">📝 Obs</button>
+                                    <button onclick="alternarStatusAluno(${a.codigo},${horarioId})" style="background:#f1f5f9;color:#334155;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🔄 Status</button>
+                                    <button onclick="excluirAlunoPermanente(${a.codigo},${horarioId})" style="background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🗑️ Excluir</button>
                                 </div>
                             </div>
                         `;
-                    }).join('') || '<p style="text-align:center;padding:20px;color:#64748b;">Nenhum aluno neste dia.</p>'}
+                    }).join('') || '<p style="text-align:center;padding:20px;">Nenhum aluno.</p>'}
                 </div>
             </div>
-
             <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;">
                 <h3 style="font-size:1.2rem;color:#b45309;border-bottom:3px solid #b45309;padding-bottom:8px;margin-bottom:15px;">🧪 Experimentais (${listaExp.length})</h3>
                 <div style="max-height:450px;overflow-y:auto;">
                     ${listaExp.map(exp => {
                         const faltas = historicoFaltasExperimentais[exp.telefone] || 0;
-                        const alerta = faltas >= 2 ? `<div style="background:#fee2e2;color:#b91c1c;font-size:0.85rem;font-weight:bold;padding:5px;border-radius:6px;margin-top:4px;">⚠️ Faltou ${faltas}x antes!</div>` : '';
-                        let ind = '', btns = '';
-                        if (exp.status === 'agendado') {
-                            ind = '<span class="badge" style="background:#fef3c7;color:#b45309;">📅 Agendado</span>';
-                            btns = `<button onclick="marcarPresencaExp(${exp.id},'compareceu',${horarioId})" style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:6px;font-weight:bold;cursor:pointer;">✔️ Veio</button><button onclick="marcarPresencaExp(${exp.id},'nao_compareceu',${horarioId})" style="background:#ef4444;color:white;border:none;padding:8px 12px;border-radius:6px;font-weight:bold;cursor:pointer;">❌ Faltou</button>`;
-                        } else if (exp.status === 'compareceu') {
-                            ind = '<span class="badge" style="background:#dcfce7;color:#15803d;">✅ Veio</span>';
-                            btns = `<button onclick="matricularExperimentalInSuper(${exp.id})" style="background:#006994;color:white;border:none;padding:8px;border-radius:6px;font-weight:bold;width:100%;cursor:pointer;">📋 Efetivar Matrícula</button>`;
-                        } else if (exp.status === 'nao_compareceu') {
-                            ind = '<span class="badge" style="background:#fee2e2;color:#b91c1c;">❌ Faltou</span>';
-                            btns = `<button onclick="marcarPresencaExp(${exp.id},'agendado',${horarioId})" style="background:#64748b;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;">🔄 Refazer</button>`;
-                        }
+                        const alerta = faltas >= 2 ? `<div style="background:#fee2e2;color:#b91c1c;font-size:0.75rem;padding:4px;border-radius:5px;margin-top:4px;">⚠️ Faltou ${faltas}x antes</div>` : '';
                         return `
                             <div style="background:white;padding:12px;border-radius:10px;border:1px solid #fde68a;margin-bottom:10px;">
-                                <div style="display:flex;justify-content:space-between;">
-                                    <div>
-                                        <strong style="color:#78350f;">${exp.nome}</strong>
-                                        <div style="font-size:0.88rem;color:#b45309;">📞 ${exp.telefone}</div>
-                                        ${alerta}
-                                    </div>
-                                    <div>${ind}</div>
-                                </div>
-                                <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap;">
+                                <div><strong>${exp.nome}</strong><div style="font-size:0.85rem;">📞 ${exp.telefone}</div>${alerta}<div style="font-size:0.8rem;color:#0369a1;">📅 ${formatarDataBR(exp.dataAgendada)} | ${horariosConfig.find(h=>h.id===exp.horario_id)?.horario || '??'}</div></div>
+                                <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;">
                                     <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WA</a>
-                                    ${btns}
+                                    <button onclick="marcarPresencaExp(${exp.id},'compareceu',${horarioId})" style="background:#10b981;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;">✔️ Veio</button>
+                                    <button onclick="marcarPresencaExp(${exp.id},'nao_compareceu',${horarioId})" style="background:#ef4444;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;">❌ Faltou</button>
                                 </div>
                             </div>
                         `;
-                    }).join('') || '<p style="text-align:center;padding:20px;color:#b45309;">Sem experimentais.</p>'}
+                    }).join('') || '<p style="text-align:center;padding:20px;">Sem experimentais.</p>'}
                 </div>
             </div>
         </div>
@@ -715,24 +610,54 @@ function abrirModalHorario(horarioId) {
 }
 
 // ============================================================
-// OBSERVAÇÕES POR ALUNO
+// EXCLUIR ALUNO DA TURMA (remove vínculo)
+// ============================================================
+async function excluirAlunoDaTurma(codigo, horarioId, dia) {
+    const aluno = alunos.find(a => a.codigo == codigo);
+    if (!aluno) return;
+    if (!confirm(`Remover ${aluno.nome} da turma de ${dia}?`)) return;
+    const campo = diasMap[dia];
+    if (aluno[campo] == horarioId) aluno[campo] = '';
+    await salvarNoGoogle(aluno);
+    renderizarTudo();
+    abrirModalHorario(horarioId);
+    mostrarToast(`✅ ${aluno.nome} removido da ${dia}`);
+}
+
+// ============================================================
+// EXCLUIR ALUNO PERMANENTEMENTE
+// ============================================================
+async function excluirAlunoPermanente(codigo, hId) {
+    const aluno = alunos.find(a => a.codigo == codigo);
+    if (!aluno) { mostrarToast('❌ Aluno não encontrado!', 'erro'); return; }
+    const confirmado = confirm(`⚠️ EXCLUIR PERMANENTEMENTE?\n\n#${aluno.codigo} - ${aluno.nome}\n\nEsta ação NÃO pode ser desfeita!`);
+    if (!confirmado) return;
+    const confirmText = prompt(`Digite "SIM" para confirmar exclusão de ${aluno.nome}:`);
+    if (confirmText !== "SIM") { alert("❌ Cancelado!"); return; }
+    try {
+        if (aluno._docId) await db.collection('alunos').doc(aluno._docId).delete();
+        const index = alunos.findIndex(a => a.codigo == codigo);
+        if (index !== -1) alunos.splice(index, 1);
+        renderizarTudo();
+        renderPainelExperimentaisHoje();
+        fecharSuperModal();
+        mostrarToast(`✅ ${aluno.nome} excluído!`);
+    } catch (erro) { mostrarToast(`❌ Erro: ${erro.message}`, 'erro'); }
+}
+
+// ============================================================
+// OBSERVAÇÕES
 // ============================================================
 function abrirModalObs(cod, hId) {
     const a = alunos.find(al => al.codigo == cod);
     if (!a) return;
-
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
     titulo.innerHTML = `📝 Observações — ${a.nome}`;
     corpo.innerHTML = `
-        <div style="max-width:500px;">
-            <textarea id="obsTexto" style="width:100%;min-height:120px;padding:12px;border-radius:8px;border:1px solid #cbd5e1;font-size:0.95rem;font-family:inherit;resize:vertical;" placeholder="Digite qualquer anotação sobre este aluno...">${a.observacao || ''}</textarea>
-            <div class="form-actions-row" style="margin-top:12px;">
-                <button class="btn-save-modal" onclick="salvarObservacao(${cod},${hId || 'null'})">💾 Salvar Obs</button>
-                <button class="btn-discard-modal" onclick="${hId ? `abrirModalHorario(${hId})` : 'fecharSuperModal()'}">⬅️ Voltar</button>
-            </div>
-        </div>
+        <div style="max-width:500px;"><textarea id="obsTexto" style="width:100%;min-height:120px;padding:12px;border-radius:8px;border:1px solid #cbd5e1;">${a.observacao || ''}</textarea>
+        <div class="form-actions-row" style="margin-top:12px;"><button class="btn-save-modal" onclick="salvarObservacao(${cod},${hId || 'null'})">💾 Salvar</button><button class="btn-discard-modal" onclick="${hId ? `abrirModalHorario(${hId})` : 'fecharSuperModal()'}">⬅️ Voltar</button></div></div>
     `;
     modal.classList.add('active');
 }
@@ -746,9 +671,6 @@ async function salvarObservacao(cod, hId) {
     else { fecharSuperModal(); renderStudentTableSuper(); }
 }
 
-// ============================================================
-// ALTERNAR STATUS DO ALUNO
-// ============================================================
 function alternarStatusAluno(cod, hId) {
     const a = alunos.find(al => al.codigo == cod);
     if (!a) return;
@@ -758,19 +680,17 @@ function alternarStatusAluno(cod, hId) {
     a.status = proximo;
     salvarNoGoogle(a);
     renderizarTudo();
-    abrirModalHorario(hId);
-    mostrarToast(`✅ Status de ${a.nome} → ${proximo}`);
+    if (hId) abrirModalHorario(hId);
+    mostrarToast(`✅ Status → ${proximo}`);
 }
 
 // ============================================================
-// PAINEL LATERAL — EXPERIMENTAIS DO DIA
+// PAINEL EXPERIMENTAIS DO DIA
 // ============================================================
 function renderPainelExperimentaisHoje() {
     const painel = document.getElementById('painelExpHoje');
     if (!painel) return;
-
     const hojeStr = formatarDataISO();
-
     const expHoje = experimentais.filter(e => {
         if (e.status !== 'agendado') return false;
         if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
@@ -778,62 +698,32 @@ function renderPainelExperimentaisHoje() {
         const hojeSemana = diasPtBr[new Date().getDay()];
         return h && h.dias.includes(hojeSemana);
     });
-
-    expHoje.sort((a, b) => {
-        const ha = horariosConfig.find(h => h.id === a.horario_id);
-        const hb = horariosConfig.find(h => h.id === b.horario_id);
-        return (ha ? horarioParaMinutos(ha.horario) : 0) - (hb ? horarioParaMinutos(hb.horario) : 0);
-    });
-
+    expHoje.sort((a, b) => (horariosConfig.find(h=>h.id===a.horario_id)?.horario || '').localeCompare(horariosConfig.find(h=>h.id===b.horario_id)?.horario || ''));
     const header = document.getElementById('painelExpCount');
     if (header) header.textContent = expHoje.length;
-
-    painel.innerHTML = expHoje.length === 0
-        ? `<div style="text-align:center;padding:20px;color:#94a3b8;font-size:0.9rem;">😊 Sem experimentais hoje!</div>`
-        : expHoje.map(exp => {
-            const h = horariosConfig.find(hc => hc.id === exp.horario_id);
-            const faltas = historicoFaltasExperimentais[exp.telefone] || 0;
-            const alerta = faltas >= 2 ? `<div style="background:#fee2e2;color:#b91c1c;font-size:0.78rem;font-weight:bold;padding:4px;border-radius:5px;margin-top:3px;">⚠️ Faltou ${faltas}x antes</div>` : '';
-            let cor = '#fef3c7', corTxt = '#b45309', label = '📅 Agendado';
-
-            return `
-                <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:8px;">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                        <div>
-                            <div style="font-weight:bold;font-size:0.95rem;">${exp.nome}</div>
-                            <div style="font-size:0.82rem;color:#64748b;">📞 ${exp.telefone}</div>
-                            <div style="font-size:0.8rem;color:#0369a1;font-weight:600;">⏰ ${h ? h.horario : '??'}</div>
-                            ${alerta}
-                        </div>
-                        <span style="background:${cor};color:${corTxt};padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:bold;white-space:nowrap;">${label}</span>
-                    </div>
-                    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;">
-                        <button onclick="marcarPresencaExpPainel(${exp.id},'compareceu')" style="background:#10b981;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.78rem;font-weight:bold;cursor:pointer;">✔️ Veio</button>
-                        <button onclick="marcarPresencaExpPainel(${exp.id},'nao_compareceu')" style="background:#ef4444;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.78rem;font-weight:bold;cursor:pointer;">❌ Faltou</button>
-                        <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 9px;border-radius:6px;font-size:0.78rem;font-weight:bold;text-decoration:none;">💬 WA</a>
-                    </div>
+    painel.innerHTML = expHoje.length === 0 ? '<div style="text-align:center;padding:20px;">😊 Sem experimentais hoje!</div>' : expHoje.map(exp => {
+        const h = horariosConfig.find(hc => hc.id === exp.horario_id);
+        const faltas = historicoFaltasExperimentais[exp.telefone] || 0;
+        const alerta = faltas >= 2 ? `<div style="background:#fee2e2;color:#b91c1c;font-size:0.7rem;padding:4px;border-radius:5px;">⚠️ Faltou ${faltas}x antes</div>` : '';
+        return `
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:8px;">
+                <div><div style="font-weight:bold;">${exp.nome}</div><div style="font-size:0.8rem;">📞 ${exp.telefone}</div><div style="font-size:0.75rem;">⏰ ${h ? h.horario : '??'}</div>${alerta}</div>
+                <div style="display:flex;gap:5px;margin-top:8px;">
+                    <button onclick="marcarPresencaExpPainel(${exp.id},'compareceu')" style="background:#10b981;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.7rem;cursor:pointer;">✔️ Veio</button>
+                    <button onclick="marcarPresencaExpPainel(${exp.id},'nao_compareceu')" style="background:#ef4444;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.7rem;cursor:pointer;">❌ Faltou</button>
+                    <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 9px;border-radius:6px;font-size:0.7rem;text-decoration:none;">💬 WA</a>
                 </div>
-            `;
-        }).join('');
+            </div>
+        `;
+    }).join('');
 }
 
 function marcarPresencaExpPainel(id, st) {
     const exp = experimentais.find(e => e.id === id);
     if (!exp) return;
-    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') {
-        historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
-        salvarHistoricoExperimental(exp, 'nao_compareceu');
-    } else if (st === 'compareceu') {
-        salvarHistoricoExperimental(exp, 'compareceu');
-    }
+    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
     exp.status = st;
-    if (st === 'compareceu') {
-        setTimeout(() => {
-            if (confirm(`📋 ${exp.nome} compareceu à aula experimental. Deseja efetivar a matrícula agora?`)) {
-                matricularExperimentalInSuper(exp.id);
-            }
-        }, 100);
-    }
+    if (st === 'compareceu') setTimeout(() => { if (confirm(`📋 ${exp.nome} compareceu. Efetivar matrícula?`)) matricularExperimentalInSuper(exp.id); }, 100);
     renderizarTudo();
     renderPainelExperimentaisHoje();
 }
@@ -841,104 +731,45 @@ function marcarPresencaExpPainel(id, st) {
 function marcarPresencaExp(id, st, hId) {
     const exp = experimentais.find(e => e.id === id);
     if (!exp) return;
-    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') {
-        historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
-        salvarHistoricoExperimental(exp, 'nao_compareceu');
-    } else if (st === 'compareceu') {
-        salvarHistoricoExperimental(exp, 'compareceu');
-    }
+    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
     exp.status = st;
-    if (st === 'compareceu') {
-        setTimeout(() => {
-            if (confirm(`📋 ${exp.nome} compareceu à aula experimental. Deseja efetivar a matrícula agora?`)) {
-                matricularExperimentalInSuper(exp.id);
-            }
-        }, 100);
-    }
+    if (st === 'compareceu') setTimeout(() => { if (confirm(`📋 ${exp.nome} compareceu. Efetivar matrícula?`)) matricularExperimentalInSuper(exp.id); }, 100);
     renderizarTudo();
     renderPainelExperimentaisHoje();
     abrirModalHorario(hId);
 }
 
-async function salvarHistoricoExperimental(exp, resultado) {
-    const historicoItem = {
-        nome: exp.nome,
-        telefone: exp.telefone,
-        data: exp.dataAgendada || formatarDataISO(),
-        horario_id: exp.horario_id,
-        resultado: resultado,
-        matriculado: resultado === 'compareceu' ? true : false,
-        timestamp: new Date().toISOString()
-    };
-    try {
-        await db.collection('historico_experimentais').add(historicoItem);
-    } catch (erro) {
-        console.error("Erro ao salvar histórico:", erro);
-    }
-}
-
 // ============================================================
-// EDIÇÃO COMPLETA DO ALUNO (inline)
+// EDIÇÃO COMPLETA DO ALUNO
 // ============================================================
 function abrirEdicaoCompletaInline(cod, hId) {
     const a = alunos.find(al => al.codigo == cod);
     if (!a) return;
-
     const divId = hId ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
     const div = document.getElementById(divId);
     if (!div) return;
     div.style.display = 'block';
-
     const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const selectGradeHtml = diasSemana.map(dia => {
         const campo = diasMap[dia];
         const valorAtual = a[campo] || '';
         const opcoesDoDia = horariosConfig.filter(hc => hc.dias.includes(dia));
-        return `
-            <div style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:0.82rem;font-weight:bold;color:#475569;">${dia}:</label>
-                <select id="editGrade${campo}" class="form-select-field" style="width:100%;padding:8px;font-size:0.82rem;">
-                    <option value="">[ Não treina ]</option>
-                    ${opcoesDoDia.map(hc => `<option value="${hc.id}" ${valorAtual == hc.id ? 'selected' : ''}>${hc.modalidade} (${hc.horario})</option>`).join('')}
-                </select>
-            </div>
-        `;
+        return `<div><label style="font-size:0.8rem;">${dia}:</label><select id="editGrade${campo}" class="form-select-field" style="width:100%;padding:6px;"><option value="">[ Não treina ]</option>${opcoesDoDia.map(hc => `<option value="${hc.id}" ${valorAtual == hc.id ? 'selected' : ''}>${hc.modalidade} (${hc.horario})</option>`).join('')}</select></div>`;
     }).join('');
-
     const statusAtual = a.status || 'ATIVO';
-    const btnVoltar = hId
-        ? `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal">⬅️ Voltar para a Turma</button>`
-        : `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal">⬅️ Cancelar</button>`;
-
+    const btnVoltar = hId ? `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal">⬅️ Voltar</button>` : `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal">⬅️ Cancelar</button>`;
     div.innerHTML = `
-        <h3 style="color:#006994;margin-bottom:15px;font-size:1.2rem;font-weight:bold;border-left:4px solid #006994;padding-left:8px;">✏️ Editar: #${a.codigo} — ${a.nome}</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:18px;">
-            <div><label style="font-size:0.85rem;font-weight:bold;color:#334155;">Código:</label><input type="number" id="editFullCodigo" class="search-input-field" style="padding:10px;" value="${a.codigo}"></div>
-            <div><label style="font-size:0.85rem;font-weight:bold;color:#334155;">Nome:</label><input type="text" id="editFullN" class="search-input-field" style="padding:10px;" value="${a.nome}"></div>
-            <div><label style="font-size:0.85rem;font-weight:bold;color:#334155;">Telefone:</label><input type="text" id="editFullP" class="search-input-field" style="padding:10px;" value="${a.telefone}"></div>
-            <div><label style="font-size:0.85rem;font-weight:bold;color:#334155;">Vencimento:</label><input type="text" id="editFullV" class="search-input-field" style="padding:10px;" value="${a.vencimento || ''}"></div>
-            <div><label style="font-size:0.85rem;font-weight:bold;color:#334155;">Modalidade:</label>
-                <select id="editFullMod" class="form-select-field" style="width:100%;height:42px;">
-                    ${["Natação Adulto","Hidroginástica","Natação Infantil Nível 1","Natação Infantil Nível 2","Natação Infantil Nível 3","Natação Baby","Personal Class"]
-                        .map(m => `<option value="${m}" ${a.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}
-                </select>
-            </div>
-            <div><label style="font-size:0.85rem;font-weight:bold;color:#334155;">Status:</label>
-                <select id="editFullStatus" class="form-select-field" style="width:100%;height:42px;">
-                    <option value="ATIVO" ${statusAtual === 'ATIVO' ? 'selected' : ''}>🟢 ATIVO</option>
-                    <option value="PAUSADO" ${statusAtual === 'PAUSADO' ? 'selected' : ''}>⏸ PAUSADO</option>
-                    <option value="TRANCADO" ${statusAtual === 'TRANCADO' ? 'selected' : ''}>🔒 TRANCADO</option>
-                </select>
-            </div>
+        <h3 style="color:#006994;">✏️ Editar: #${a.codigo} — ${a.nome}</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:15px;">
+            <div><label>Código:</label><input type="number" id="editFullCodigo" class="search-input-field" value="${a.codigo}"></div>
+            <div><label>Nome:</label><input type="text" id="editFullN" class="search-input-field" value="${a.nome}"></div>
+            <div><label>Telefone:</label><input type="text" id="editFullP" class="search-input-field" value="${a.telefone}"></div>
+            <div><label>Vencimento:</label><input type="text" id="editFullV" class="search-input-field" value="${a.vencimento || ''}"></div>
+            <div><label>Modalidade:</label><select id="editFullMod" class="form-select-field">${["Natação Adulto","Hidroginástica","Natação Infantil Nível 1","Natação Infantil Nível 2","Natação Infantil Nível 3","Natação Baby","Personal Class"].map(m => `<option value="${m}" ${a.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
+            <div><label>Status:</label><select id="editFullStatus" class="form-select-field"><option value="ATIVO" ${statusAtual === 'ATIVO' ? 'selected' : ''}>🟢 ATIVO</option><option value="PAUSADO" ${statusAtual === 'PAUSADO' ? 'selected' : ''}>⏸ PAUSADO</option><option value="TRANCADO" ${statusAtual === 'TRANCADO' ? 'selected' : ''}>🔒 TRANCADO</option></select></div>
         </div>
-        <div style="background:#edf2f7;padding:15px;border-radius:8px;margin-bottom:15px;">
-            <span style="font-weight:bold;font-size:0.9rem;color:#1e293b;display:block;margin-bottom:10px;">🗓️ Grade Semanal:</span>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">${selectGradeHtml}</div>
-        </div>
-        <div style="display:flex;gap:12px;justify-content:flex-end;">
-            <button onclick="salvarEdicaoCompleta(${a.codigo},${hId})" class="btn-save-modal" style="padding:10px 22px;">💾 Salvar</button>
-            ${btnVoltar}
-        </div>
+        <div style="background:#edf2f7;padding:12px;border-radius:8px;margin-bottom:15px;"><span style="font-weight:bold;">🗓️ Grade Semanal:</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px;">${selectGradeHtml}</div></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;"><button onclick="salvarEdicaoCompleta(${a.codigo},${hId})" class="btn-save-modal">💾 Salvar</button>${btnVoltar}</div>
     `;
     div.scrollIntoView({ behavior: 'smooth' });
 }
@@ -946,120 +777,261 @@ function abrirEdicaoCompletaInline(cod, hId) {
 function salvarEdicaoCompleta(cod, hId) {
     const a = alunos.find(al => al.codigo == cod);
     if (!a) return;
-
     const novoCodigo = parseInt(document.getElementById('editFullCodigo').value);
-    const nome = document.getElementById('editFullN').value.trim();
-    const telefone = document.getElementById('editFullP').value.trim();
-    const vencimento = document.getElementById('editFullV').value.trim();
-    const modalidade = document.getElementById('editFullMod')?.value || a.modalidade;
-    const statusAluno = document.getElementById('editFullStatus')?.value || a.status || 'ATIVO';
-
-    // Verificar se o novo código já existe em outro aluno
     if (novoCodigo !== a.codigo) {
         const codigoExistente = alunos.find(al => al.codigo === novoCodigo && al._docId !== a._docId);
-        if (codigoExistente) {
-            alert(`⚠️ O código ${novoCodigo} já está sendo usado pelo aluno ${codigoExistente.nome}.`);
-            return;
-        }
+        if (codigoExistente) { alert(`⚠️ Código ${novoCodigo} já existe!`); return; }
         a.codigo = novoCodigo;
     }
-
-    a.nome = nome;
-    a.telefone = telefone;
-    a.vencimento = vencimento;
-    a.modalidade = modalidade;
-    a.status = statusAluno;
-
-    a.seg = document.getElementById('editGradeseg').value ? parseInt(document.getElementById('editGradeseg').value) : '';
-    a.ter = document.getElementById('editGradeter').value ? parseInt(document.getElementById('editGradeter').value) : '';
-    a.qua = document.getElementById('editGradequa').value ? parseInt(document.getElementById('editGradequa').value) : '';
-    a.qui = document.getElementById('editGradequi').value ? parseInt(document.getElementById('editGradequi').value) : '';
-    a.sex = document.getElementById('editGradesex').value ? parseInt(document.getElementById('editGradesex').value) : '';
-    a.sab = document.getElementById('editGradesab').value ? parseInt(document.getElementById('editGradesab').value) : '';
-
+    a.nome = document.getElementById('editFullN').value.trim();
+    a.telefone = document.getElementById('editFullP').value.trim();
+    a.vencimento = document.getElementById('editFullV').value.trim();
+    a.modalidade = document.getElementById('editFullMod')?.value || a.modalidade;
+    a.status = document.getElementById('editFullStatus')?.value || a.status || 'ATIVO';
+    a.seg = document.getElementById('editGradeseg')?.value ? parseInt(document.getElementById('editGradeseg').value) : '';
+    a.ter = document.getElementById('editGradeter')?.value ? parseInt(document.getElementById('editGradeter').value) : '';
+    a.qua = document.getElementById('editGradequa')?.value ? parseInt(document.getElementById('editGradequa').value) : '';
+    a.qui = document.getElementById('editGradequi')?.value ? parseInt(document.getElementById('editGradequi').value) : '';
+    a.sex = document.getElementById('editGradesex')?.value ? parseInt(document.getElementById('editGradesex').value) : '';
+    a.sab = document.getElementById('editGradesab')?.value ? parseInt(document.getElementById('editGradesab').value) : '';
     salvarNoGoogle(a);
-
     const divId = hId ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
     document.getElementById(divId).style.display = 'none';
     renderizarTudo();
     renderPainelExperimentaisHoje();
-    if (hId) { abrirModalHorario(hId); } else { renderStudentTableSuper(); }
-    mostrarToast(`✅ ${a.nome} atualizado com sucesso!`);
+    if (hId) abrirModalHorario(hId);
+    else renderStudentTableSuper();
+    mostrarToast(`✅ ${a.nome} atualizado!`);
 }
 
 // ============================================================
-// SUPER MODAL — BUSCAR ALUNOS / INCOMPLETOS / PAUSADOS / TRANCADOS / HISTÓRICO
+// SUPER MODAL
 // ============================================================
 function abrirSuperModal(tipo) {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    if (!modal || !corpo || !titulo) return;
-
+    if (!modal) return;
     document.getElementById('fabContainer')?.classList.remove('active');
     modal.classList.add('active');
 
     if (tipo === 'vencidos') {
-        titulo.innerHTML = '⚠️ Alunos com Plano Vencido';
-        corpo.innerHTML = `
-            <div id="superFormEdicaoContainer" style="display:none;background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:20px;border:2px dashed #006994;"></div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Dias</th><th>Ações</th></tr></thead>
-                    <tbody id="superVencidosBody"></tbody>
-                </table>
-            </div>
-        `;
+        titulo.innerHTML = '⚠️ Alunos Vencidos';
+        corpo.innerHTML = `<div id="superFormEdicaoContainer" style="display:none;"></div><div class="table-container"><table><thead><tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="superVencidosBody"></tbody></table></div>`;
         renderVencidosSuper();
     } else if (tipo === 'alunos') {
-        titulo.innerHTML = '👥 Central de Gestão de Alunos';
-        corpo.innerHTML = `
-            <div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;">
-                <button class="filter-chip active" onclick="filtrarListaAlunos('todos', this)">📋 Todos</button>
-                <button class="filter-chip" onclick="filtrarListaAlunos('pausados', this)">⏸ PAUSADOS</button>
-                <button class="filter-chip" onclick="filtrarListaAlunos('trancados', this)">🔒 TRANCADOS</button>
-            </div>
-            <input type="text" id="superStudentSearch" class="search-input-field" style="margin-bottom:15px;" placeholder="🔍 Nome, código ou telefone..." oninput="renderStudentTableSuper()">
-            <div id="superFormEdicaoContainer" style="display:none;background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:20px;border:2px dashed #006994;"></div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Dias</th><th>Ações</th></tr></thead>
-                    <tbody id="superStudentTableBody"></tbody>
-                </table>
-            </div>
-        `;
+        titulo.innerHTML = '👥 Central de Alunos';
+        corpo.innerHTML = `<div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;"><button class="filter-chip active" onclick="filtrarListaAlunos('todos', this)">📋 Todos</button><button class="filter-chip" onclick="filtrarListaAlunos('pausados', this)">⏸ PAUSADOS</button><button class="filter-chip" onclick="filtrarListaAlunos('trancados', this)">🔒 TRANCADOS</button></div><input type="text" id="superStudentSearch" class="search-input-field" style="margin-bottom:15px;" placeholder="🔍 Nome, código ou telefone..." oninput="renderStudentTableSuper()"><div id="superFormEdicaoContainer" style="display:none;"></div><div class="table-container"><table><thead><tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="superStudentTableBody"></tbody></table></div>`;
         window.listaAlunosFiltro = 'todos';
         renderStudentTableSuper();
     } else if (tipo === 'incompletos') {
         titulo.innerHTML = '⚠️ Alunos sem Dias de Treino';
-        corpo.innerHTML = `
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>Nome</th><th>Vincular Turmas</th><th>Ação</th></tr></thead>
-                    <tbody id="superIncompletosBody"></tbody>
-                </table>
-            </div>
-        `;
+        corpo.innerHTML = `<div class="table-container"><table><thead><tr><th>Nome</th><th>Vincular Turmas</th><th>Ação</th></tr></thead><tbody id="superIncompletosBody"></tbody></table></div>`;
         renderIncompletosSuper();
-    } else if (tipo === 'historico_exp') {
-        titulo.innerHTML = '📊 Histórico de Aulas Experimentais';
+    } else if (tipo === 'experimentais_futuros') {
+        titulo.innerHTML = '📅 Aulas Experimentais Futuras';
         corpo.innerHTML = `
-            <div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;">
-                <button class="filter-chip active" onclick="filtrarHistoricoExp('todos', this)">📋 Todos</button>
-                <button class="filter-chip" onclick="filtrarHistoricoExp('compareceu', this)">✅ Compareceram</button>
-                <button class="filter-chip" onclick="filtrarHistoricoExp('nao_compareceu', this)">❌ Faltaram</button>
-                <button class="filter-chip" onclick="filtrarHistoricoExp('matriculados', this)">📋 Efetivaram Matrícula</button>
-            </div>
-            <input type="text" id="historicoExpSearch" class="search-input-field" style="margin-bottom:15px;" placeholder="🔍 Nome ou telefone..." oninput="renderHistoricoExpTable()">
+            <input type="text" id="buscarExpFuturo" class="search-input-field" style="margin-bottom:15px;" placeholder="🔍 Buscar por nome ou telefone..." oninput="renderExperimentaisFuturos()">
+            <div id="formEdicaoExpContainer" style="display:none;background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:20px;border:2px dashed #006994;"></div>
             <div class="table-container" style="max-height:500px;overflow-y:auto;">
                 <table style="width:100%;">
-                    <thead><tr><th>Nome</th><th>Telefone</th><th>Data</th><th>Resultado</th><th>Ações</th></tr></thead>
-                    <tbody id="historicoExpBody"></tbody>
+                    <thead><tr><th>Data</th><th>Horário</th><th>Nome</th><th>Telefone</th><th>Status</th><th>Ações</th></tr></thead>
+                    <tbody id="experimentaisFuturosBody"></tbody>
                 </table>
             </div>
         `;
-        carregarHistoricoExp();
+        renderExperimentaisFuturos();
     }
+}
+
+function renderExperimentaisFuturos() {
+    const body = document.getElementById('experimentaisFuturosBody');
+    if (!body) return;
+    const hoje = formatarDataISO();
+    const busca = document.getElementById('buscarExpFuturo')?.value.toLowerCase() || '';
+    
+    let futuros = experimentais.filter(e => {
+        if (e.status !== 'agendado') return false;
+        if (!e.dataAgendada) return false;
+        return e.dataAgendada >= hoje;
+    });
+    
+    futuros.sort((a, b) => a.dataAgendada.localeCompare(b.dataAgendada));
+    
+    if (busca) {
+        futuros = futuros.filter(e => e.nome.toLowerCase().includes(busca) || e.telefone.includes(busca));
+    }
+    
+    if (futuros.length === 0) {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">📭 Nenhuma aula experimental futura agendada</td></tr>';
+        return;
+    }
+    
+    body.innerHTML = futuros.map(exp => {
+        const horario = horariosConfig.find(h => h.id === exp.horario_id);
+        return `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:12px;"><strong>${formatarDataBR(exp.dataAgendada)}</strong></td>
+                <td style="padding:12px;">${horario ? horario.horario : '??'} - ${exp.dia || ''}</td>
+                <td style="padding:12px;"><strong>${exp.nome}</strong></td>
+                <td style="padding:12px;">${exp.telefone}</td>
+                <td style="padding:12px;"><span style="background:#fef3c7;color:#b45309;padding:4px 8px;border-radius:20px;">📅 Agendado</span></td>
+                <td style="padding:12px;display:flex;gap:6px;flex-wrap:wrap;">
+                    <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 10px;border-radius:6px;text-decoration:none;font-size:0.75rem;">💬 WhatsApp</a>
+                    <button onclick="abrirEdicaoExperimental(${exp.id})" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">✏️ Editar</button>
+                    <button onclick="cancelarExperimental(${exp.id})" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">🗑️ Cancelar</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function abrirEdicaoExperimental(expId) {
+    const exp = experimentais.find(e => e.id === expId);
+    if (!exp) return;
+    
+    const modal = document.getElementById('globalSuperModal');
+    const titulo = document.getElementById('superModalTitulo');
+    const corpo = document.getElementById('superModalCorpo');
+    
+    titulo.innerHTML = '✏️ Editar Aula Experimental';
+    corpo.innerHTML = `
+        <div style="max-width:500px;margin:0 auto;">
+            <div style="margin-bottom:15px;"><label>Nome:</label><input type="text" id="editExpNome" class="search-input-field" value="${exp.nome}"></div>
+            <div style="margin-bottom:15px;"><label>Telefone:</label><input type="text" id="editExpTelefone" class="search-input-field" value="${exp.telefone}"></div>
+            <div style="margin-bottom:15px;"><label>Data da Aula:</label><input type="date" id="editExpData" class="search-input-field" value="${exp.dataAgendada || ''}"></div>
+            <div style="margin-bottom:15px;"><label>Modalidade:</label>
+                <select id="editExpModalidade" class="form-select-field" onchange="carregarDiasExpEdicao()">
+                    <option value="">-- Selecione --</option>
+                    ${[...new Set(horariosConfig.map(h => h.modalidade))].map(m => `<option value="${m}" ${exp.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}
+                </select>
+            </div>
+            <div style="margin-bottom:15px;"><label>Dia da Semana:</label>
+                <select id="editExpDia" class="form-select-field" onchange="carregarHorariosExpEdicao()">
+                    <option value="">-- Selecione a modalidade primeiro --</option>
+                </select>
+            </div>
+            <div style="margin-bottom:15px;"><label>Horário:</label>
+                <select id="editExpHorario" class="form-select-field">
+                    <option value="">-- Selecione o dia --</option>
+                </select>
+            </div>
+            <div class="form-actions-row" style="margin-top:20px;">
+                <button class="btn-save-modal" onclick="salvarEdicaoExperimental(${exp.id})">💾 Salvar Alterações</button>
+                <button class="btn-discard-modal" onclick="fecharSuperModal(); renderExperimentaisFuturos();">Cancelar</button>
+            </div>
+        </div>
+    `;
+    
+    // Carregar valores atuais
+    setTimeout(() => {
+        const modalidadeSelect = document.getElementById('editExpModalidade');
+        if (modalidadeSelect && exp.modalidade) {
+            modalidadeSelect.value = exp.modalidade;
+            carregarDiasExpEdicao();
+            setTimeout(() => {
+                const diaSelect = document.getElementById('editExpDia');
+                if (diaSelect && exp.dia) {
+                    diaSelect.value = exp.dia;
+                    carregarHorariosExpEdicao();
+                    setTimeout(() => {
+                        const horarioSelect = document.getElementById('editExpHorario');
+                        if (horarioSelect && exp.horario_id) {
+                            horarioSelect.value = exp.horario_id + '_' + exp.dia;
+                        }
+                    }, 100);
+                }
+            }, 100);
+        }
+    }, 50);
+    
+    modal.classList.add('active');
+}
+
+function carregarDiasExpEdicao() {
+    const modalidade = document.getElementById('editExpModalidade').value;
+    const diaSelect = document.getElementById('editExpDia');
+    if (!modalidade) {
+        diaSelect.innerHTML = '<option value="">-- Selecione a modalidade --</option>';
+        diaSelect.disabled = true;
+        return;
+    }
+    const dias = [...new Set(horariosConfig.filter(h => h.modalidade === modalidade).flatMap(h => h.dias))];
+    const ordem = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    dias.sort((a, b) => ordem.indexOf(a) - ordem.indexOf(b));
+    diaSelect.innerHTML = '<option value="">-- Selecione --</option>' + dias.map(d => `<option value="${d}">${d}</option>`).join('');
+    diaSelect.disabled = false;
+}
+
+function carregarHorariosExpEdicao() {
+    const modalidade = document.getElementById('editExpModalidade').value;
+    const dia = document.getElementById('editExpDia').value;
+    const horarioSelect = document.getElementById('editExpHorario');
+    if (!dia) {
+        horarioSelect.innerHTML = '<option value="">-- Selecione o dia --</option>';
+        horarioSelect.disabled = true;
+        return;
+    }
+    const horarios = horariosConfig.filter(h => h.modalidade === modalidade && h.dias.includes(dia));
+    horarioSelect.innerHTML = '<option value="">-- Selecione --</option>' + horarios.map(h => `<option value="${h.id}_${dia}">${h.horario}</option>`).join('');
+    horarioSelect.disabled = false;
+}
+
+function salvarEdicaoExperimental(expId) {
+    const exp = experimentais.find(e => e.id === expId);
+    if (!exp) return;
+    
+    const novoNome = document.getElementById('editExpNome').value.trim();
+    const novoTelefone = document.getElementById('editExpTelefone').value.trim();
+    const novaData = document.getElementById('editExpData').value;
+    const valorHorario = document.getElementById('editExpHorario').value;
+    
+    if (!novoNome || !novoTelefone) { alert('⚠️ Nome e telefone são obrigatórios!'); return; }
+    if (!novaData) { alert('⚠️ Selecione a data da aula!'); return; }
+    if (!valorHorario) { alert('⚠️ Selecione o horário!'); return; }
+    
+    const [hId, dia] = valorHorario.split('_');
+    const modalidade = document.getElementById('editExpModalidade').value;
+    
+    exp.nome = novoNome;
+    exp.telefone = novoTelefone;
+    exp.dataAgendada = novaData;
+    exp.horario_id = parseInt(hId);
+    exp.dia = dia;
+    exp.modalidade = modalidade;
+    
+    salvarExperimentalNoFirebase(exp);
+    fecharSuperModal();
+    renderExperimentaisFuturos();
+    renderizarTudo();
+    mostrarToast('✅ Experimental atualizada!');
+}
+
+async function salvarExperimentalNoFirebase(exp) {
+    try {
+        if (exp._docId) {
+            await db.collection('experimentais').doc(exp._docId).set(exp);
+        } else {
+            const docRef = await db.collection('experimentais').add(exp);
+            exp._docId = docRef.id;
+        }
+    } catch (erro) { console.error("Erro:", erro); }
+}
+
+function cancelarExperimental(expId) {
+    if (!confirm('⚠️ Cancelar esta aula experimental? Esta ação não pode ser desfeita.')) return;
+    const index = experimentais.findIndex(e => e.id === expId);
+    if (index !== -1) {
+        const exp = experimentais[index];
+        if (exp._docId) {
+            db.collection('experimentais').doc(exp._docId).delete().catch(console.error);
+        }
+        experimentais.splice(index, 1);
+    }
+    renderExperimentaisFuturos();
+    renderizarTudo();
+    renderPainelExperimentaisHoje();
+    mostrarToast('✅ Experimental cancelada!');
 }
 
 let listaAlunosFiltro = 'todos';
@@ -1076,41 +1048,20 @@ function renderStudentTableSuper() {
     const body = document.getElementById('superStudentTableBody');
     if (!body) return;
     const txt = document.getElementById('superStudentSearch')?.value.toLowerCase() || '';
-    
     let filtrados = alunos.filter(a => {
-        const matchSearch = String(a.nome).toLowerCase().includes(txt) ||
-            String(a.telefone).includes(txt) ||
-            String(a.codigo).includes(txt);
-        
-        if (listaAlunosFiltro === 'pausados') return matchSearch && a.status === 'PAUSADO';
-        if (listaAlunosFiltro === 'trancados') return matchSearch && a.status === 'TRANCADO';
-        return matchSearch; // todos
+        const match = String(a.nome).toLowerCase().includes(txt) || String(a.telefone).includes(txt) || String(a.codigo).includes(txt);
+        if (listaAlunosFiltro === 'pausados') return match && a.status === 'PAUSADO';
+        if (listaAlunosFiltro === 'trancados') return match && a.status === 'TRANCADO';
+        return match;
     });
-
     body.innerHTML = filtrados.map(a => {
         const fin = verificarVencimento(a.vencimento);
         const dateClean = limparData(a.vencimento);
-        const statusAtual = a.status || 'ATIVO';
         let dParticipa = [];
         if (a.seg) dParticipa.push("Seg"); if (a.ter) dParticipa.push("Ter");
         if (a.qua) dParticipa.push("Qua"); if (a.qui) dParticipa.push("Qui");
         if (a.sex) dParticipa.push("Sex"); if (a.sab) dParticipa.push("Sáb");
-
-        return `
-            <tr>
-                <td>#${a.codigo}</td>
-                <td><strong>${a.nome}</strong></td>
-                <td>${a.telefone}</td>
-                <td><span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${dateClean}</span></td>
-                <td>${badgeStatus(statusAtual)}</td>
-                <td style="font-size:0.85rem;color:#006994;font-weight:bold;">${dParticipa.join(', ') || 'Nenhum'}</td>
-                <td style="display:flex;gap:6px;flex-wrap:wrap;">
-                    <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed" style="padding:5px 8px;font-size:0.78rem;">💬 WA</a>
-                    <button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.78rem;cursor:pointer;">✏️ Editar</button>
-                    <button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.78rem;cursor:pointer;">📝 Obs</button>
-                </td>
-            </tr>
-        `;
+        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td>${a.telefone}</td><td><span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td style="display:flex;gap:6px;flex-wrap:wrap;"><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WA</a><button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente(${a.codigo},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></tr>`;
     }).join('');
 }
 
@@ -1120,36 +1071,16 @@ function renderVencidosSuper() {
     const vencidos = alunos.filter(a => {
         if (a.status === 'TRANCADO' || a.status === 'PAUSADO') return false;
         return verificarVencimento(a.vencimento).vencido;
-    }).sort((a, b) => String(a.nome).localeCompare(String(b.nome)));
-
-    if (vencidos.length === 0) {
-        body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#15803d;">✅ Nenhum aluno com plano vencido!</td></tr>';
-        return;
-    }
-
+    });
+    if (vencidos.length === 0) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;">✅ Nenhum aluno vencido!</td></tr>'; return; }
     body.innerHTML = vencidos.map(a => {
         const fin = verificarVencimento(a.vencimento);
         const dateClean = limparData(a.vencimento);
-        const statusAtual = a.status || 'ATIVO';
         let dParticipa = [];
         if (a.seg) dParticipa.push("Seg"); if (a.ter) dParticipa.push("Ter");
         if (a.qua) dParticipa.push("Qua"); if (a.qui) dParticipa.push("Qui");
         if (a.sex) dParticipa.push("Sex"); if (a.sab) dParticipa.push("Sáb");
-
-        return `
-            <tr style="background:#fff5f5;">
-                <td>#${a.codigo}</td>
-                <td><strong>${a.nome}</strong></td>
-                <td><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" style="color:#25d366;text-decoration:none;font-weight:bold;">💬 ${a.telefone}</a></td>
-                <td><span class="badge badge-vencido">${dateClean}</span></td>
-                <td>${badgeStatus(statusAtual)}</td>
-                <td style="font-size:0.85rem;color:#006994;font-weight:bold;">${dParticipa.join(', ') || 'Nenhum'}</td>
-                <td style="display:flex;gap:6px;flex-wrap:wrap;">
-                    <button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.78rem;cursor:pointer;">✏️ Editar</button>
-                    <button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.78rem;cursor:pointer;">📝 Obs</button>
-                </td>
-            </tr>
-        `;
+        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" style="color:#25d366;">💬 ${a.telefone}</a></td><td><span class="badge badge-vencido">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td><button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente(${a.codigo},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></tr>`;
     }).join('');
 }
 
@@ -1157,118 +1088,31 @@ function renderIncompletosSuper() {
     const body = document.getElementById('superIncompletosBody');
     if (!body) return;
     const inc = alunos.filter(a => a.status === 'PENDENTE' || (!a.seg && !a.ter && !a.qua && !a.qui && !a.sex && !a.sab));
-
     body.innerHTML = inc.map(a => {
         const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const gradeHtml = diasSemana.map(dia => {
             const campo = diasMap[dia];
             const turmasCompativeis = horariosConfig.filter(h => h.modalidade === a.modalidade && h.dias.includes(dia));
-            return `
-                <div style="display:flex;align-items:center;gap:5px;">
-                    <span style="font-size:0.7rem;font-weight:700;color:var(--text-muted);width:45px;flex-shrink:0;">${dia.substring(0,3)}:</span>
-                    <select class="inc-select-${a.codigo}-${campo}" style="flex:1;padding:3px 5px;border-radius:5px;border:1px solid var(--border);background:var(--bg-surface-2);color:var(--text-primary);font-size:0.73rem;">
-                        <option value="">--</option>
-                        ${turmasCompativeis.map(h => `<option value="${h.id}">${h.horario}</option>`).join('')}
-                    </select>
-                </div>
-            `;
+            return `<div style="display:flex;align-items:center;gap:5px;"><span style="font-size:0.7rem;width:40px;">${dia.substring(0,3)}:</span><select class="inc-select-${a.codigo}-${campo}" style="flex:1;"><option value="">--</option>${turmasCompativeis.map(h => `<option value="${h.id}">${h.horario}</option>`).join('')}</select></div>`;
         }).join('');
-
-        return `
-            <tr>
-                <td style="font-weight:700;white-space:nowrap;">${a.nome}</td>
-                <td><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">${gradeHtml}</div></td>
-                <td><button id="btn-save-${a.codigo}" class="btn-save" data-codigo="${a.codigo}">💾 Salvar</button></td>
-            </tr>
-        `;
+        return `<tr><td>${a.nome}</td><td><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">${gradeHtml}</div></td><td><button class="btn-save" data-codigo="${a.codigo}">💾 Salvar</button></td></tr>`;
     }).join('');
-
-    document.querySelectorAll('.btn-save').forEach(btn => {
-        btn.addEventListener('click', function() { vincularIncompleto(this.getAttribute('data-codigo')); });
-    });
+    document.querySelectorAll('.btn-save').forEach(btn => btn.addEventListener('click', function() { vincularIncompleto(this.getAttribute('data-codigo')); }));
 }
 
 function vincularIncompleto(cod) {
     const al = alunos.find(a => a.codigo == cod);
-    if (!al) { alert("Aluno não encontrado!"); return; }
+    if (!al) return;
     ['seg','ter','qua','qui','sex','sab'].forEach(campo => {
         const select = document.querySelector(`.inc-select-${al.codigo}-${campo}`);
-        if (select) al[campo] = select.value ? parseInt(select.value) : '';
+        if (select && select.value) al[campo] = parseInt(select.value);
     });
     al.status = 'ATIVO';
     salvarNoGoogle(al);
     abrirSuperModal('incompletos');
 }
 
-let historicoExpData = [];
-let historicoExpFiltro = 'todos';
-
-async function carregarHistoricoExp() {
-    try {
-        const snap = await db.collection('historico_experimentais').orderBy('timestamp', 'desc').get();
-        historicoExpData = snap.docs.map(doc => ({ ...doc.data(), _docId: doc.id }));
-        renderHistoricoExpTable();
-    } catch (erro) {
-        console.error("Erro ao carregar histórico:", erro);
-        historicoExpData = [];
-        renderHistoricoExpTable();
-    }
-}
-
-function filtrarHistoricoExp(tipo, btn) {
-    historicoExpFiltro = tipo;
-    const container = btn.parentElement;
-    container.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    renderHistoricoExpTable();
-}
-
-function renderHistoricoExpTable() {
-    const body = document.getElementById('historicoExpBody');
-    if (!body) return;
-    
-    const search = document.getElementById('historicoExpSearch')?.value.toLowerCase() || '';
-    
-    let filtrados = historicoExpData.filter(item => {
-        const matchSearch = item.nome.toLowerCase().includes(search) || item.telefone.includes(search);
-        
-        if (historicoExpFiltro === 'compareceu') return matchSearch && item.resultado === 'compareceu';
-        if (historicoExpFiltro === 'nao_compareceu') return matchSearch && item.resultado === 'nao_compareceu';
-        if (historicoExpFiltro === 'matriculados') return matchSearch && item.matriculado === true;
-        return matchSearch;
-    });
-    
-    if (filtrados.length === 0) {
-        body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;">📭 Nenhum registro encontrado</td></tr>';
-        return;
-    }
-    
-    body.innerHTML = filtrados.map(item => {
-        let resultadoHtml = '';
-        if (item.resultado === 'compareceu') resultadoHtml = '<span style="background:#dcfce7;color:#15803d;padding:4px 8px;border-radius:20px;">✅ Compareceu</span>';
-        else if (item.resultado === 'nao_compareceu') resultadoHtml = '<span style="background:#fee2e2;color:#b91c1c;padding:4px 8px;border-radius:20px;">❌ Faltou</span>';
-        else resultadoHtml = '<span style="background:#fef3c7;color:#b45309;padding:4px 8px;border-radius:20px;">📅 Agendado</span>';
-        
-        if (item.matriculado) resultadoHtml += ' <span style="background:#dbeafe;color:#1e40af;padding:4px 8px;border-radius:20px;">📋 Matriculado</span>';
-        
-        return `
-            <tr>
-                <td><strong>${item.nome}</strong></td>
-                <td>${item.telefone}</td>
-                <td>${item.data}</td>
-                <td>${resultadoHtml}</td>
-                <td>
-                    <a href="https://wa.me/55${String(item.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed" style="padding:5px 10px;">💬 WhatsApp</a>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function fecharSuperModal(e) {
-    if (e && e.target !== e.currentTarget) return;
-    document.getElementById('globalSuperModal').classList.remove('active');
-}
+function fecharSuperModal(e) { if (e && e.target !== e.currentTarget) return; document.getElementById('globalSuperModal').classList.remove('active'); }
 
 // ============================================================
 // FAB + FORMULÁRIOS
@@ -1279,133 +1123,70 @@ function abrirFormularioSobreposto(tipo) {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    if (!modal || !corpo || !titulo) return;
+    if (!modal) return;
     document.getElementById('fabContainer')?.classList.remove('active');
     modal.classList.add('active');
 
     if (tipo === 'cadastro') {
         titulo.innerHTML = '📋 Matricular Novo Aluno';
-
         const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const diasMapLocal = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 'qui', 'Sexta': 'sex', 'Sábado': 'sab' };
-        const selectGradeHtml = diasSemana.map(dia => {
-            const campo = diasMapLocal[dia];
-            return `
-                <div style="display:flex;flex-direction:column;gap:4px;">
-                    <label style="font-size:0.82rem;font-weight:bold;color:#475569;">${dia}:</label>
-                    <select id="cadGrade${campo}" class="form-select-field" style="width:100%;padding:8px;font-size:0.82rem;" onchange="atualizarCardsCadastro()">
-                        <option value="">[ Não treina ]</option>
-                    </select>
-                    <div id="cardDisponibilidade${campo}" class="disponibilidade-card" style="font-size:0.7rem;margin-top:4px;"></div>
-                </div>
-            `;
-        }).join('');
-
+        const selectGradeHtml = diasSemana.map(dia => `<div><label>${dia}:</label><select id="cadGrade${diasMapLocal[dia]}" class="form-select-field" onchange="atualizarCardsCadastro()"><option value="">[ Não treina ]</option></select><div id="cardDisponibilidade${diasMapLocal[dia]}" style="font-size:0.7rem;"></div></div>`).join('');
         corpo.innerHTML = `
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px;">
-                <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Código *</label><input type="number" id="fabCodigo" class="search-input-field" placeholder="Ex: 1050"></div>
-                <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Nome *</label><input type="text" id="fName" class="search-input-field"></div>
-                <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Telefone *</label><input type="text" id="fPhone" class="search-input-field" placeholder="(00) 00000-0000"></div>
-                <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Vencimento</label><input type="text" id="fVenc" class="search-input-field" value="${formatarData()}"></div>
-                <div style="grid-column:1/-1;"><label style="font-weight:bold;display:block;margin-bottom:5px;">Modalidade *</label>
-                    <select id="fMod" class="form-select-field" style="width:100%;height:46px;" onchange="filtrarTurmasPorModalidade()">
-                        <option value="Natação Adulto">Natação Adulto</option>
-                        <option value="Hidroginástica">Hidroginástica</option>
-                        <option value="Natação Infantil Nível 1">Natação Infantil Nível 1</option>
-                        <option value="Natação Infantil Nível 2">Natação Infantil Nível 2</option>
-                        <option value="Natação Infantil Nível 3">Natação Infantil Nível 3</option>
-                        <option value="Natação Baby">Natação Baby</option>
-                        <option value="Personal Class">Personal Class</option>
-                    </select>
-                </div>
-            </div>
-            <div style="background:#edf2f7;padding:15px;border-radius:8px;margin-bottom:15px;">
-                <span style="font-weight:bold;font-size:0.9rem;color:#1e293b;display:block;margin-bottom:10px;">🗓️ Vincular Turmas:</span>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">${selectGradeHtml}</div>
-            </div>
-            <div class="form-actions-row">
-                <button class="btn-save-modal" onclick="salvarMatriculaFab()">💾 Efetivar Matrícula</button>
-                <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
-            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;"><div><label>Código:</label><input type="number" id="fabCodigo" class="search-input-field"></div><div><label>Nome:</label><input type="text" id="fName" class="search-input-field"></div><div><label>Telefone:</label><input type="text" id="fPhone" class="search-input-field"></div><div><label>Vencimento:</label><input type="text" id="fVenc" class="search-input-field" value="${formatarData()}"></div><div style="grid-column:1/-1;"><label>Modalidade:</label><select id="fMod" class="form-select-field" onchange="filtrarTurmasPorModalidade()"><option value="Natação Adulto">Natação Adulto</option><option value="Hidroginástica">Hidroginástica</option><option value="Natação Infantil Nível 1">Natação Infantil Nível 1</option><option value="Natação Infantil Nível 2">Natação Infantil Nível 2</option><option value="Natação Infantil Nível 3">Natação Infantil Nível 3</option><option value="Natação Baby">Natação Baby</option><option value="Personal Class">Personal Class</option></select></div></div>
+            <div style="background:#edf2f7;padding:15px;border-radius:8px;margin:15px 0;"><span style="font-weight:bold;">🗓️ Vincular Turmas:</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px;">${selectGradeHtml}</div></div>
+            <div class="form-actions-row"><button class="btn-save-modal" onclick="salvarMatriculaFab()">💾 Matricular</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
         `;
         filtrarTurmasPorModalidade();
-
     } else if (tipo === 'experimental') {
-        titulo.innerHTML = '🧪 Agendar Nova Experimental';
+        titulo.innerHTML = '🧪 Agendar Experimental';
         const modalidades = [...new Set(horariosConfig.map(h => h.modalidade))];
         corpo.innerHTML = `
-            <div style="font-size:1rem;">
-                <div style="margin-bottom:12px;"><label style="font-weight:bold;display:block;margin-bottom:5px;">Nome *</label><input type="text" id="fExpN" class="search-input-field"></div>
-                <div style="margin-bottom:12px;"><label style="font-weight:bold;display:block;margin-bottom:5px;">Telefone *</label><input type="text" id="fExpP" class="search-input-field" placeholder="(00) 00000-0000"></div>
-                <div style="margin-bottom:12px;"><label style="font-weight:bold;display:block;margin-bottom:5px;">Data da Aula *</label><input type="date" id="fExpData" class="search-input-field" value="${formatarDataISO()}"></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
-                    <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Modalidade *</label>
-                        <select id="fExpMod" class="form-select-field" style="width:100%;" onchange="filtrarExpDias()">
-                            <option value="">-- Selecione --</option>
-                            ${modalidades.map(m => `<option value="${m}">${m}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Dia *</label>
-                        <select id="fExpDia" class="form-select-field" style="width:100%;" onchange="filtrarExpHorarios()" disabled>
-                            <option value="">-- Selecione a modalidade --</option>
-                        </select>
-                    </div>
-                    <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Horário *</label>
-                        <select id="fExpH" class="form-select-field" style="width:100%;" disabled>
-                            <option value="">-- Selecione o dia --</option>
-                        </select>
-                    </div>
-                </div>
-                <div id="expOcupacaoInfo" style="background:#e0f2fe;padding:10px;border-radius:8px;font-size:0.85rem;display:none;"></div>
+            <div><div><label>Nome:</label><input type="text" id="fExpN" class="search-input-field"></div>
+            <div style="margin-top:12px;"><label>Telefone:</label><input type="text" id="fExpP" class="search-input-field"></div>
+            <div style="margin-top:12px;"><label>Data da Aula:</label><input type="date" id="fExpData" class="search-input-field" value="${formatarDataISO()}"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;">
+                <div><label>Modalidade:</label><select id="fExpMod" class="form-select-field" onchange="filtrarExpDias()"><option value="">-- Selecione --</option>${modalidades.map(m => `<option value="${m}">${m}</option>`).join('')}</select></div>
+                <div><label>Dia:</label><select id="fExpDia" class="form-select-field" onchange="filtrarExpHorarios()" disabled><option value="">-- Selecione --</option></select></div>
+                <div><label>Horário:</label><select id="fExpH" class="form-select-field" disabled><option value="">-- Selecione --</option></select></div>
             </div>
-            <div class="form-actions-row">
-                <button class="btn-save-modal" style="background:#b45309;" onclick="salvarExpFab()">💾 Confirmar Agendamento</button>
-                <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
-            </div>
+            <div id="expOcupacaoInfo" style="margin-top:12px;padding:10px;border-radius:8px;display:none;"></div>
+            <div class="form-actions-row" style="margin-top:20px;"><button class="btn-save-modal" style="background:#b45309;" onclick="salvarExpFab()">💾 Agendar</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
         `;
     }
 }
 
 function atualizarCardsCadastro() {
     const mod = document.getElementById('fMod').value;
-    const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    const diasMapLocal = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 'qui', 'Sexta': 'sex', 'Sábado': 'sab' };
-    
-    diasSemana.forEach(dia => {
-        const campo = diasMapLocal[dia];
+    const dias = ['seg','ter','qua','qui','sex','sab'];
+    const diasNomes = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    dias.forEach((campo, idx) => {
         const select = document.getElementById('cadGrade' + campo);
         const cardDiv = document.getElementById('cardDisponibilidade' + campo);
         if (select && select.value && cardDiv) {
             const horarioId = parseInt(select.value);
             const horario = horariosConfig.find(h => h.id === horarioId);
             if (horario) {
-                const ocupacao = getOcupacaoHorarioDia(horarioId, [dia]);
+                const ocupacao = getOcupacaoHorarioDia(horarioId, [diasNomes[idx]]);
                 const capacidade = horario.capacidade;
                 let cor = '#10b981';
                 if (ocupacao >= capacidade) cor = '#ef4444';
                 else if (ocupacao >= capacidade * 0.7) cor = '#f59e0b';
-                cardDiv.innerHTML = `<span style="color:${cor};">📊 Ocupação: ${ocupacao}/${capacidade}</span>`;
-                if (ocupacao >= capacidade) {
-                    cardDiv.innerHTML += ` <span style="color:#ef4444;">⚠️ Turma Lotada!</span>`;
-                }
-            } else {
-                cardDiv.innerHTML = '';
+                cardDiv.innerHTML = `<span style="color:${cor};">📊 ${ocupacao}/${capacidade}</span>`;
+                if (ocupacao >= capacidade) cardDiv.innerHTML += ` <span style="color:#ef4444;">⚠️ Lotada!</span>`;
             }
-        } else if (cardDiv) {
-            cardDiv.innerHTML = '';
-        }
+        } else if (cardDiv) cardDiv.innerHTML = '';
     });
 }
 
 function filtrarTurmasPorModalidade() {
     const mod = document.getElementById('fMod').value;
-    const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    const diasMapLocal = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 'qui', 'Sexta': 'sex', 'Sábado': 'sab' };
-    diasSemana.forEach(dia => {
-        const campo = diasMapLocal[dia];
+    const dias = ['seg','ter','qua','qui','sex','sab'];
+    const diasNomes = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    dias.forEach((campo, idx) => {
         const select = document.getElementById('cadGrade' + campo);
         if (!select) return;
-        const turmas = horariosConfig.filter(hc => hc.dias.includes(dia) && hc.modalidade === mod);
+        const turmas = horariosConfig.filter(hc => hc.dias.includes(diasNomes[idx]) && hc.modalidade === mod);
         select.innerHTML = '<option value="">[ Não treina ]</option>' + turmas.map(hc => `<option value="${hc.id}">${hc.horario}</option>`).join('');
         select.onchange = () => atualizarCardsCadastro();
     });
@@ -1416,13 +1197,13 @@ function filtrarExpDias() {
     const selectDia = document.getElementById('fExpDia');
     const selectH = document.getElementById('fExpH');
     selectDia.innerHTML = '<option value="">-- Selecione --</option>';
-    selectH.innerHTML = '<option value="">-- Primeiro selecione o dia --</option>';
+    selectH.innerHTML = '<option value="">-- Selecione o dia --</option>';
     selectH.disabled = true;
     if (!mod) { selectDia.disabled = true; return; }
     const dias = [...new Set(horariosConfig.filter(h => h.modalidade === mod).flatMap(h => h.dias))];
     const ordem = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
     dias.sort((a, b) => ordem.indexOf(a) - ordem.indexOf(b));
-    dias.forEach(dia => { selectDia.innerHTML += `<option value="${dia}">${dia}</option>`; });
+    dias.forEach(dia => selectDia.innerHTML += `<option value="${dia}">${dia}</option>`);
     selectDia.disabled = false;
 }
 
@@ -1432,38 +1213,26 @@ function filtrarExpHorarios() {
     const selectH = document.getElementById('fExpH');
     selectH.innerHTML = '<option value="">-- Selecione --</option>';
     if (!dia) { selectH.disabled = true; return; }
-    horariosConfig.filter(h => h.modalidade === mod && h.dias.includes(dia))
-        .forEach(h => { selectH.innerHTML += `<option value="${h.id}_${dia}">${h.horario}</option>`; });
+    horariosConfig.filter(h => h.modalidade === mod && h.dias.includes(dia)).forEach(h => selectH.innerHTML += `<option value="${h.id}_${dia}">${h.horario}</option>`);
     selectH.disabled = false;
-    selectH.onchange = () => mostrarOcupacaoExp();
-}
-
-function mostrarOcupacaoExp() {
-    const valor = document.getElementById('fExpH').value;
-    const infoDiv = document.getElementById('expOcupacaoInfo');
-    if (!valor || !infoDiv) return;
-    const [hId, dia] = valor.split('_');
-    const horario = horariosConfig.find(h => h.id == parseInt(hId));
-    if (horario) {
-        const ocupacao = getOcupacaoHorarioDia(parseInt(hId), [dia]);
-        const capacidade = horario.capacidade;
-        let cor = '#10b981';
-        let msg = `📊 Ocupação atual: ${ocupacao}/${capacidade}`;
-        if (ocupacao >= capacidade) {
-            cor = '#ef4444';
-            msg += ` ⚠️ Turma LOTADA! O agendamento pode ultrapassar a capacidade.`;
-        } else if (ocupacao >= capacidade * 0.7) {
-            cor = '#f59e0b';
-            msg += ` ⚠️ Turma com poucas vagas restantes.`;
+    selectH.onchange = () => {
+        const valor = selectH.value;
+        const infoDiv = document.getElementById('expOcupacaoInfo');
+        if (!valor || !infoDiv) return;
+        const [hId, diaSel] = valor.split('_');
+        const horario = horariosConfig.find(h => h.id == parseInt(hId));
+        if (horario) {
+            const ocupacao = getOcupacaoHorarioDia(parseInt(hId), [diaSel]);
+            infoDiv.style.display = 'block';
+            infoDiv.style.background = '#e0f2fe';
+            infoDiv.innerHTML = `📊 Ocupação: ${ocupacao}/${horario.capacidade}`;
+            if (ocupacao >= horario.capacidade) infoDiv.innerHTML += ` ⚠️ Turma LOTADA!`;
         }
-        infoDiv.style.display = 'block';
-        infoDiv.style.color = cor;
-        infoDiv.innerHTML = msg;
-    }
+    };
 }
 
 function salvarMatriculaFab() {
-    const codigoDigitado = document.getElementById('fabCodigo').value;
+    const codigo = document.getElementById('fabCodigo').value;
     const nome = document.getElementById('fName').value.trim();
     const telefone = document.getElementById('fPhone').value.trim();
     const modalidade = document.getElementById('fMod').value;
@@ -1474,87 +1243,35 @@ function salvarMatriculaFab() {
     const qui = document.getElementById('cadGradequi').value ? parseInt(document.getElementById('cadGradequi').value) : '';
     const sex = document.getElementById('cadGradesex').value ? parseInt(document.getElementById('cadGradesex').value) : '';
     const sab = document.getElementById('cadGradesab').value ? parseInt(document.getElementById('cadGradesab').value) : '';
-
-    if (!codigoDigitado) { alert('⚠️ Digite o código do aluno!'); return; }
-    if (!nome || !telefone) { alert('⚠️ Nome e Telefone são obrigatórios!'); return; }
-
-    // Verificar se o código já existe
-    const codigoExistente = alunos.find(a => a.codigo == codigoDigitado);
-    if (codigoExistente) {
-        alert(`⚠️ O código ${codigoDigitado} já está sendo usado pelo aluno ${codigoExistente.nome}.`);
-        return;
-    }
-
-    // Verificar lotação antes de salvar
-    const diasParaVerificar = [];
-    if (seg) diasParaVerificar.push({dia: 'Segunda', id: seg});
-    if (ter) diasParaVerificar.push({dia: 'Terça', id: ter});
-    if (qua) diasParaVerificar.push({dia: 'Quarta', id: qua});
-    if (qui) diasParaVerificar.push({dia: 'Quinta', id: qui});
-    if (sex) diasParaVerificar.push({dia: 'Sexta', id: sex});
-    if (sab) diasParaVerificar.push({dia: 'Sábado', id: sab});
-
-    let lotado = false;
-    for (const item of diasParaVerificar) {
-        const horario = horariosConfig.find(h => h.id === item.id);
-        if (horario) {
-            const ocupacao = getOcupacaoHorarioDia(item.id, [item.dia]);
-            if (ocupacao >= horario.capacidade) {
-                if (!confirm(`⚠️ Atenção! A turma de ${item.dia} (${horario.horario}) está LOTADA (${ocupacao}/${horario.capacidade}). Deseja forçar a matrícula mesmo assim?`)) {
-                    lotado = true;
-                    break;
-                }
-            }
-        }
-    }
-    if (lotado) return;
-
+    if (!codigo) { alert('⚠️ Digite o código!'); return; }
+    if (!nome || !telefone) { alert('⚠️ Nome e telefone obrigatórios!'); return; }
+    if (alunos.find(a => a.codigo == codigo)) { alert(`⚠️ Código ${codigo} já existe!`); return; }
     const statusDef = (!seg && !ter && !qua && !qui && !sex && !sab) ? 'PENDENTE' : 'ATIVO';
-    const novoAluno = { codigo: parseInt(codigoDigitado), nome, telefone, vencimento, modalidade, seg, ter, qua, qui, sex, sab, status: statusDef, observacao: '' };
-
+    const novoAluno = { codigo: parseInt(codigo), nome, telefone, vencimento, modalidade, seg, ter, qua, qui, sex, sab, status: statusDef, observacao: '' };
     alunos.push(novoAluno);
     salvarNoGoogle(novoAluno);
     renderizarTudo();
     renderPainelExperimentaisHoje();
     fecharSuperModal();
-    mostrarToast(`✅ ${nome} matriculado(a) com sucesso!`);
+    mostrarToast(`✅ ${nome} matriculado!`);
 }
 
 function salvarExpFab() {
     const nome = document.getElementById('fExpN').value.trim();
     const telefone = document.getElementById('fExpP').value.trim();
-    const dataAgendada = document.getElementById('fExpData').value;
+    const data = document.getElementById('fExpData').value;
     const valor = document.getElementById('fExpH').value;
     if (!nome || !telefone || !valor) { alert('⚠️ Preencha todos os campos!'); return; }
-    if (!dataAgendada) { alert('⚠️ Selecione a data da aula experimental!'); return; }
-    
-    const [hId, diaExp] = valor.split('_');
-    const horario = horariosConfig.find(h => h.id == parseInt(hId));
-    
-    if (horario) {
-        const ocupacao = getOcupacaoHorarioDia(parseInt(hId), [diaExp]);
-        if (ocupacao >= horario.capacidade) {
-            if (!confirm(`⚠️ Atenção! A turma de ${diaExp} (${horario.horario}) está LOTADA (${ocupacao}/${horario.capacidade}) no dia ${dataAgendada}. Deseja agendar mesmo assim?`)) {
-                return;
-            }
-        }
-    }
-    
-    const novoExp = { 
-        id: ++expIdCounter, 
-        nome, 
-        telefone, 
-        data: formatarData(), 
-        dataAgendada: dataAgendada,
-        horario_id: parseInt(hId), 
-        dia: diaExp, 
-        status: 'agendado' 
-    };
+    if (!data) { alert('⚠️ Selecione a data!'); return; }
+    const [hId, dia] = valor.split('_');
+    const modalidade = document.getElementById('fExpMod').value;
+    const novoExp = { id: ++expIdCounter, nome, telefone, dataAgendada: data, horario_id: parseInt(hId), dia, status: 'agendado', modalidade };
     experimentais.push(novoExp);
+    salvarExperimentalNoFirebase(novoExp);
     renderizarTudo();
     renderPainelExperimentaisHoje();
     fecharSuperModal();
-    mostrarToast(`✅ Experimental agendada para ${dataAgendada}!`);
+    mostrarToast(`✅ Experimental agendada para ${formatarDataBR(data)}!`);
 }
 
 function matricularExperimentalInSuper(id) {
@@ -1568,6 +1285,7 @@ function matricularExperimentalInSuper(id) {
         if (nEl) nEl.value = exp.nome;
         if (pEl) pEl.value = exp.telefone;
         experimentais = experimentais.filter(e => e.id !== id);
+        if (exp._docId) db.collection('experimentais').doc(exp._docId).delete();
         renderizarTudo();
         renderPainelExperimentaisHoje();
     }, 250);
@@ -1578,29 +1296,15 @@ function matricularExperimentalInSuper(id) {
 // ============================================================
 async function salvarNoGoogle(dadosAluno) {
     try {
-        if (dadosAluno._docId) {
-            await db.collection('alunos').doc(dadosAluno._docId).set(dadosAluno);
-        } else {
-            const docRef = await db.collection('alunos').add(dadosAluno);
-            dadosAluno._docId = docRef.id;
-        }
-        mostrarToast('✅ Salvo no Firebase!');
-    } catch (erro) {
-        mostrarToast('❌ Erro ao salvar: ' + erro.message, 'erro');
-        console.error(erro);
-    }
+        if (dadosAluno._docId) await db.collection('alunos').doc(dadosAluno._docId).set(dadosAluno);
+        else { const docRef = await db.collection('alunos').add(dadosAluno); dadosAluno._docId = docRef.id; }
+        mostrarToast('✅ Salvo!');
+    } catch (erro) { mostrarToast('❌ Erro: ' + erro.message, 'erro'); }
 }
 
-// ============================================================
-// EXPORTAR CSV
-// ============================================================
 function exportarCSV() {
     const header = ['Codigo','Nome','Telefone','Modalidade','Vencimento','Status','Seg','Ter','Qua','Qui','Sex','Sab','Observacao'];
-    const rows = alunos.map(a => [
-        a.codigo, a.nome, a.telefone, a.modalidade, a.vencimento || '', a.status || 'ATIVO',
-        a.seg || '', a.ter || '', a.qua || '', a.qui || '', a.sex || '', a.sab || '',
-        (a.observacao || '').replace(/,/g,'|')
-    ]);
+    const rows = alunos.map(a => [a.codigo, a.nome, a.telefone, a.modalidade, a.vencimento || '', a.status || 'ATIVO', a.seg || '', a.ter || '', a.qua || '', a.qui || '', a.sex || '', a.sab || '', (a.observacao || '').replace(/,/g,'|')]);
     const csv = [header, ...rows].map(r => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1610,30 +1314,18 @@ function exportarCSV() {
     mostrarToast('✅ CSV exportado!');
 }
 
-// ============================================================
-// TEMA
-// ============================================================
 function toggleTheme() {
     const isDark = document.body.classList.toggle('dark');
     localStorage.setItem('aqua_theme', isDark ? 'dark' : 'light');
     document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
 }
-(function() {
-    const saved = localStorage.getItem('aqua_theme');
-    if (saved === 'dark') document.body.classList.add('dark');
-})();
+(function() { if (localStorage.getItem('aqua_theme') === 'dark') document.body.classList.add('dark'); })();
 
-// ============================================================
-// INICIALIZAÇÃO
-// ============================================================
 window.onload = function() {
     if (localStorage.getItem("aqua_authenticated") === "true") {
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("appContainer").style.display = "block";
         carregarDados();
     }
-    setInterval(() => {
-        renderPainelExperimentaisHoje();
-        renderizarTudo();
-    }, 60000);
+    setInterval(() => { renderPainelExperimentaisHoje(); renderizarTudo(); }, 60000);
 };
