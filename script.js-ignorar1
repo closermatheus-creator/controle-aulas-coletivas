@@ -26,7 +26,7 @@ let horariosConfig = [
     { id: 5, modalidade: "Natação Adulto", dias: ["Terça","Quinta"], horario: "06:00-06:40", capacidade: 10, turno: "manha" },
     { id: 6, modalidade: "Natação Adulto", dias: ["Terça","Quinta"], horario: "07:30-08:10", capacidade: 10, turno: "manha" },
     { id: 7, modalidade: "Natação Adulto", dias: ["Terça","Quinta"], horario: "15:10-15:50", capacidade: 10, turno: "tarde" },
-    { id: 8, modalidade: "Natação Adulto", dias: ["Terça","Quinta"], horario: "17:00-17:40", capacidade: 10, turno: "tarde" },
+    { id: 8, modalidade: "Natação Adulto", dias: ["Terça","Quinta"], horario: "17:00-17:40", capacidade: 10, turno: "noite" },
     { id: 9, modalidade: "Natação Adulto", dias: ["Terça","Quinta"], horario: "21:20-22:00", capacidade: 10, turno: "noite" },
     { id: 10, modalidade: "Natação Adulto", dias: ["Sábado"], horario: "07:00-07:40", capacidade: 10, turno: "sabado" },
     { id: 11, modalidade: "Natação Adulto", dias: ["Sábado"], horario: "10:25-11:05", capacidade: 10, turno: "sabado" },
@@ -57,7 +57,7 @@ let horariosConfig = [
     { id: 36, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "09:05-09:35", capacidade: 12, turno: "manha" },
     { id: 37, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "10:15-10:45", capacidade: 12, turno: "tarde" },
     { id: 38, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "13:00-13:30", capacidade: 12, turno: "tarde" },
-    { id: 39, modalidade: "Natação Baby", dias: ["Segunda","Quarta","Sexta"], horario: "17:00-17:30", capacidade: 18, turno: "tarde" },
+    { id: 39, modalidade: "Natação Baby", dias: ["Segunda","Quarta","Sexta"], horario: "17:00-17:30", capacidade: 18, turno: "noite" },
     { id: 40, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "17:40-18:10", capacidade: 12, turno: "noite" },
     { id: 41, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "18:45-19:15", capacidade: 12, turno: "noite" },
     { id: 42, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "20:45-21:15", capacidade: 12, turno: "noite" },
@@ -87,12 +87,24 @@ let horariosConfig = [
     { id: 66, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "14:00-15:00", capacidade: 3, turno: "tarde" },
     { id: 67, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "15:00-16:00", capacidade: 3, turno: "tarde" },
     { id: 68, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "16:00-17:00", capacidade: 3, turno: "tarde" },
-    { id: 69, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "17:00-18:00", capacidade: 3, turno: "tarde" },
+    { id: 69, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "17:00-18:00", capacidade: 3, turno: "noite" },
     { id: 70, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "18:00-19:00", capacidade: 3, turno: "noite" },
     { id: 71, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "19:00-20:00", capacidade: 3, turno: "noite" },
     { id: 72, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "20:00-21:00", capacidade: 3, turno: "noite" },
     { id: 73, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "21:00-22:00", capacidade: 3, turno: "noite" }
 ];
+
+// Função para corrigir turnos baseado no horário (a partir das 17:00 é noite)
+function corrigirTurnoPorHorario(horario) {
+    const horaInicio = parseInt(horario.horario.split('-')[0].split(':')[0]);
+    if (horaInicio >= 17) {
+        horario.turno = "noite";
+    }
+    return horario;
+}
+
+// Aplicar correção em todos os horários
+horariosConfig = horariosConfig.map(h => corrigirTurnoPorHorario(h));
 
 // ============================================================
 // ESTADOS GLOBAIS
@@ -162,6 +174,11 @@ function formatarData() {
     return `${String(h.getDate()).padStart(2,'0')}/${String(h.getMonth()+1).padStart(2,'0')}`;
 }
 
+function formatarDataISO() {
+    const h = new Date();
+    return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`;
+}
+
 function horarioParaMinutos(horStr) {
     const p = horStr.split('-')[0].split(':').map(Number);
     return p[0] * 60 + p[1];
@@ -202,13 +219,39 @@ function badgeStatus(status) {
     return `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:bold;">🟢 ATIVO</span>`;
 }
 
-// Alunos que contam na ocupação (excluir PAUSADO e TRANCADO)
+// Alunos que contam na ocupação (PAUSADO e TRANCADO NÃO contam)
 function alunoContaOcupacao(a) {
     return a.status !== 'PAUSADO' && a.status !== 'TRANCADO';
 }
 
 // ============================================================
-// RELATÓRIOS E OCUPAÇÃO — FILTRADOS POR DIA
+// EXCLUIR ALUNO DA TURMA (remove o vínculo, não deleta o aluno)
+// ============================================================
+async function excluirAlunoDaTurma(codigo, horarioId, dia) {
+    const aluno = alunos.find(a => a.codigo == codigo);
+    if (!aluno) return;
+    
+    // Confirmar exclusão
+    if (!confirm(`⚠️ Tem certeza que deseja remover ${aluno.nome} da turma de ${dia}?`)) return;
+    
+    // Remover o vínculo do dia específico
+    const campo = diasMap[dia];
+    if (aluno[campo] == horarioId) {
+        aluno[campo] = '';
+    }
+    
+    // Salvar no Firebase
+    await salvarNoGoogle(aluno);
+    
+    // Re-renderizar
+    renderizarTudo();
+    renderPainelExperimentaisHoje();
+    abrirModalHorario(horarioId);
+    mostrarToast(`✅ ${aluno.nome} removido da turma de ${dia}`);
+}
+
+// ============================================================
+// RELATÓRIOS E OCUPAÇÃO — FILTRADOS POR DIA (inclui experimentais)
 // ============================================================
 function getAlunosPorHorarioDia(horarioId, diaFiltro) {
     const horario = horariosConfig.find(h => h.id == horarioId);
@@ -216,14 +259,12 @@ function getAlunosPorHorarioDia(horarioId, diaFiltro) {
 
     return alunos.filter(aluno => {
         if (diaFiltro && diaFiltro !== 'TODOS') {
-            // Multi-dia: pelo menos um dos dias selecionados
             const diasAtivos = Array.isArray(diaFiltro) ? diaFiltro : [diaFiltro];
             return diasAtivos.some(dia => {
                 if (!horario.dias.includes(dia)) return false;
                 return aluno[diasMap[dia]] == horarioId;
             });
         } else {
-            // Todos os dias
             for (const dia of horario.dias) {
                 if (aluno[diasMap[dia]] == horarioId) return true;
             }
@@ -236,12 +277,50 @@ function getAlunosPorHorario(horarioId) {
     return getAlunosPorHorarioDia(horarioId, null);
 }
 
+// OCUPAÇÃO: Alunos ativos (PAUSADO/TRANCADO não contam) + Experimentais agendados para hoje
 function getOcupacaoHorarioDia(horarioId, diaFiltro) {
-    return getAlunosPorHorarioDia(horarioId, diaFiltro).filter(alunoContaOcupacao).length;
+    const alunosCount = getAlunosPorHorarioDia(horarioId, diaFiltro).filter(alunoContaOcupacao).length;
+    
+    // Conta experimentais agendados para este horário e dia
+    const hojeStr = formatarDataISO();
+    const expCount = experimentais.filter(e => {
+        if (e.horario_id !== horarioId) return false;
+        if (e.status !== 'agendado') return false;
+        if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
+        return true;
+    }).length;
+    
+    return alunosCount + expCount;
 }
 
 function getOcupacaoHorario(horarioId) {
     return getOcupacaoHorarioDia(horarioId, null);
+}
+
+// Cards de disponibilidade por dia
+function gerarCardsDisponibilidade(horario, diasFiltro) {
+    const diasRef = diasFiltro && diasFiltro.length > 0 ? diasFiltro : horario.dias;
+    
+    const cards = diasRef.map(dia => {
+        const ocupacao = getOcupacaoHorarioDia(horario.id, [dia]);
+        const capacidade = horario.capacidade;
+        const pct = (ocupacao / capacidade) * 100;
+        
+        let cor = '#10b981';
+        let bg = '#dcfce7';
+        if (pct >= 100) {
+            cor = '#ef4444';
+            bg = '#fee2e2';
+        } else if (pct >= 70) {
+            cor = '#f59e0b';
+            bg = '#fef3c7';
+        }
+        
+        const diaAbrev = dia.substring(0,3).toUpperCase();
+        return `<span style="background:${bg};color:${cor};padding:6px 12px;border-radius:20px;font-size:0.8rem;font-weight:bold;">${diaAbrev}: ${ocupacao}/${capacidade}</span>`;
+    }).join('');
+    
+    return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;padding:10px;background:#f8fafc;border-radius:12px;">${cards}</div>`;
 }
 
 // ============================================================
@@ -257,14 +336,13 @@ function filtrarDiaHub(dia, btn) {
         btn.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active'));
         btn.classList.add('active');
     } else if (dia === 'HOJE') {
-        const hojeIdx = new Date().getDay(); // 0=Dom
+        const hojeIdx = new Date().getDay();
         const hojeStr = diasPtBr[hojeIdx];
         activeFilters.dias = (hojeStr !== 'Domingo') ? [hojeStr] : [];
         btn.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active'));
         btn.classList.add('active');
     } else {
         btn.parentElement.querySelector('button:first-child').classList.remove('active');
-        // Deseleciona o botão "Hoje" se estiver ativo
         btn.parentElement.querySelectorAll('button').forEach(x => {
             if (x.getAttribute('onclick') && x.getAttribute('onclick').includes('HOJE')) x.classList.remove('active');
         });
@@ -286,10 +364,10 @@ function filtrarDiaHub(dia, btn) {
 // WIDGETS GLOBAIS
 // ============================================================
 function atualizarWidgets() {
-    const totalAlunos = alunos.filter(a => a.status !== 'TRANCADO').length;
+    const totalAlunos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO').length;
     let vencidos = 0, emDia = 0;
     alunos.forEach(a => {
-        if (a.status === 'TRANCADO') return;
+        if (a.status === 'TRANCADO' || a.status === 'PAUSADO') return;
         if (verificarVencimento(a.vencimento).vencido) vencidos++;
         else emDia++;
     });
@@ -318,7 +396,7 @@ function atualizarWidgets() {
     if (!widget) return;
 
     widget.innerHTML = `
-        <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl">🎯 Total Alunos</div><div class="sub">No Sistema</div></div>
+        <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl">🎯 Total Alunos</div><div class="sub">Ativos (exceto pausados)</div></div>
         <div class="widget vencidos-border"><div class="val" style="color:#ef4444;">${vencidos}</div><div class="lbl">⚠️ Vencidos</div><div class="sub">Planos Atrasados</div></div>
         <div class="widget emdia-border"><div class="val" style="color:#10b981;">${emDia}</div><div class="lbl">✅ Em Dia</div><div class="sub">Planos Ativos</div></div>
         <div class="widget"><div class="val">${manha}</div><div class="lbl">🌅 Manhã</div><div class="sub">Matrículas</div></div>
@@ -348,20 +426,17 @@ function renderizarTudo() {
     atualizarWidgets();
 
     const query = document.getElementById('searchBar')?.value.toLowerCase() || '';
-    const diasFiltro = activeFilters.dias; // array de dias selecionados
+    const diasFiltro = activeFilters.dias;
 
-    // ---- Filtra turmas ----
     let filtrados = horariosConfig.filter(h => {
         const matchTurno = activeFilters.turno === 'TODOS' || h.turno === activeFilters.turno;
         const matchMod = activeFilters.modalidade === 'TODAS' || h.modalidade === activeFilters.modalidade;
 
-        // Filtro de dia: turma deve ter aula em PELO MENOS UM dos dias selecionados
         let matchDia = true;
         if (diasFiltro.length > 0) {
             matchDia = diasFiltro.some(d => h.dias.includes(d));
         }
 
-        // Ocupação considera o dia filtrado
         const diasRef = diasFiltro.length > 0 ? diasFiltro : null;
         const qtd = diasRef ? getOcupacaoHorarioDia(h.id, diasRef) : getOcupacaoHorario(h.id);
         let matchOcup = true;
@@ -383,11 +458,9 @@ function renderizarTudo() {
         });
     }
 
-    // Ordenação cronológica quando há filtro de dia
     if (diasFiltro.length > 0) {
         filtrados.sort((a, b) => horarioParaMinutos(a.horario) - horarioParaMinutos(b.horario));
 
-        // Se for filtro do dia de hoje, remove turmas já encerradas
         const hojeStr = diasPtBr[new Date().getDay()];
         const isDiaHoje = diasFiltro.length === 1 && diasFiltro[0] === hojeStr;
         if (isDiaHoje) {
@@ -406,7 +479,6 @@ function renderizarTudo() {
         return;
     }
 
-    // Dados de tempo atual para colorir cards
     const agora = new Date();
     const minAtuais = agora.getHours() * 60 + agora.getMinutes();
     const hojeStr = diasPtBr[agora.getDay()];
@@ -418,7 +490,6 @@ function renderizarTudo() {
         const corBarra = pct >= 100 ? '#ef4444' : (pct >= 70 ? '#f59e0b' : '#10b981');
         const expQtd = experimentais.filter(e => e.horario_id === h.id && e.status === 'agendado').length;
 
-        // Lógica de cor temporal (somente quando há filtro de dia único == hoje)
         let cardStyle = `border-top: 4px solid ${corBarra};`;
         let badgeTempo = '';
         const isDiaHoje = diasFiltro.length === 1 && diasFiltro[0] === hojeStr;
@@ -434,13 +505,9 @@ function renderizarTudo() {
             } else if (diff > 0 && diff <= 120) {
                 cardStyle = `border-top: 4px solid #0284c7; opacity: 1;`;
                 badgeTempo = `<span style="background:#0284c7;color:white;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:bold;margin-left:6px;">⏱️ PRÓX. 2H</span>`;
-            } else if (diff <= 0 && minAtuais > minFim) {
-                // Turma já encerrada - opacity removida pois essas turmas já foram filtradas
-                cardStyle = `border-top: 4px solid ${corBarra}; opacity: 1;`;
             }
         }
 
-        // Dias exibidos no card (só os filtrados se houver filtro)
         const diasExibir = diasFiltro.length > 0 ? h.dias.filter(d => diasFiltro.includes(d)) : h.dias;
 
         return `
@@ -467,7 +534,7 @@ function renderizarTudo() {
 }
 
 // ============================================================
-// EDIÇÃO DE TURMA (nome/modalidade + capacidade)
+// EDIÇÃO DE TURMA
 // ============================================================
 function abrirEdicaoTurma(hId) {
     const h = horariosConfig.find(x => x.id === hId);
@@ -507,14 +574,12 @@ function toggleEditNomeTurma(hId) {
     if (!span) return;
 
     if (span.querySelector('input')) {
-        // Salvar
         const input = span.querySelector('input');
         h.modalidade = input.value.trim() || h.modalidade;
         renderizarTudo();
         abrirModalHorario(hId);
         mostrarToast('✅ Nome da turma atualizado!');
     } else {
-        // Abrir edição inline
         span.innerHTML = `<input type="text" value="${h.modalidade}" style="font-size:0.95rem;padding:4px 8px;border-radius:6px;border:2px solid #006994;width:260px;" onkeydown="if(event.key==='Enter')toggleEditNomeTurma(${hId})" autofocus>`;
         span.querySelector('input').focus();
     }
@@ -531,7 +596,7 @@ function salvarEdicaoTurma(hId) {
 }
 
 // ============================================================
-// MODAL DA TURMA — FILTRADO PELO DIA SELECIONADO
+// MODAL DA TURMA - COM BOTÃO DE EXCLUIR
 // ============================================================
 function abrirModalHorario(horarioId) {
     const horario = horariosConfig.find(h => h.id === horarioId);
@@ -550,16 +615,18 @@ function abrirModalHorario(horarioId) {
     const labelDia = diasFiltro.length > 0 ? `— ${diasFiltro.join(' + ')}` : '';
     titulo.innerHTML = `🏊‍♂️ <span id="nomeTurmaDisplay">${horario.modalidade}</span> (${horario.horario}) ${labelDia} <button onclick="toggleEditNomeTurma(${horarioId})" style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:0.75rem;cursor:pointer;color:#475569;margin-left:6px;" title="Editar nome">✏️</button>`;
 
-    const capOcup = alunosMatriculados.filter(alunoContaOcupacao).length;
+    const capOcup = alunosMatriculados.filter(alunoContaOcupacao).length + listaExp.filter(e => e.status === 'agendado').length;
+    
+    const cardsDisponibilidade = gerarCardsDisponibilidade(horario, diasRef || horario.dias);
 
     corpo.innerHTML = `
         <div style="margin-bottom:20px;font-size:1.05rem;background:#e0f2fe;padding:15px;border-radius:10px;border-left:5px solid #006994;color:#0369a1;font-weight:600;">
             ${diasFiltro.length > 0
-                ? `📅 Exibindo: <strong>${diasFiltro.join(' + ')}</strong> &nbsp;|&nbsp; 👥 Alunos neste(s) dia(s): ${capOcup}/${horario.capacidade}`
+                ? `📅 Exibindo: <strong>${diasFiltro.join(' + ')}</strong> &nbsp;|&nbsp; 👥 Ocupação (c/ exp): ${capOcup}/${horario.capacidade}`
                 : `📅 Dias: ${horario.dias.join(', ')} &nbsp;|&nbsp; 👥 Lotação: ${capOcup}/${horario.capacidade} Matrículas`
             }
         </div>
-
+        ${cardsDisponibilidade}
         <div id="centralFormEdicaoContainer" style="display:none;background:#f8fafc;padding:22px;border-radius:12px;margin-bottom:25px;border:2px dashed #006994;"></div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:flex-start;margin-top:10px;">
@@ -574,9 +641,13 @@ function abrirModalHorario(horarioId) {
                         const statusAtual = a.status || 'ATIVO';
                         const obsHtml = a.observacao ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;font-size:0.82rem;color:#78350f;margin-top:5px;">📝 ${a.observacao}</div>` : '';
 
-                        // Dias do aluno nesta turma
                         const diasDoAluno = horario.dias.filter(dia => a[diasMap[dia]] == horarioId)
                             .map(d => d.substring(0,3)).join(', ');
+
+                        // Botão de excluir para cada dia que o aluno participa
+                        const botoesExcluir = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(dia => 
+                            `<button onclick="excluirAlunoDaTurma(${a.codigo}, ${horarioId}, '${dia}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 8px;border-radius:6px;font-size:0.7rem;cursor:pointer;" title="Remover da ${dia}">🗑️ ${dia.substring(0,3)}</button>`
+                        ).join('');
 
                         return `
                             <div class="aluno-box-item" style="flex-direction:column;align-items:stretch;gap:8px;margin-bottom:10px;">
@@ -590,6 +661,7 @@ function abrirModalHorario(horarioId) {
                                     <span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${fin.texto}</span>
                                 </div>
                                 <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;border-top:1px solid #f1f5f9;padding-top:8px;">
+                                    ${botoesExcluir}
                                     <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WhatsApp</a>
                                     <button onclick="abrirEdicaoCompletaInline(${a.codigo},${horarioId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.82rem;cursor:pointer;">✏️ Editar</button>
                                     <button onclick="abrirModalObs(${a.codigo},${horarioId})" style="background:#fef9c3;color:#854d0e;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.82rem;cursor:pointer;">📝 Obs</button>
@@ -697,12 +769,14 @@ function renderPainelExperimentaisHoje() {
     const painel = document.getElementById('painelExpHoje');
     if (!painel) return;
 
-    const hojeIdx = new Date().getDay();
-    const hojeStr = diasPtBr[hojeIdx];
+    const hojeStr = formatarDataISO();
 
     const expHoje = experimentais.filter(e => {
+        if (e.status !== 'agendado') return false;
+        if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
         const h = horariosConfig.find(hc => hc.id === e.horario_id);
-        return h && h.dias.includes(hojeStr);
+        const hojeSemana = diasPtBr[new Date().getDay()];
+        return h && h.dias.includes(hojeSemana);
     });
 
     expHoje.sort((a, b) => {
@@ -721,8 +795,6 @@ function renderPainelExperimentaisHoje() {
             const faltas = historicoFaltasExperimentais[exp.telefone] || 0;
             const alerta = faltas >= 2 ? `<div style="background:#fee2e2;color:#b91c1c;font-size:0.78rem;font-weight:bold;padding:4px;border-radius:5px;margin-top:3px;">⚠️ Faltou ${faltas}x antes</div>` : '';
             let cor = '#fef3c7', corTxt = '#b45309', label = '📅 Agendado';
-            if (exp.status === 'compareceu') { cor = '#dcfce7'; corTxt = '#15803d'; label = '✅ Veio'; }
-            if (exp.status === 'nao_compareceu') { cor = '#fee2e2'; corTxt = '#b91c1c'; label = '❌ Faltou'; }
 
             return `
                 <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:8px;">
@@ -736,13 +808,8 @@ function renderPainelExperimentaisHoje() {
                         <span style="background:${cor};color:${corTxt};padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:bold;white-space:nowrap;">${label}</span>
                     </div>
                     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;">
-                        ${exp.status === 'agendado' ? `
-                            <button onclick="marcarPresencaExpPainel(${exp.id},'compareceu')" style="background:#10b981;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.78rem;font-weight:bold;cursor:pointer;">✔️ Veio</button>
-                            <button onclick="marcarPresencaExpPainel(${exp.id},'nao_compareceu')" style="background:#ef4444;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.78rem;font-weight:bold;cursor:pointer;">❌ Faltou</button>
-                        ` : ''}
-                        ${exp.status === 'compareceu' ? `
-                            <button onclick="matricularExperimentalInSuper(${exp.id})" style="background:#006994;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.78rem;font-weight:bold;cursor:pointer;">📋 Efetivar</button>
-                        ` : ''}
+                        <button onclick="marcarPresencaExpPainel(${exp.id},'compareceu')" style="background:#10b981;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.78rem;font-weight:bold;cursor:pointer;">✔️ Veio</button>
+                        <button onclick="marcarPresencaExpPainel(${exp.id},'nao_compareceu')" style="background:#ef4444;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.78rem;font-weight:bold;cursor:pointer;">❌ Faltou</button>
                         <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 9px;border-radius:6px;font-size:0.78rem;font-weight:bold;text-decoration:none;">💬 WA</a>
                     </div>
                 </div>
@@ -753,10 +820,20 @@ function renderPainelExperimentaisHoje() {
 function marcarPresencaExpPainel(id, st) {
     const exp = experimentais.find(e => e.id === id);
     if (!exp) return;
-    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
-    else if (st === 'agendado' && exp.status === 'nao_compareceu' && historicoFaltasExperimentais[exp.telefone] > 0) historicoFaltasExperimentais[exp.telefone]--;
+    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') {
+        historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
+        salvarHistoricoExperimental(exp, 'nao_compareceu');
+    } else if (st === 'compareceu') {
+        salvarHistoricoExperimental(exp, 'compareceu');
+    }
     exp.status = st;
-    salvarNoGoogle(exp, 'experimentais');
+    if (st === 'compareceu') {
+        setTimeout(() => {
+            if (confirm(`📋 ${exp.nome} compareceu à aula experimental. Deseja efetivar a matrícula agora?`)) {
+                matricularExperimentalInSuper(exp.id);
+            }
+        }, 100);
+    }
     renderizarTudo();
     renderPainelExperimentaisHoje();
 }
@@ -764,13 +841,40 @@ function marcarPresencaExpPainel(id, st) {
 function marcarPresencaExp(id, st, hId) {
     const exp = experimentais.find(e => e.id === id);
     if (!exp) return;
-    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
-    else if (st === 'agendado' && exp.status === 'nao_compareceu' && historicoFaltasExperimentais[exp.telefone] > 0) historicoFaltasExperimentais[exp.telefone]--;
+    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') {
+        historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
+        salvarHistoricoExperimental(exp, 'nao_compareceu');
+    } else if (st === 'compareceu') {
+        salvarHistoricoExperimental(exp, 'compareceu');
+    }
     exp.status = st;
-    salvarNoGoogle(exp, 'experimentais');
+    if (st === 'compareceu') {
+        setTimeout(() => {
+            if (confirm(`📋 ${exp.nome} compareceu à aula experimental. Deseja efetivar a matrícula agora?`)) {
+                matricularExperimentalInSuper(exp.id);
+            }
+        }, 100);
+    }
     renderizarTudo();
     renderPainelExperimentaisHoje();
     abrirModalHorario(hId);
+}
+
+async function salvarHistoricoExperimental(exp, resultado) {
+    const historicoItem = {
+        nome: exp.nome,
+        telefone: exp.telefone,
+        data: exp.dataAgendada || formatarDataISO(),
+        horario_id: exp.horario_id,
+        resultado: resultado,
+        matriculado: resultado === 'compareceu' ? true : false,
+        timestamp: new Date().toISOString()
+    };
+    try {
+        await db.collection('historico_experimentais').add(historicoItem);
+    } catch (erro) {
+        console.error("Erro ao salvar histórico:", erro);
+    }
 }
 
 // ============================================================
@@ -866,7 +970,7 @@ function salvarEdicaoCompleta(cod, hId) {
 }
 
 // ============================================================
-// SUPER MODAL — BUSCAR ALUNOS / INCOMPLETOS
+// SUPER MODAL — BUSCAR ALUNOS / INCOMPLETOS / PAUSADOS / TRANCADOS / HISTÓRICO
 // ============================================================
 function abrirSuperModal(tipo) {
     const modal = document.getElementById('globalSuperModal');
@@ -892,6 +996,11 @@ function abrirSuperModal(tipo) {
     } else if (tipo === 'alunos') {
         titulo.innerHTML = '👥 Central de Gestão de Alunos';
         corpo.innerHTML = `
+            <div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;">
+                <button class="filter-chip active" onclick="filtrarListaAlunos('todos', this)">📋 Todos</button>
+                <button class="filter-chip" onclick="filtrarListaAlunos('pausados', this)">⏸ PAUSADOS</button>
+                <button class="filter-chip" onclick="filtrarListaAlunos('trancados', this)">🔒 TRANCADOS</button>
+            </div>
             <input type="text" id="superStudentSearch" class="search-input-field" style="margin-bottom:15px;" placeholder="🔍 Nome, código ou telefone..." oninput="renderStudentTableSuper()">
             <div id="superFormEdicaoContainer" style="display:none;background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:20px;border:2px dashed #006994;"></div>
             <div class="table-container">
@@ -901,6 +1010,7 @@ function abrirSuperModal(tipo) {
                 </table>
             </div>
         `;
+        window.listaAlunosFiltro = 'todos';
         renderStudentTableSuper();
     } else if (tipo === 'incompletos') {
         titulo.innerHTML = '⚠️ Alunos sem Dias de Treino';
@@ -913,23 +1023,51 @@ function abrirSuperModal(tipo) {
             </div>
         `;
         renderIncompletosSuper();
+    } else if (tipo === 'historico_exp') {
+        titulo.innerHTML = '📊 Histórico de Aulas Experimentais';
+        corpo.innerHTML = `
+            <div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;">
+                <button class="filter-chip active" onclick="filtrarHistoricoExp('todos', this)">📋 Todos</button>
+                <button class="filter-chip" onclick="filtrarHistoricoExp('compareceu', this)">✅ Compareceram</button>
+                <button class="filter-chip" onclick="filtrarHistoricoExp('nao_compareceu', this)">❌ Faltaram</button>
+                <button class="filter-chip" onclick="filtrarHistoricoExp('matriculados', this)">📋 Efetivaram Matrícula</button>
+            </div>
+            <input type="text" id="historicoExpSearch" class="search-input-field" style="margin-bottom:15px;" placeholder="🔍 Nome ou telefone..." oninput="renderHistoricoExpTable()">
+            <div class="table-container" style="max-height:500px;overflow-y:auto;">
+                <table style="width:100%;">
+                    <thead><tr><th>Nome</th><th>Telefone</th><th>Data</th><th>Resultado</th><th>Ações</th></tr></thead>
+                    <tbody id="historicoExpBody"></tbody>
+                </table>
+            </div>
+        `;
+        carregarHistoricoExp();
     }
 }
 
-function fecharSuperModal(e) {
-    if (e && e.target !== e.currentTarget) return;
-    document.getElementById('globalSuperModal').classList.remove('active');
+let listaAlunosFiltro = 'todos';
+
+function filtrarListaAlunos(tipo, btn) {
+    listaAlunosFiltro = tipo;
+    const container = btn.parentElement;
+    container.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderStudentTableSuper();
 }
 
 function renderStudentTableSuper() {
     const body = document.getElementById('superStudentTableBody');
     if (!body) return;
     const txt = document.getElementById('superStudentSearch')?.value.toLowerCase() || '';
-    const filtrados = alunos.filter(a =>
-        String(a.nome).toLowerCase().includes(txt) ||
-        String(a.telefone).includes(txt) ||
-        String(a.codigo).includes(txt)
-    );
+    
+    let filtrados = alunos.filter(a => {
+        const matchSearch = String(a.nome).toLowerCase().includes(txt) ||
+            String(a.telefone).includes(txt) ||
+            String(a.codigo).includes(txt);
+        
+        if (listaAlunosFiltro === 'pausados') return matchSearch && a.status === 'PAUSADO';
+        if (listaAlunosFiltro === 'trancados') return matchSearch && a.status === 'TRANCADO';
+        return matchSearch; // todos
+    });
 
     body.innerHTML = filtrados.map(a => {
         const fin = verificarVencimento(a.vencimento);
@@ -962,7 +1100,7 @@ function renderVencidosSuper() {
     const body = document.getElementById('superVencidosBody');
     if (!body) return;
     const vencidos = alunos.filter(a => {
-        if (a.status === 'TRANCADO') return false;
+        if (a.status === 'TRANCADO' || a.status === 'PAUSADO') return false;
         return verificarVencimento(a.vencimento).vencido;
     }).sort((a, b) => String(a.nome).localeCompare(String(b.nome)));
 
@@ -1044,6 +1182,76 @@ function vincularIncompleto(cod) {
     abrirSuperModal('incompletos');
 }
 
+let historicoExpData = [];
+let historicoExpFiltro = 'todos';
+
+async function carregarHistoricoExp() {
+    try {
+        const snap = await db.collection('historico_experimentais').orderBy('timestamp', 'desc').get();
+        historicoExpData = snap.docs.map(doc => ({ ...doc.data(), _docId: doc.id }));
+        renderHistoricoExpTable();
+    } catch (erro) {
+        console.error("Erro ao carregar histórico:", erro);
+        historicoExpData = [];
+        renderHistoricoExpTable();
+    }
+}
+
+function filtrarHistoricoExp(tipo, btn) {
+    historicoExpFiltro = tipo;
+    const container = btn.parentElement;
+    container.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderHistoricoExpTable();
+}
+
+function renderHistoricoExpTable() {
+    const body = document.getElementById('historicoExpBody');
+    if (!body) return;
+    
+    const search = document.getElementById('historicoExpSearch')?.value.toLowerCase() || '';
+    
+    let filtrados = historicoExpData.filter(item => {
+        const matchSearch = item.nome.toLowerCase().includes(search) || item.telefone.includes(search);
+        
+        if (historicoExpFiltro === 'compareceu') return matchSearch && item.resultado === 'compareceu';
+        if (historicoExpFiltro === 'nao_compareceu') return matchSearch && item.resultado === 'nao_compareceu';
+        if (historicoExpFiltro === 'matriculados') return matchSearch && item.matriculado === true;
+        return matchSearch;
+    });
+    
+    if (filtrados.length === 0) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;">📭 Nenhum registro encontrado</td></tr>';
+        return;
+    }
+    
+    body.innerHTML = filtrados.map(item => {
+        let resultadoHtml = '';
+        if (item.resultado === 'compareceu') resultadoHtml = '<span style="background:#dcfce7;color:#15803d;padding:4px 8px;border-radius:20px;">✅ Compareceu</span>';
+        else if (item.resultado === 'nao_compareceu') resultadoHtml = '<span style="background:#fee2e2;color:#b91c1c;padding:4px 8px;border-radius:20px;">❌ Faltou</span>';
+        else resultadoHtml = '<span style="background:#fef3c7;color:#b45309;padding:4px 8px;border-radius:20px;">📅 Agendado</span>';
+        
+        if (item.matriculado) resultadoHtml += ' <span style="background:#dbeafe;color:#1e40af;padding:4px 8px;border-radius:20px;">📋 Matriculado</span>';
+        
+        return `
+            <tr>
+                <td><strong>${item.nome}</strong></td>
+                <td>${item.telefone}</td>
+                <td>${item.data}</td>
+                <td>${resultadoHtml}</td>
+                <td>
+                    <a href="https://wa.me/55${String(item.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed" style="padding:5px 10px;">💬 WhatsApp</a>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function fecharSuperModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('globalSuperModal').classList.remove('active');
+}
+
 // ============================================================
 // FAB + FORMULÁRIOS
 // ============================================================
@@ -1067,9 +1275,10 @@ function abrirFormularioSobreposto(tipo) {
             return `
                 <div style="display:flex;flex-direction:column;gap:4px;">
                     <label style="font-size:0.82rem;font-weight:bold;color:#475569;">${dia}:</label>
-                    <select id="cadGrade${campo}" class="form-select-field" style="width:100%;padding:8px;font-size:0.82rem;">
+                    <select id="cadGrade${campo}" class="form-select-field" style="width:100%;padding:8px;font-size:0.82rem;" onchange="atualizarCardsCadastro()">
                         <option value="">[ Não treina ]</option>
                     </select>
+                    <div id="cardDisponibilidade${campo}" class="disponibilidade-card" style="font-size:0.7rem;margin-top:4px;"></div>
                 </div>
             `;
         }).join('');
@@ -1110,6 +1319,7 @@ function abrirFormularioSobreposto(tipo) {
             <div style="font-size:1rem;">
                 <div style="margin-bottom:12px;"><label style="font-weight:bold;display:block;margin-bottom:5px;">Nome *</label><input type="text" id="fExpN" class="search-input-field"></div>
                 <div style="margin-bottom:12px;"><label style="font-weight:bold;display:block;margin-bottom:5px;">Telefone *</label><input type="text" id="fExpP" class="search-input-field" placeholder="(00) 00000-0000"></div>
+                <div style="margin-bottom:12px;"><label style="font-weight:bold;display:block;margin-bottom:5px;">Data da Aula *</label><input type="date" id="fExpData" class="search-input-field" value="${formatarDataISO()}"></div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
                     <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Modalidade *</label>
                         <select id="fExpMod" class="form-select-field" style="width:100%;" onchange="filtrarExpDias()">
@@ -1128,13 +1338,45 @@ function abrirFormularioSobreposto(tipo) {
                         </select>
                     </div>
                 </div>
+                <div id="expOcupacaoInfo" style="background:#e0f2fe;padding:10px;border-radius:8px;font-size:0.85rem;display:none;"></div>
             </div>
             <div class="form-actions-row">
-                <button class="btn-save-modal" style="background:#b45309;" onclick="salvarExpFab()">💾 Confirmar</button>
+                <button class="btn-save-modal" style="background:#b45309;" onclick="salvarExpFab()">💾 Confirmar Agendamento</button>
                 <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
             </div>
         `;
     }
+}
+
+function atualizarCardsCadastro() {
+    const mod = document.getElementById('fMod').value;
+    const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const diasMapLocal = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 'qui', 'Sexta': 'sex', 'Sábado': 'sab' };
+    
+    diasSemana.forEach(dia => {
+        const campo = diasMapLocal[dia];
+        const select = document.getElementById('cadGrade' + campo);
+        const cardDiv = document.getElementById('cardDisponibilidade' + campo);
+        if (select && select.value && cardDiv) {
+            const horarioId = parseInt(select.value);
+            const horario = horariosConfig.find(h => h.id === horarioId);
+            if (horario) {
+                const ocupacao = getOcupacaoHorarioDia(horarioId, [dia]);
+                const capacidade = horario.capacidade;
+                let cor = '#10b981';
+                if (ocupacao >= capacidade) cor = '#ef4444';
+                else if (ocupacao >= capacidade * 0.7) cor = '#f59e0b';
+                cardDiv.innerHTML = `<span style="color:${cor};">📊 Ocupação: ${ocupacao}/${capacidade}</span>`;
+                if (ocupacao >= capacidade) {
+                    cardDiv.innerHTML += ` <span style="color:#ef4444;">⚠️ Turma Lotada!</span>`;
+                }
+            } else {
+                cardDiv.innerHTML = '';
+            }
+        } else if (cardDiv) {
+            cardDiv.innerHTML = '';
+        }
+    });
 }
 
 function filtrarTurmasPorModalidade() {
@@ -1147,6 +1389,7 @@ function filtrarTurmasPorModalidade() {
         if (!select) return;
         const turmas = horariosConfig.filter(hc => hc.dias.includes(dia) && hc.modalidade === mod);
         select.innerHTML = '<option value="">[ Não treina ]</option>' + turmas.map(hc => `<option value="${hc.id}">${hc.horario}</option>`).join('');
+        select.onchange = () => atualizarCardsCadastro();
     });
 }
 
@@ -1174,6 +1417,31 @@ function filtrarExpHorarios() {
     horariosConfig.filter(h => h.modalidade === mod && h.dias.includes(dia))
         .forEach(h => { selectH.innerHTML += `<option value="${h.id}_${dia}">${h.horario}</option>`; });
     selectH.disabled = false;
+    selectH.onchange = () => mostrarOcupacaoExp();
+}
+
+function mostrarOcupacaoExp() {
+    const valor = document.getElementById('fExpH').value;
+    const infoDiv = document.getElementById('expOcupacaoInfo');
+    if (!valor || !infoDiv) return;
+    const [hId, dia] = valor.split('_');
+    const horario = horariosConfig.find(h => h.id == parseInt(hId));
+    if (horario) {
+        const ocupacao = getOcupacaoHorarioDia(parseInt(hId), [dia]);
+        const capacidade = horario.capacidade;
+        let cor = '#10b981';
+        let msg = `📊 Ocupação atual: ${ocupacao}/${capacidade}`;
+        if (ocupacao >= capacidade) {
+            cor = '#ef4444';
+            msg += ` ⚠️ Turma LOTADA! O agendamento pode ultrapassar a capacidade.`;
+        } else if (ocupacao >= capacidade * 0.7) {
+            cor = '#f59e0b';
+            msg += ` ⚠️ Turma com poucas vagas restantes.`;
+        }
+        infoDiv.style.display = 'block';
+        infoDiv.style.color = cor;
+        infoDiv.innerHTML = msg;
+    }
 }
 
 function salvarMatriculaFab() {
@@ -1192,6 +1460,30 @@ function salvarMatriculaFab() {
     if (!codigoDigitado) { alert('⚠️ Digite o código do aluno!'); return; }
     if (!nome || !telefone) { alert('⚠️ Nome e Telefone são obrigatórios!'); return; }
 
+    // Verificar lotação antes de salvar
+    const diasParaVerificar = [];
+    if (seg) diasParaVerificar.push({dia: 'Segunda', id: seg});
+    if (ter) diasParaVerificar.push({dia: 'Terça', id: ter});
+    if (qua) diasParaVerificar.push({dia: 'Quarta', id: qua});
+    if (qui) diasParaVerificar.push({dia: 'Quinta', id: qui});
+    if (sex) diasParaVerificar.push({dia: 'Sexta', id: sex});
+    if (sab) diasParaVerificar.push({dia: 'Sábado', id: sab});
+
+    let lotado = false;
+    for (const item of diasParaVerificar) {
+        const horario = horariosConfig.find(h => h.id === item.id);
+        if (horario) {
+            const ocupacao = getOcupacaoHorarioDia(item.id, [item.dia]);
+            if (ocupacao >= horario.capacidade) {
+                if (!confirm(`⚠️ Atenção! A turma de ${item.dia} (${horario.horario}) está LOTADA (${ocupacao}/${horario.capacidade}). Deseja forçar a matrícula mesmo assim?`)) {
+                    lotado = true;
+                    break;
+                }
+            }
+        }
+    }
+    if (lotado) return;
+
     const statusDef = (!seg && !ter && !qua && !qui && !sex && !sab) ? 'PENDENTE' : 'ATIVO';
     const novoAluno = { codigo: parseInt(codigoDigitado), nome, telefone, vencimento, modalidade, seg, ter, qua, qui, sex, sab, status: statusDef, observacao: '' };
 
@@ -1206,16 +1498,38 @@ function salvarMatriculaFab() {
 function salvarExpFab() {
     const nome = document.getElementById('fExpN').value.trim();
     const telefone = document.getElementById('fExpP').value.trim();
+    const dataAgendada = document.getElementById('fExpData').value;
     const valor = document.getElementById('fExpH').value;
     if (!nome || !telefone || !valor) { alert('⚠️ Preencha todos os campos!'); return; }
+    if (!dataAgendada) { alert('⚠️ Selecione a data da aula experimental!'); return; }
+    
     const [hId, diaExp] = valor.split('_');
-    const novaExp = { id: ++expIdCounter, nome, telefone, data: formatarData(), horario_id: parseInt(hId), dia: diaExp, status: 'agendado' };
-    experimentais.push(novaExp);
-    salvarNoGoogle(novaExp, 'experimentais');
+    const horario = horariosConfig.find(h => h.id == parseInt(hId));
+    
+    if (horario) {
+        const ocupacao = getOcupacaoHorarioDia(parseInt(hId), [diaExp]);
+        if (ocupacao >= horario.capacidade) {
+            if (!confirm(`⚠️ Atenção! A turma de ${diaExp} (${horario.horario}) está LOTADA (${ocupacao}/${horario.capacidade}) no dia ${dataAgendada}. Deseja agendar mesmo assim?`)) {
+                return;
+            }
+        }
+    }
+    
+    const novoExp = { 
+        id: ++expIdCounter, 
+        nome, 
+        telefone, 
+        data: formatarData(), 
+        dataAgendada: dataAgendada,
+        horario_id: parseInt(hId), 
+        dia: diaExp, 
+        status: 'agendado' 
+    };
+    experimentais.push(novoExp);
     renderizarTudo();
     renderPainelExperimentaisHoje();
     fecharSuperModal();
-    mostrarToast('✅ Experimental reservada!');
+    mostrarToast(`✅ Experimental agendada para ${dataAgendada}!`);
 }
 
 function matricularExperimentalInSuper(id) {
@@ -1229,36 +1543,26 @@ function matricularExperimentalInSuper(id) {
         if (nEl) nEl.value = exp.nome;
         if (pEl) pEl.value = exp.telefone;
         experimentais = experimentais.filter(e => e.id !== id);
-        deletarDoGoogle(exp._docId, 'experimentais');
         renderizarTudo();
         renderPainelExperimentaisHoje();
     }, 250);
 }
 
 // ============================================================
-// FIREBASE SAVE (REFATORADO)
+// FIREBASE SAVE
 // ============================================================
-async function salvarNoGoogle(dados, colecao = 'alunos') {
+async function salvarNoGoogle(dadosAluno) {
     try {
-        if (dados._docId) {
-            await db.collection(colecao).doc(dados._docId).set(dados);
+        if (dadosAluno._docId) {
+            await db.collection('alunos').doc(dadosAluno._docId).set(dadosAluno);
         } else {
-            const docRef = await db.collection(colecao).add(dados);
-            dados._docId = docRef.id;
+            const docRef = await db.collection('alunos').add(dadosAluno);
+            dadosAluno._docId = docRef.id;
         }
         mostrarToast('✅ Salvo no Firebase!');
     } catch (erro) {
         mostrarToast('❌ Erro ao salvar: ' + erro.message, 'erro');
         console.error(erro);
-    }
-}
-
-async function deletarDoGoogle(docId, colecao) {
-    if (!docId) return;
-    try {
-        await db.collection(colecao).doc(docId).delete();
-    } catch (erro) {
-        console.error("Erro ao deletar do Firebase:", erro);
     }
 }
 
@@ -1295,37 +1599,6 @@ function toggleTheme() {
 })();
 
 // ============================================================
-// MONITOR EM TEMPO REAL
-// ============================================================
-function atualizarMonitorTempoReal() {
-    const agora = new Date();
-    const hojeStr = diasPtBr[agora.getDay()];
-    const minAtuais = agora.getHours() * 60 + agora.getMinutes();
-
-    document.querySelectorAll('.card').forEach(card => card.querySelector('.badge-andamento')?.remove());
-
-    horariosConfig.forEach(h => {
-        if (!h.dias.includes(hojeStr)) return;
-        const minIn = horarioParaMinutos(h.horario);
-        const partesF = h.horario.split('-')[1]?.split(':').map(Number);
-        const minFim = partesF ? partesF[0] * 60 + partesF[1] : minIn + 45;
-        const diff = minIn - minAtuais;
-
-        document.querySelectorAll('.card').forEach(card => {
-            const txtMod = card.querySelector('h3 span')?.innerText;
-            const txtHor = card.querySelector('.horario')?.innerText;
-            if (txtMod === h.modalidade && txtHor === h.horario) {
-                if (minAtuais >= minIn && minAtuais <= minFim) {
-                    card.style.borderColor = "#f59e0b";
-                } else if (diff > 0 && diff <= 120) {
-                    card.style.borderColor = "#0284c7";
-                }
-            }
-        });
-    });
-}
-
-// ============================================================
 // INICIALIZAÇÃO
 // ============================================================
 window.onload = function() {
@@ -1334,7 +1607,6 @@ window.onload = function() {
         document.getElementById("appContainer").style.display = "block";
         carregarDados();
     }
-    setInterval(atualizarMonitorTempoReal, 30000);
     setInterval(() => {
         renderPainelExperimentaisHoje();
         renderizarTudo();
