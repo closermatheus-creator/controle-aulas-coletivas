@@ -1793,3 +1793,4 @@ window.onload = function() {
     }
     setInterval(() => { renderPainelExperimentaisHoje(); renderizarTudo(); }, 60000);
 };
+
