@@ -1,5 +1,5 @@
 // ============================================================
-// AQUACONTROL v5.0 — SISTEMA COMPLETO
+// AQUACONTROL v6.0 — SISTEMA COMPLETO COM CRIAÇÃO DE MODALIDADES
 // ============================================================
 const MASTER_PASSWORD = "aqua123";
 
@@ -16,7 +16,20 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 // ============================================================
-// GRADE HORÁRIA COMPLETA (73 HORÁRIOS)
+// LISTA DE MODALIDADES (PODE SER EDITADA PELO USUÁRIO)
+// ============================================================
+let modalidadesDisponiveis = [
+    "Natação Adulto",
+    "Hidroginástica",
+    "Natação Infantil Nível 1",
+    "Natação Infantil Nível 2",
+    "Natação Infantil Nível 3",
+    "Natação Baby",
+    "Personal Class"
+];
+
+// ============================================================
+// GRADE HORÁRIA COMPLETA
 // ============================================================
 let horariosConfig = [
     { id: 1, modalidade: "Natação Adulto", dias: ["Segunda","Quarta","Sexta"], horario: "06:00-06:40", capacidade: 10, turno: "manha" },
@@ -115,6 +128,65 @@ let historicoFaltasExperimentais = {};
 let activeFilters = { modalidade: 'TODAS', turno: 'TODOS', ocupacao: 'TODOS', dias: [] };
 const diasMap = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 'qui', 'Sexta': 'sex', 'Sábado': 'sab' };
 const diasPtBr = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+
+// ============================================================
+// FUNÇÃO PARA ATUALIZAR DROPDOWNS DE MODALIDADE
+// ============================================================
+function atualizarDropdownsModalidade() {
+    const selects = document.querySelectorAll('.modalidade-select');
+    selects.forEach(select => {
+        const valorAtual = select.value;
+        select.innerHTML = modalidadesDisponiveis.map(m => `<option value="${m}" ${valorAtual === m ? 'selected' : ''}>${m}</option>`).join('');
+    });
+}
+
+// ============================================================
+// CRIAR NOVA MODALIDADE
+// ============================================================
+function abrirCriarModalidade() {
+    const modal = document.getElementById('globalSuperModal');
+    const titulo = document.getElementById('superModalTitulo');
+    const corpo = document.getElementById('superModalCorpo');
+    
+    titulo.innerHTML = '➕ Criar Nova Modalidade';
+    corpo.innerHTML = `
+        <div style="max-width:400px;margin:0 auto;">
+            <div style="margin-bottom:20px;">
+                <label style="font-weight:bold;display:block;margin-bottom:8px;">Nome da Nova Modalidade:</label>
+                <input type="text" id="novaModalidadeNome" class="search-input-field" style="width:100%;padding:12px;" placeholder="Ex: Natação Competição, Alongamento, etc.">
+            </div>
+            <div style="margin-bottom:20px;padding:12px;background:#e0f2fe;border-radius:8px;color:#0369a1;">
+                💡 A nova modalidade aparecerá em todos os lugares (cadastro de alunos, criação de turmas, filtros).
+            </div>
+            <div class="form-actions-row" style="display:flex;gap:10px;justify-content:flex-end;">
+                <button class="btn-save-modal" onclick="salvarNovaModalidade()" style="background:#006994;">✅ Criar Modalidade</button>
+                <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
+            </div>
+        </div>
+    `;
+    modal.classList.add('active');
+}
+
+function salvarNovaModalidade() {
+    const novaModalidade = document.getElementById('novaModalidadeNome').value.trim();
+    if (!novaModalidade) {
+        alert('⚠️ Digite o nome da nova modalidade!');
+        return;
+    }
+    if (modalidadesDisponiveis.includes(novaModalidade)) {
+        alert(`⚠️ A modalidade "${novaModalidade}" já existe!`);
+        return;
+    }
+    
+    modalidadesDisponiveis.push(novaModalidade);
+    modalidadesDisponiveis.sort();
+    
+    // Atualizar todos os dropdowns
+    atualizarDropdownsModalidade();
+    
+    fecharSuperModal();
+    mostrarToast(`✅ Modalidade "${novaModalidade}" criada com sucesso!`);
+}
 
 // ============================================================
 // LOGIN
@@ -224,22 +296,26 @@ function alunoContaOcupacao(a) {
 }
 
 // ============================================================
-// OCUPAÇÃO (inclui experimentais)
+// OCUPAÇÃO (CORRIGIDA - ALUNO APARECE EM TODAS AS TURMAS)
 // ============================================================
 function getAlunosPorHorarioDia(horarioId, diaFiltro) {
     const horario = horariosConfig.find(h => h.id == horarioId);
     if (!horario) return [];
 
     return alunos.filter(aluno => {
-        if (diaFiltro && diaFiltro !== 'TODOS') {
+        if (diaFiltro && diaFiltro !== 'TODOS' && diaFiltro.length > 0) {
             const diasAtivos = Array.isArray(diaFiltro) ? diaFiltro : [diaFiltro];
             return diasAtivos.some(dia => {
                 if (!horario.dias.includes(dia)) return false;
-                return aluno[diasMap[dia]] == horarioId;
+                const campo = diasMap[dia];
+                return aluno[campo] == horarioId;
             });
         } else {
             for (const dia of horario.dias) {
-                if (aluno[diasMap[dia]] == horarioId) return true;
+                const campo = diasMap[dia];
+                if (aluno[campo] == horarioId) {
+                    return true;
+                }
             }
             return false;
         }
@@ -249,12 +325,25 @@ function getAlunosPorHorarioDia(horarioId, diaFiltro) {
 function getOcupacaoHorarioDia(horarioId, diaFiltro) {
     const alunosCount = getAlunosPorHorarioDia(horarioId, diaFiltro).filter(alunoContaOcupacao).length;
     const hojeStr = formatarDataISO();
-    const expCount = experimentais.filter(e => {
-        if (e.horario_id !== horarioId) return false;
-        if (e.status !== 'agendado') return false;
-        if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
-        return true;
-    }).length;
+    
+    let expCount = 0;
+    if (diaFiltro && diaFiltro.length > 0) {
+        const diasFiltroArray = Array.isArray(diaFiltro) ? diaFiltro : [diaFiltro];
+        expCount = experimentais.filter(e => {
+            if (e.horario_id !== horarioId) return false;
+            if (e.status !== 'agendado') return false;
+            if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
+            return diasFiltroArray.includes(e.dia);
+        }).length;
+    } else {
+        expCount = experimentais.filter(e => {
+            if (e.horario_id !== horarioId) return false;
+            if (e.status !== 'agendado') return false;
+            if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
+            return true;
+        }).length;
+    }
+    
     return alunosCount + expCount;
 }
 
@@ -473,55 +562,263 @@ function renderizarTudo() {
 }
 
 // ============================================================
-// EDIÇÃO DE TURMA
+// EDIÇÃO COMPLETA DE TURMA (COM HORÁRIO)
 // ============================================================
 function abrirEdicaoTurma(hId) {
     const h = horariosConfig.find(x => x.id === hId);
     if (!h) return;
+    
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    titulo.innerHTML = '✏️ Editar Turma';
+    
+    titulo.innerHTML = `✏️ Editar Turma: ${h.modalidade}`;
+    
+    const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const diasCheckboxHtml = diasSemana.map(dia => `
+        <label style="display:inline-flex;align-items:center;gap:6px;margin-right:10px;margin-bottom:8px;background:#f1f5f9;padding:6px 14px;border-radius:30px;cursor:pointer;">
+            <input type="checkbox" value="${dia}" ${h.dias.includes(dia) ? 'checked' : ''}> ${dia}
+        </label>
+    `).join('');
+    
     corpo.innerHTML = `
-        <div style="display:grid;gap:15px;max-width:480px;">
-            <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Modalidade:</label>
-                <select id="etMod" class="form-select-field" style="width:100%;height:44px;">
-                    ${["Natação Adulto","Hidroginástica","Natação Infantil Nível 1","Natação Infantil Nível 2","Natação Infantil Nível 3","Natação Baby","Personal Class"].map(m => `<option value="${m}" ${h.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}
+        <div style="max-width:550px;margin:0 auto;">
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">🏊 Modalidade:</label>
+                <select id="editTurmaModalidade" class="form-select-field modalidade-select" style="width:100%;padding:10px;">
+                    ${modalidadesDisponiveis.map(m => `<option value="${m}" ${h.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}
                 </select>
             </div>
-            <div><label style="font-weight:bold;display:block;margin-bottom:5px;">Limite de Vagas:</label><input type="number" id="etCap" class="search-input-field" value="${h.capacidade}" min="1" max="100"></div>
-            <div style="font-size:0.85rem;color:#64748b;">Horário: <strong>${h.horario}</strong> | Dias: <strong>${h.dias.join(', ')}</strong></div>
-            <div class="form-actions-row"><button class="btn-save-modal" onclick="salvarEdicaoTurma(${hId})">💾 Salvar</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">⏰ HORÁRIO (ex: 08:00-09:00):</label>
+                <input type="text" id="editTurmaHorario" class="search-input-field" value="${h.horario}" style="width:100%;padding:10px;font-size:1rem;" placeholder="08:00-09:00">
+                <small style="color:#64748b;">Formato: HH:MM-HH:MM (ex: 14:30-15:10)</small>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold;display:block;margin-bottom:8px;">📅 Dias da Semana:</label>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">${diasCheckboxHtml}</div>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">👥 Capacidade (vagas):</label>
+                <input type="number" id="editTurmaCapacidade" class="search-input-field" value="${h.capacidade}" min="1" max="100" style="width:100%;padding:10px;">
+            </div>
+            
+            <div style="margin-bottom:20px;">
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">🌙 Turno:</label>
+                <select id="editTurmaTurno" class="form-select-field" style="width:100%;padding:10px;">
+                    <option value="manha" ${h.turno === 'manha' ? 'selected' : ''}>🌅 Manhã (até 11:59)</option>
+                    <option value="tarde" ${h.turno === 'tarde' ? 'selected' : ''}>☀️ Tarde (12:00 - 16:59)</option>
+                    <option value="noite" ${h.turno === 'noite' ? 'selected' : ''}>🌙 Noite (17:00 em diante)</option>
+                    <option value="sabado" ${h.turno === 'sabado' ? 'selected' : ''}>📅 Sábado</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom:20px;padding:12px;background:#fff3e0;border-radius:8px;color:#b45309;font-size:0.85rem;border-left:3px solid #f59e0b;">
+                ⚠️ <strong>Atenção:</strong> Alterar horário ou dias pode afetar a matrícula dos alunos!
+            </div>
+            
+            <div class="form-actions-row" style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;">
+                <button onclick="excluirTurmaPermanente(${h.id})" style="background:#fee2e2;color:#b91c1c;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;">🗑️ Excluir Turma</button>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn-save-modal" onclick="salvarEdicaoCompletaTurma(${h.id})" style="background:#006994;color:white;padding:10px 24px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;">💾 Salvar</button>
+                    <button class="btn-discard-modal" onclick="fecharSuperModal()" style="background:#e2e8f0;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;">Cancelar</button>
+                </div>
+            </div>
         </div>
     `;
+    
     modal.classList.add('active');
 }
 
-function toggleEditNomeTurma(hId) {
+function salvarEdicaoCompletaTurma(hId) {
     const h = horariosConfig.find(x => x.id === hId);
     if (!h) return;
-    const span = document.getElementById('nomeTurmaDisplay');
-    if (!span) return;
-    if (span.querySelector('input')) {
-        const input = span.querySelector('input');
-        h.modalidade = input.value.trim() || h.modalidade;
-        renderizarTudo();
-        abrirModalHorario(hId);
-        mostrarToast('✅ Nome da turma atualizado!');
-    } else {
-        span.innerHTML = `<input type="text" value="${h.modalidade}" style="font-size:0.95rem;padding:4px 8px;border-radius:6px;border:2px solid #006994;width:260px;" onkeydown="if(event.key==='Enter')toggleEditNomeTurma(${hId})" autofocus>`;
-        span.querySelector('input').focus();
+    
+    const novaModalidade = document.getElementById('editTurmaModalidade').value;
+    const novoHorario = document.getElementById('editTurmaHorario').value.trim();
+    const novaCapacidade = parseInt(document.getElementById('editTurmaCapacidade').value);
+    let novoTurno = document.getElementById('editTurmaTurno').value;
+    
+    const novosDias = [];
+    document.querySelectorAll('#globalSuperModal input[type="checkbox"]').forEach(cb => {
+        if (cb.checked && ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'].includes(cb.value)) {
+            novosDias.push(cb.value);
+        }
+    });
+    
+    if (!novoHorario) { alert('⚠️ Digite o horário!'); return; }
+    if (!novoHorario.match(/^\d{2}:\d{2}-\d{2}:\d{2}$/)) {
+        alert('⚠️ Formato de horário inválido! Use HH:MM-HH:MM (ex: 08:00-09:00)');
+        return;
     }
+    if (novosDias.length === 0) { alert('⚠️ Selecione pelo menos um dia!'); return; }
+    if (!novaCapacidade || novaCapacidade < 1) { alert('⚠️ Capacidade inválida!'); return; }
+    
+    const horaInicio = parseInt(novoHorario.split('-')[0].split(':')[0]);
+    if (horaInicio >= 17 && novoTurno !== 'sabado') novoTurno = 'noite';
+    else if (horaInicio >= 12 && horaInicio < 17) novoTurno = 'tarde';
+    else if (horaInicio >= 6 && horaInicio < 12) novoTurno = 'manha';
+    
+    const conflito = horariosConfig.find(t => t.id !== hId && t.horario === novoHorario && t.dias.some(d => novosDias.includes(d)));
+    if (conflito) {
+        if (!confirm(`⚠️ Já existe uma turma de "${conflito.modalidade}" no horário ${novoHorario}. Deseja continuar?`)) {
+            return;
+        }
+    }
+    
+    h.modalidade = novaModalidade;
+    h.horario = novoHorario;
+    h.dias = novosDias;
+    h.capacidade = novaCapacidade;
+    h.turno = novoTurno;
+    
+    renderizarTudo();
+    fecharSuperModal();
+    mostrarToast(`✅ Turma "${novaModalidade}" (${novoHorario}) atualizada!`);
 }
 
-function salvarEdicaoTurma(hId) {
-    const h = horariosConfig.find(x => x.id === hId);
-    if (!h) return;
-    h.modalidade = document.getElementById('etMod').value;
-    h.capacidade = parseInt(document.getElementById('etCap').value) || h.capacidade;
-    fecharSuperModal();
+function excluirTurmaPermanente(hId) {
+    const turma = horariosConfig.find(h => h.id === hId);
+    if (!turma) return;
+    
+    const alunosMatriculados = alunos.filter(a => {
+        return turma.dias.some(dia => a[diasMap[dia]] == hId);
+    });
+    
+    let msg = `⚠️ EXCLUIR TURMA PERMANENTEMENTE?\n\n📌 ${turma.modalidade}\n⏰ ${turma.horario}\n📅 Dias: ${turma.dias.join(', ')}\n\n`;
+    if (alunosMatriculados.length > 0) {
+        msg += `🔴 ATENÇÃO: ${alunosMatriculados.length} aluno(s) estão matriculados!\n\n`;
+    }
+    msg += `Digite "SIM" para confirmar.`;
+    
+    const confirmText = prompt(msg);
+    if (confirmText !== "SIM") { alert("❌ Cancelado!"); return; }
+    
+    alunos.forEach(a => {
+        turma.dias.forEach(dia => {
+            const campo = diasMap[dia];
+            if (a[campo] == hId) a[campo] = '';
+        });
+        salvarNoGoogle(a);
+    });
+    
+    const index = horariosConfig.findIndex(h => h.id === hId);
+    if (index !== -1) horariosConfig.splice(index, 1);
+    
     renderizarTudo();
-    mostrarToast('✅ Turma atualizada!');
+    fecharSuperModal();
+    mostrarToast(`✅ Turma "${turma.modalidade}" excluída!`);
+}
+
+// ============================================================
+// CRIAR NOVA TURMA
+// ============================================================
+function abrirCriarTurma() {
+    const modal = document.getElementById('globalSuperModal');
+    const titulo = document.getElementById('superModalTitulo');
+    const corpo = document.getElementById('superModalCorpo');
+    
+    titulo.innerHTML = '➕ Criar Nova Turma';
+    corpo.innerHTML = `
+        <div style="max-width:500px;margin:0 auto;">
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">Modalidade:</label>
+                <select id="novaModalidade" class="form-select-field modalidade-select" style="width:100%;">
+                    ${modalidadesDisponiveis.map(m => `<option value="${m}">${m}</option>`).join('')}
+                </select>
+                <button onclick="abrirCriarModalidade()" style="margin-top:5px;background:#e0f2fe;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">➕ Criar nova modalidade</button>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">Horário (ex: 08:00-09:00):</label>
+                <input type="text" id="novoHorario" class="search-input-field" placeholder="08:00-09:00" style="width:100%;">
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">Dias da Semana:</label>
+                <div class="dias-checkbox-group">
+                    <label><input type="checkbox" value="Segunda"> Segunda</label>
+                    <label><input type="checkbox" value="Terça"> Terça</label>
+                    <label><input type="checkbox" value="Quarta"> Quarta</label>
+                    <label><input type="checkbox" value="Quinta"> Quinta</label>
+                    <label><input type="checkbox" value="Sexta"> Sexta</label>
+                    <label><input type="checkbox" value="Sábado"> Sábado</label>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">Capacidade (vagas):</label>
+                <input type="number" id="novaCapacidade" class="search-input-field" value="10" min="1" max="100" style="width:100%;">
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">Turno:</label>
+                <select id="novoTurno" class="form-select-field" style="width:100%;">
+                    <option value="manha">🌅 Manhã (até 11:59)</option>
+                    <option value="tarde">☀️ Tarde (12:00 - 16:59)</option>
+                    <option value="noite">🌙 Noite (17:00 em diante)</option>
+                    <option value="sabado">📅 Sábado</option>
+                </select>
+            </div>
+            
+            <div class="form-actions-row" style="margin-top:20px;">
+                <button class="btn-save-modal" onclick="salvarNovaTurma()">💾 Criar Turma</button>
+                <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
+            </div>
+        </div>
+    `;
+    
+    const horarioInput = document.getElementById('novoHorario');
+    const turnoSelect = document.getElementById('novoTurno');
+    if (horarioInput && turnoSelect) {
+        horarioInput.addEventListener('input', function() {
+            const hora = parseInt(this.value.split('-')[0]?.split(':')[0] || 0);
+            if (hora >= 17) turnoSelect.value = 'noite';
+            else if (hora >= 12) turnoSelect.value = 'tarde';
+            else if (hora >= 6) turnoSelect.value = 'manha';
+        });
+    }
+    
+    modal.classList.add('active');
+}
+
+function salvarNovaTurma() {
+    const modalidade = document.getElementById('novaModalidade').value;
+    const horario = document.getElementById('novoHorario').value.trim();
+    const capacidade = parseInt(document.getElementById('novaCapacidade').value);
+    const turno = document.getElementById('novoTurno').value;
+    
+    const diasSelecionados = [];
+    document.querySelectorAll('.dias-checkbox-group input[type="checkbox"]:checked').forEach(cb => {
+        diasSelecionados.push(cb.value);
+    });
+    
+    if (!horario) { alert('⚠️ Digite o horário!'); return; }
+    if (!horario.match(/^\d{2}:\d{2}-\d{2}:\d{2}$/)) { 
+        alert('⚠️ Formato inválido! Use HH:MM-HH:MM'); 
+        return; 
+    }
+    if (diasSelecionados.length === 0) { alert('⚠️ Selecione pelo menos um dia!'); return; }
+    if (!capacidade || capacidade < 1) { alert('⚠️ Capacidade inválida!'); return; }
+    
+    const novoId = Math.max(...horariosConfig.map(h => h.id), 0) + 1;
+    
+    const novaTurma = {
+        id: novoId,
+        modalidade: modalidade,
+        dias: diasSelecionados,
+        horario: horario,
+        capacidade: capacidade,
+        turno: turno
+    };
+    
+    horariosConfig.push(novaTurma);
+    renderizarTudo();
+    fecharSuperModal();
+    mostrarToast(`✅ Turma de ${modalidade} (${horario}) criada!`);
 }
 
 // ============================================================
@@ -609,8 +906,25 @@ function abrirModalHorario(horarioId) {
     modal.classList.add('active');
 }
 
+function toggleEditNomeTurma(hId) {
+    const h = horariosConfig.find(x => x.id === hId);
+    if (!h) return;
+    const span = document.getElementById('nomeTurmaDisplay');
+    if (!span) return;
+    if (span.querySelector('input')) {
+        const input = span.querySelector('input');
+        h.modalidade = input.value.trim() || h.modalidade;
+        renderizarTudo();
+        abrirModalHorario(hId);
+        mostrarToast('✅ Nome da turma atualizado!');
+    } else {
+        span.innerHTML = `<input type="text" value="${h.modalidade}" style="font-size:0.95rem;padding:4px 8px;border-radius:6px;border:2px solid #006994;width:260px;" onkeydown="if(event.key==='Enter')toggleEditNomeTurma(${hId})" autofocus>`;
+        span.querySelector('input').focus();
+    }
+}
+
 // ============================================================
-// EXCLUIR ALUNO DA TURMA (remove vínculo)
+// EXCLUIR ALUNO DA TURMA
 // ============================================================
 async function excluirAlunoDaTurma(codigo, horarioId, dia) {
     const aluno = alunos.find(a => a.codigo == codigo);
@@ -765,7 +1079,7 @@ function abrirEdicaoCompletaInline(cod, hId) {
             <div><label>Nome:</label><input type="text" id="editFullN" class="search-input-field" value="${a.nome}"></div>
             <div><label>Telefone:</label><input type="text" id="editFullP" class="search-input-field" value="${a.telefone}"></div>
             <div><label>Vencimento:</label><input type="text" id="editFullV" class="search-input-field" value="${a.vencimento || ''}"></div>
-            <div><label>Modalidade:</label><select id="editFullMod" class="form-select-field">${["Natação Adulto","Hidroginástica","Natação Infantil Nível 1","Natação Infantil Nível 2","Natação Infantil Nível 3","Natação Baby","Personal Class"].map(m => `<option value="${m}" ${a.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
+            <div><label>Modalidade:</label><select id="editFullMod" class="form-select-field modalidade-select">${modalidadesDisponiveis.map(m => `<option value="${m}" ${a.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
             <div><label>Status:</label><select id="editFullStatus" class="form-select-field"><option value="ATIVO" ${statusAtual === 'ATIVO' ? 'selected' : ''}>🟢 ATIVO</option><option value="PAUSADO" ${statusAtual === 'PAUSADO' ? 'selected' : ''}>⏸ PAUSADO</option><option value="TRANCADO" ${statusAtual === 'TRANCADO' ? 'selected' : ''}>🔒 TRANCADO</option></select></div>
         </div>
         <div style="background:#edf2f7;padding:12px;border-radius:8px;margin-bottom:15px;"><span style="font-weight:bold;">🗓️ Grade Semanal:</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px;">${selectGradeHtml}</div></div>
@@ -832,7 +1146,6 @@ function abrirSuperModal(tipo) {
         titulo.innerHTML = '📅 Aulas Experimentais Futuras';
         corpo.innerHTML = `
             <input type="text" id="buscarExpFuturo" class="search-input-field" style="margin-bottom:15px;" placeholder="🔍 Buscar por nome ou telefone..." oninput="renderExperimentaisFuturos()">
-            <div id="formEdicaoExpContainer" style="display:none;background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:20px;border:2px dashed #006994;"></div>
             <div class="table-container" style="max-height:500px;overflow-y:auto;">
                 <table style="width:100%;">
                     <thead><tr><th>Data</th><th>Horário</th><th>Nome</th><th>Telefone</th><th>Status</th><th>Ações</th></tr></thead>
@@ -841,7 +1154,45 @@ function abrirSuperModal(tipo) {
             </div>
         `;
         renderExperimentaisFuturos();
+    } else if (tipo === 'modalidades') {
+        titulo.innerHTML = '🏷️ Gerenciar Modalidades';
+        corpo.innerHTML = `
+            <div style="margin-bottom:20px;">
+                <button onclick="abrirCriarModalidade()" style="background:#006994;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;">➕ Criar Nova Modalidade</button>
+            </div>
+            <div class="table-container">
+                <table style="width:100%;">
+                    <thead><tr><th>Modalidades Existentes</th><th>Ações</th></tr></thead>
+                    <tbody id="modalidadesListBody"></tbody>
+                </table>
+            </div>
+        `;
+        renderModalidadesList();
     }
+}
+
+function renderModalidadesList() {
+    const body = document.getElementById('modalidadesListBody');
+    if (!body) return;
+    body.innerHTML = modalidadesDisponiveis.map(mod => `
+        <tr>
+            <td style="padding:10px;">🏊 ${mod}</td>
+            <td style="padding:10px;"><button onclick="excluirModalidade('${mod}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td>
+        </tr>
+    `).join('');
+}
+
+function excluirModalidade(modalidade) {
+    if (modalidadesDisponiveis.length <= 1) {
+        alert('⚠️ Não é possível excluir a única modalidade!');
+        return;
+    }
+    if (!confirm(`⚠️ Excluir a modalidade "${modalidade}"?\n\nIsso pode afetar turmas e alunos que usam esta modalidade.`)) return;
+    const index = modalidadesDisponiveis.indexOf(modalidade);
+    if (index !== -1) modalidadesDisponiveis.splice(index, 1);
+    atualizarDropdownsModalidade();
+    renderModalidadesList();
+    mostrarToast(`✅ Modalidade "${modalidade}" excluída!`);
 }
 
 function renderExperimentaisFuturos() {
@@ -917,13 +1268,12 @@ function abrirEdicaoExperimental(expId) {
                 </select>
             </div>
             <div class="form-actions-row" style="margin-top:20px;">
-                <button class="btn-save-modal" onclick="salvarEdicaoExperimental(${exp.id})">💾 Salvar Alterações</button>
+                <button class="btn-save-modal" onclick="salvarEdicaoExperimental(${exp.id})">💾 Salvar</button>
                 <button class="btn-discard-modal" onclick="fecharSuperModal(); renderExperimentaisFuturos();">Cancelar</button>
             </div>
         </div>
     `;
     
-    // Carregar valores atuais
     setTimeout(() => {
         const modalidadeSelect = document.getElementById('editExpModalidade');
         if (modalidadeSelect && exp.modalidade) {
@@ -987,7 +1337,7 @@ function salvarEdicaoExperimental(expId) {
     const valorHorario = document.getElementById('editExpHorario').value;
     
     if (!novoNome || !novoTelefone) { alert('⚠️ Nome e telefone são obrigatórios!'); return; }
-    if (!novaData) { alert('⚠️ Selecione a data da aula!'); return; }
+    if (!novaData) { alert('⚠️ Selecione a data!'); return; }
     if (!valorHorario) { alert('⚠️ Selecione o horário!'); return; }
     
     const [hId, dia] = valorHorario.split('_');
@@ -1019,13 +1369,11 @@ async function salvarExperimentalNoFirebase(exp) {
 }
 
 function cancelarExperimental(expId) {
-    if (!confirm('⚠️ Cancelar esta aula experimental? Esta ação não pode ser desfeita.')) return;
+    if (!confirm('⚠️ Cancelar esta aula experimental?')) return;
     const index = experimentais.findIndex(e => e.id === expId);
     if (index !== -1) {
         const exp = experimentais[index];
-        if (exp._docId) {
-            db.collection('experimentais').doc(exp._docId).delete().catch(console.error);
-        }
+        if (exp._docId) db.collection('experimentais').doc(exp._docId).delete().catch(console.error);
         experimentais.splice(index, 1);
     }
     renderExperimentaisFuturos();
@@ -1061,7 +1409,7 @@ function renderStudentTableSuper() {
         if (a.seg) dParticipa.push("Seg"); if (a.ter) dParticipa.push("Ter");
         if (a.qua) dParticipa.push("Qua"); if (a.qui) dParticipa.push("Qui");
         if (a.sex) dParticipa.push("Sex"); if (a.sab) dParticipa.push("Sáb");
-        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td>${a.telefone}</td><td><span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td style="display:flex;gap:6px;flex-wrap:wrap;"><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WA</a><button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente(${a.codigo},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></tr>`;
+        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td>${a.telefone}</td><td><span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td style="display:flex;gap:6px;flex-wrap:wrap;"><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WA</a><button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente(${a.codigo},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></td>`;
     }).join('');
 }
 
@@ -1133,7 +1481,7 @@ function abrirFormularioSobreposto(tipo) {
         const diasMapLocal = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 'qui', 'Sexta': 'sex', 'Sábado': 'sab' };
         const selectGradeHtml = diasSemana.map(dia => `<div><label>${dia}:</label><select id="cadGrade${diasMapLocal[dia]}" class="form-select-field" onchange="atualizarCardsCadastro()"><option value="">[ Não treina ]</option></select><div id="cardDisponibilidade${diasMapLocal[dia]}" style="font-size:0.7rem;"></div></div>`).join('');
         corpo.innerHTML = `
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;"><div><label>Código:</label><input type="number" id="fabCodigo" class="search-input-field"></div><div><label>Nome:</label><input type="text" id="fName" class="search-input-field"></div><div><label>Telefone:</label><input type="text" id="fPhone" class="search-input-field"></div><div><label>Vencimento:</label><input type="text" id="fVenc" class="search-input-field" value="${formatarData()}"></div><div style="grid-column:1/-1;"><label>Modalidade:</label><select id="fMod" class="form-select-field" onchange="filtrarTurmasPorModalidade()"><option value="Natação Adulto">Natação Adulto</option><option value="Hidroginástica">Hidroginástica</option><option value="Natação Infantil Nível 1">Natação Infantil Nível 1</option><option value="Natação Infantil Nível 2">Natação Infantil Nível 2</option><option value="Natação Infantil Nível 3">Natação Infantil Nível 3</option><option value="Natação Baby">Natação Baby</option><option value="Personal Class">Personal Class</option></select></div></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;"><div><label>Código:</label><input type="number" id="fabCodigo" class="search-input-field"></div><div><label>Nome:</label><input type="text" id="fName" class="search-input-field"></div><div><label>Telefone:</label><input type="text" id="fPhone" class="search-input-field"></div><div><label>Vencimento:</label><input type="text" id="fVenc" class="search-input-field" value="${formatarData()}"></div><div style="grid-column:1/-1;"><label>Modalidade:</label><select id="fMod" class="form-select-field modalidade-select" onchange="filtrarTurmasPorModalidade()">${modalidadesDisponiveis.map(m => `<option value="${m}">${m}</option>`).join('')}</select></div></div>
             <div style="background:#edf2f7;padding:15px;border-radius:8px;margin:15px 0;"><span style="font-weight:bold;">🗓️ Vincular Turmas:</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px;">${selectGradeHtml}</div></div>
             <div class="form-actions-row"><button class="btn-save-modal" onclick="salvarMatriculaFab()">💾 Matricular</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
         `;
@@ -1322,469 +1670,8 @@ function toggleTheme() {
 (function() { if (localStorage.getItem('aqua_theme') === 'dark') document.body.classList.add('dark'); })();
 
 // ============================================================
-// GERENCIAMENTO DE TURMAS (CRIAR/EDITAR HORÁRIOS)
+// INICIALIZAÇÃO
 // ============================================================
-
-// Abrir modal para criar nova turma
-function abrirCriarTurma() {
-    const modal = document.getElementById('globalSuperModal');
-    const titulo = document.getElementById('superModalTitulo');
-    const corpo = document.getElementById('superModalCorpo');
-    
-    titulo.innerHTML = '➕ Criar Nova Turma';
-    corpo.innerHTML = `
-        <div style="max-width:500px;margin:0 auto;">
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Modalidade:</label>
-                <select id="novaModalidade" class="form-select-field" style="width:100%;">
-                    <option value="Natação Adulto">Natação Adulto</option>
-                    <option value="Hidroginástica">Hidroginástica</option>
-                    <option value="Natação Infantil Nível 1">Natação Infantil Nível 1</option>
-                    <option value="Natação Infantil Nível 2">Natação Infantil Nível 2</option>
-                    <option value="Natação Infantil Nível 3">Natação Infantil Nível 3</option>
-                    <option value="Natação Baby">Natação Baby</option>
-                    <option value="Personal Class">Personal Class</option>
-                </select>
-            </div>
-            
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Horário (ex: 08:00-09:00):</label>
-                <input type="text" id="novoHorario" class="search-input-field" placeholder="08:00-09:00" style="width:100%;">
-            </div>
-            
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Dias da Semana:</label>
-                <div class="dias-checkbox-group">
-                    <label><input type="checkbox" value="Segunda"> Segunda</label>
-                    <label><input type="checkbox" value="Terça"> Terça</label>
-                    <label><input type="checkbox" value="Quarta"> Quarta</label>
-                    <label><input type="checkbox" value="Quinta"> Quinta</label>
-                    <label><input type="checkbox" value="Sexta"> Sexta</label>
-                    <label><input type="checkbox" value="Sábado"> Sábado</label>
-                </div>
-            </div>
-            
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Capacidade (vagas):</label>
-                <input type="number" id="novaCapacidade" class="search-input-field" value="10" min="1" max="100" style="width:100%;">
-            </div>
-            
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Turno:</label>
-                <select id="novoTurno" class="form-select-field" style="width:100%;">
-                    <option value="manha">🌅 Manhã (até 11:59)</option>
-                    <option value="tarde">☀️ Tarde (12:00 - 16:59)</option>
-                    <option value="noite">🌙 Noite (17:00 em diante)</option>
-                    <option value="sabado">📅 Sábado</option>
-                </select>
-            </div>
-            
-            <div class="form-actions-row" style="margin-top:20px;">
-                <button class="btn-save-modal" onclick="salvarNovaTurma()">💾 Criar Turma</button>
-                <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
-            </div>
-        </div>
-    `;
-    
-    // Auto-detectar turno baseado no horário
-    const horarioInput = document.getElementById('novoHorario');
-    const turnoSelect = document.getElementById('novoTurno');
-    if (horarioInput && turnoSelect) {
-        horarioInput.addEventListener('input', function() {
-            const hora = parseInt(this.value.split('-')[0]?.split(':')[0] || 0);
-            if (hora >= 17) turnoSelect.value = 'noite';
-            else if (hora >= 12) turnoSelect.value = 'tarde';
-            else if (hora >= 6) turnoSelect.value = 'manha';
-        });
-    }
-    
-    modal.classList.add('active');
-}
-
-// Salvar nova turma
-function salvarNovaTurma() {
-    const modalidade = document.getElementById('novaModalidade').value;
-    const horario = document.getElementById('novoHorario').value.trim();
-    const capacidade = parseInt(document.getElementById('novaCapacidade').value);
-    const turno = document.getElementById('novoTurno').value;
-    
-    // Pegar dias selecionados
-    const diasSelecionados = [];
-    document.querySelectorAll('.dias-checkbox-group input[type="checkbox"]:checked').forEach(cb => {
-        diasSelecionados.push(cb.value);
-    });
-    
-    // Validações
-    if (!horario) { alert('⚠️ Digite o horário! Ex: 08:00-09:00'); return; }
-    if (!horario.match(/^\d{2}:\d{2}-\d{2}:\d{2}$/)) { 
-        alert('⚠️ Formato de horário inválido! Use HH:MM-HH:MM (ex: 08:00-09:00)'); 
-        return; 
-    }
-    if (diasSelecionados.length === 0) { alert('⚠️ Selecione pelo menos um dia da semana!'); return; }
-    if (!capacidade || capacidade < 1) { alert('⚠️ Capacidade inválida!'); return; }
-    
-    // Gerar novo ID
-    const novoId = Math.max(...horariosConfig.map(h => h.id), 0) + 1;
-    
-    // Criar nova turma
-    const novaTurma = {
-        id: novoId,
-        modalidade: modalidade,
-        dias: diasSelecionados,
-        horario: horario,
-        capacidade: capacidade,
-        turno: turno
-    };
-    
-    horariosConfig.push(novaTurma);
-    renderizarTudo();
-    fecharSuperModal();
-    mostrarToast(`✅ Turma de ${modalidade} (${horario}) criada com sucesso!`);
-}
-
-// Abrir modal para editar turma (completo)
-function abrirEdicaoCompletaTurma(hId) {
-    const h = horariosConfig.find(x => x.id === hId);
-    if (!h) return;
-    
-    const modal = document.getElementById('globalSuperModal');
-    const titulo = document.getElementById('superModalTitulo');
-    const corpo = document.getElementById('superModalCorpo');
-    
-    titulo.innerHTML = `✏️ Editar Turma: ${h.modalidade} (${h.horario})`;
-    
-    const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    const diasCheckboxHtml = diasSemana.map(dia => `
-        <label style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;background:#f1f5f9;padding:4px 12px;border-radius:20px;">
-            <input type="checkbox" value="${dia}" ${h.dias.includes(dia) ? 'checked' : ''}> ${dia}
-        </label>
-    `).join('');
-    
-    corpo.innerHTML = `
-        <div style="max-width:550px;margin:0 auto;">
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Modalidade:</label>
-                <select id="editTurmaModalidade" class="form-select-field" style="width:100%;">
-                    <option value="Natação Adulto" ${h.modalidade === 'Natação Adulto' ? 'selected' : ''}>Natação Adulto</option>
-                    <option value="Hidroginástica" ${h.modalidade === 'Hidroginástica' ? 'selected' : ''}>Hidroginástica</option>
-                    <option value="Natação Infantil Nível 1" ${h.modalidade === 'Natação Infantil Nível 1' ? 'selected' : ''}>Natação Infantil Nível 1</option>
-                    <option value="Natação Infantil Nível 2" ${h.modalidade === 'Natação Infantil Nível 2' ? 'selected' : ''}>Natação Infantil Nível 2</option>
-                    <option value="Natação Infantil Nível 3" ${h.modalidade === 'Natação Infantil Nível 3' ? 'selected' : ''}>Natação Infantil Nível 3</option>
-                    <option value="Natação Baby" ${h.modalidade === 'Natação Baby' ? 'selected' : ''}>Natação Baby</option>
-                    <option value="Personal Class" ${h.modalidade === 'Personal Class' ? 'selected' : ''}>Personal Class</option>
-                </select>
-            </div>
-            
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Horário (ex: 08:00-09:00):</label>
-                <input type="text" id="editTurmaHorario" class="search-input-field" value="${h.horario}" style="width:100%;">
-            </div>
-            
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Dias da Semana:</label>
-                <div style="display:flex;flex-wrap:wrap;gap:8px;">${diasCheckboxHtml}</div>
-            </div>
-            
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Capacidade (vagas):</label>
-                <input type="number" id="editTurmaCapacidade" class="search-input-field" value="${h.capacidade}" min="1" max="100" style="width:100%;">
-            </div>
-            
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Turno:</label>
-                <select id="editTurmaTurno" class="form-select-field" style="width:100%;">
-                    <option value="manha" ${h.turno === 'manha' ? 'selected' : ''}>🌅 Manhã</option>
-                    <option value="tarde" ${h.turno === 'tarde' ? 'selected' : ''}>☀️ Tarde</option>
-                    <option value="noite" ${h.turno === 'noite' ? 'selected' : ''}>🌙 Noite</option>
-                    <option value="sabado" ${h.turno === 'sabado' ? 'selected' : ''}>📅 Sábado</option>
-                </select>
-            </div>
-            
-            <div style="margin-bottom:20px;padding:12px;background:#fef3c7;border-radius:8px;color:#b45309;font-size:0.85rem;">
-                ⚠️ Atenção: Alterar horário ou dias pode afetar a matrícula dos alunos!
-            </div>
-            
-            <div class="form-actions-row" style="display:flex;gap:10px;justify-content:space-between;">
-                <button onclick="excluirTurmaPermanente(${h.id})" style="background:#fee2e2;color:#b91c1c;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;">🗑️ Excluir Turma</button>
-                <div>
-                    <button class="btn-save-modal" onclick="salvarEdicaoCompletaTurma(${h.id})">💾 Salvar Alterações</button>
-                    <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    modal.classList.add('active');
-}
-
-// Salvar edição completa da turma
-function salvarEdicaoCompletaTurma(hId) {
-    const h = horariosConfig.find(x => x.id === hId);
-    if (!h) return;
-    
-    const novaModalidade = document.getElementById('editTurmaModalidade').value;
-    const novoHorario = document.getElementById('editTurmaHorario').value.trim();
-    const novaCapacidade = parseInt(document.getElementById('editTurmaCapacidade').value);
-    const novoTurno = document.getElementById('editTurmaTurno').value;
-    
-    // Pegar dias selecionados
-    const novosDias = [];
-    document.querySelectorAll('#globalSuperModal input[type="checkbox"]').forEach(cb => {
-        if (cb.checked && ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'].includes(cb.value)) {
-            novosDias.push(cb.value);
-        }
-    });
-    
-    // Validações
-    if (!novoHorario) { alert('⚠️ Digite o horário!'); return; }
-    if (!novoHorario.match(/^\d{2}:\d{2}-\d{2}:\d{2}$/)) {
-        alert('⚠️ Formato de horário inválido! Use HH:MM-HH:MM');
-        return;
-    }
-    if (novosDias.length === 0) { alert('⚠️ Selecione pelo menos um dia!'); return; }
-    if (!novaCapacidade || novaCapacidade < 1) { alert('⚠️ Capacidade inválida!'); return; }
-    
-    // Verificar se já existe turma com mesmo horário/dias
-    const conflito = horariosConfig.find(t => t.id !== hId && t.horario === novoHorario && t.dias.some(d => novosDias.includes(d)));
-    if (conflito) {
-        if (!confirm(`⚠️ Já existe uma turma de ${conflito.modalidade} no horário ${novoHorario} em alguns dias. Deseja continuar mesmo assim?`)) {
-            return;
-        }
-    }
-    
-    // Atualizar turma
-    h.modalidade = novaModalidade;
-    h.horario = novoHorario;
-    h.dias = novosDias;
-    h.capacidade = novaCapacidade;
-    h.turno = novoTurno;
-    
-    renderizarTudo();
-    fecharSuperModal();
-    mostrarToast(`✅ Turma atualizada com sucesso!`);
-}
-
-// Excluir turma permanentemente
-function excluirTurmaPermanente(hId) {
-    const turma = horariosConfig.find(h => h.id === hId);
-    if (!turma) return;
-    
-    // Verificar se tem alunos matriculados
-    const alunosMatriculados = alunos.filter(a => {
-        return turma.dias.some(dia => a[diasMap[dia]] == hId);
-    });
-    
-    let msg = `⚠️ EXCLUIR TURMA PERMANENTEMENTE?\n\n${turma.modalidade} (${turma.horario})\nDias: ${turma.dias.join(', ')}\n\n`;
-    if (alunosMatriculados.length > 0) {
-        msg += `🔴 ATENÇÃO: ${alunosMatriculados.length} aluno(s) estão matriculados nesta turma!\n\nEles ficarão sem turma nesse(s) dia(s).\n\n`;
-    }
-    msg += `Digite "SIM" para confirmar a exclusão.`;
-    
-    const confirmText = prompt(msg);
-    if (confirmText !== "SIM") { alert("❌ Exclusão cancelada!"); return; }
-    
-    // Remover vínculos dos alunos
-    alunos.forEach(a => {
-        turma.dias.forEach(dia => {
-            const campo = diasMap[dia];
-            if (a[campo] == hId) {
-                a[campo] = '';
-            }
-        });
-        salvarNoGoogle(a);
-    });
-    
-    // Remover turma
-    const index = horariosConfig.findIndex(h => h.id === hId);
-    if (index !== -1) {
-        horariosConfig.splice(index, 1);
-    }
-    
-    renderizarTudo();
-    fecharSuperModal();
-    mostrarToast(`✅ Turma ${turma.modalidade} excluída!`);
-}
-
-// ============================================================
-// EDIÇÃO COMPLETA DE TURMA (com horário)
-// ============================================================
-function abrirEdicaoTurma(hId) {
-    const h = horariosConfig.find(x => x.id === hId);
-    if (!h) return;
-    
-    const modal = document.getElementById('globalSuperModal');
-    const titulo = document.getElementById('superModalTitulo');
-    const corpo = document.getElementById('superModalCorpo');
-    
-    titulo.innerHTML = `✏️ Editar Turma: ${h.modalidade}`;
-    
-    const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    const diasCheckboxHtml = diasSemana.map(dia => `
-        <label style="display:inline-flex;align-items:center;gap:6px;margin-right:10px;margin-bottom:8px;background:#f1f5f9;padding:6px 14px;border-radius:30px;cursor:pointer;">
-            <input type="checkbox" value="${dia}" ${h.dias.includes(dia) ? 'checked' : ''}> ${dia}
-        </label>
-    `).join('');
-    
-    corpo.innerHTML = `
-        <div style="max-width:550px;margin:0 auto;">
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">🏊 Modalidade:</label>
-                <select id="editTurmaModalidade" class="form-select-field" style="width:100%;padding:10px;">
-                    <option value="Natação Adulto" ${h.modalidade === 'Natação Adulto' ? 'selected' : ''}>Natação Adulto</option>
-                    <option value="Hidroginástica" ${h.modalidade === 'Hidroginástica' ? 'selected' : ''}>Hidroginástica</option>
-                    <option value="Natação Infantil Nível 1" ${h.modalidade === 'Natação Infantil Nível 1' ? 'selected' : ''}>Natação Infantil Nível 1</option>
-                    <option value="Natação Infantil Nível 2" ${h.modalidade === 'Natação Infantil Nível 2' ? 'selected' : ''}>Natação Infantil Nível 2</option>
-                    <option value="Natação Infantil Nível 3" ${h.modalidade === 'Natação Infantil Nível 3' ? 'selected' : ''}>Natação Infantil Nível 3</option>
-                    <option value="Natação Baby" ${h.modalidade === 'Natação Baby' ? 'selected' : ''}>Natação Baby</option>
-                    <option value="Personal Class" ${h.modalidade === 'Personal Class' ? 'selected' : ''}>Personal Class</option>
-                </select>
-            </div>
-            
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">⏰ HORÁRIO (ex: 08:00-09:00):</label>
-                <input type="text" id="editTurmaHorario" class="search-input-field" value="${h.horario}" style="width:100%;padding:10px;font-size:1rem;" placeholder="08:00-09:00">
-                <small style="color:#64748b;">Formato: HH:MM-HH:MM (ex: 14:30-15:10)</small>
-            </div>
-            
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:8px;">📅 Dias da Semana:</label>
-                <div style="display:flex;flex-wrap:wrap;gap:6px;">${diasCheckboxHtml}</div>
-            </div>
-            
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">👥 Capacidade (vagas):</label>
-                <input type="number" id="editTurmaCapacidade" class="search-input-field" value="${h.capacidade}" min="1" max="100" style="width:100%;padding:10px;">
-            </div>
-            
-            <div style="margin-bottom:20px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">🌙 Turno:</label>
-                <select id="editTurmaTurno" class="form-select-field" style="width:100%;padding:10px;">
-                    <option value="manha" ${h.turno === 'manha' ? 'selected' : ''}>🌅 Manhã (até 11:59)</option>
-                    <option value="tarde" ${h.turno === 'tarde' ? 'selected' : ''}>☀️ Tarde (12:00 - 16:59)</option>
-                    <option value="noite" ${h.turno === 'noite' ? 'selected' : ''}>🌙 Noite (17:00 em diante)</option>
-                    <option value="sabado" ${h.turno === 'sabado' ? 'selected' : ''}>📅 Sábado</option>
-                </select>
-            </div>
-            
-            <div style="margin-bottom:20px;padding:12px;background:#fff3e0;border-radius:8px;color:#b45309;font-size:0.85rem;border-left:3px solid #f59e0b;">
-                ⚠️ <strong>Atenção:</strong> Alterar horário ou dias pode afetar a matrícula dos alunos!
-            </div>
-            
-            <div class="form-actions-row" style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;">
-                <button onclick="excluirTurmaPermanente(${h.id})" style="background:#fee2e2;color:#b91c1c;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;">🗑️ Excluir Turma</button>
-                <div style="display:flex;gap:8px;">
-                    <button class="btn-save-modal" onclick="salvarEdicaoCompletaTurma(${h.id})" style="background:#006994;color:white;padding:10px 24px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;">💾 Salvar</button>
-                    <button class="btn-discard-modal" onclick="fecharSuperModal()" style="background:#e2e8f0;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;">Cancelar</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    modal.classList.add('active');
-}
-
-// Salvar edição completa da turma
-function salvarEdicaoCompletaTurma(hId) {
-    const h = horariosConfig.find(x => x.id === hId);
-    if (!h) return;
-    
-    const novaModalidade = document.getElementById('editTurmaModalidade').value;
-    const novoHorario = document.getElementById('editTurmaHorario').value.trim();
-    const novaCapacidade = parseInt(document.getElementById('editTurmaCapacidade').value);
-    let novoTurno = document.getElementById('editTurmaTurno').value;
-    
-    // Pegar dias selecionados
-    const novosDias = [];
-    document.querySelectorAll('#globalSuperModal input[type="checkbox"]').forEach(cb => {
-        if (cb.checked && ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'].includes(cb.value)) {
-            novosDias.push(cb.value);
-        }
-    });
-    
-    // Validações
-    if (!novoHorario) { alert('⚠️ Digite o horário!'); return; }
-    if (!novoHorario.match(/^\d{2}:\d{2}-\d{2}:\d{2}$/)) {
-        alert('⚠️ Formato de horário inválido! Use HH:MM-HH:MM (ex: 08:00-09:00)');
-        return;
-    }
-    if (novosDias.length === 0) { alert('⚠️ Selecione pelo menos um dia da semana!'); return; }
-    if (!novaCapacidade || novaCapacidade < 1) { alert('⚠️ Capacidade inválida!'); return; }
-    
-    // Corrigir turno automaticamente baseado no horário
-    const horaInicio = parseInt(novoHorario.split('-')[0].split(':')[0]);
-    if (horaInicio >= 17 && novoTurno !== 'sabado') novoTurno = 'noite';
-    else if (horaInicio >= 12 && horaInicio < 17) novoTurno = 'tarde';
-    else if (horaInicio >= 6 && horaInicio < 12) novoTurno = 'manha';
-    
-    // Verificar conflito de horário
-    const conflito = horariosConfig.find(t => t.id !== hId && t.horario === novoHorario && t.dias.some(d => novosDias.includes(d)));
-    if (conflito) {
-        if (!confirm(`⚠️ Já existe uma turma de "${conflito.modalidade}" no horário ${novoHorario} em alguns dias.\n\nDeseja continuar mesmo assim?`)) {
-            return;
-        }
-    }
-    
-    // Atualizar turma
-    h.modalidade = novaModalidade;
-    h.horario = novoHorario;
-    h.dias = novosDias;
-    h.capacidade = novaCapacidade;
-    h.turno = novoTurno;
-    
-    renderizarTudo();
-    fecharSuperModal();
-    mostrarToast(`✅ Turma "${novaModalidade}" (${novoHorario}) atualizada com sucesso!`);
-}
-
-// Excluir turma permanentemente
-function excluirTurmaPermanente(hId) {
-    const turma = horariosConfig.find(h => h.id === hId);
-    if (!turma) return;
-    
-    // Verificar se tem alunos matriculados
-    const alunosMatriculados = alunos.filter(a => {
-        return turma.dias.some(dia => a[diasMap[dia]] == hId);
-    });
-    
-    let msg = `⚠️ EXCLUIR TURMA PERMANENTEMENTE?\n\n`;
-    msg += `📌 ${turma.modalidade}\n`;
-    msg += `⏰ ${turma.horario}\n`;
-    msg += `📅 Dias: ${turma.dias.join(', ')}\n\n`;
-    
-    if (alunosMatriculados.length > 0) {
-        msg += `🔴 ATENÇÃO: ${alunosMatriculados.length} aluno(s) estão matriculados nesta turma!\n`;
-        msg += `Eles ficarão sem turma nesse(s) dia(s).\n\n`;
-    }
-    msg += `Digite "SIM" para confirmar a exclusão.`;
-    
-    const confirmText = prompt(msg);
-    if (confirmText !== "SIM") { 
-        alert("❌ Exclusão cancelada!"); 
-        return; 
-    }
-    
-    // Remover vínculos dos alunos
-    alunos.forEach(a => {
-        turma.dias.forEach(dia => {
-            const campo = diasMap[dia];
-            if (a[campo] == hId) {
-                a[campo] = '';
-            }
-        });
-        salvarNoGoogle(a);
-    });
-    
-    // Remover turma
-    const index = horariosConfig.findIndex(h => h.id === hId);
-    if (index !== -1) {
-        horariosConfig.splice(index, 1);
-    }
-    
-    renderizarTudo();
-    fecharSuperModal();
-    mostrarToast(`✅ Turma "${turma.modalidade}" excluída!`);
-}
-
 window.onload = function() {
     if (localStorage.getItem("aqua_authenticated") === "true") {
         document.getElementById("loginScreen").style.display = "none";
@@ -1793,4 +1680,3 @@ window.onload = function() {
     }
     setInterval(() => { renderPainelExperimentaisHoje(); renderizarTudo(); }, 60000);
 };
-

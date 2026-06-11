@@ -45,6 +45,68 @@
         .badge-status-ativo { background: #dcfce7; color: #15803d; }
         .badge-status-pausado { background: #fef3c7; color: #b45309; }
         .badge-status-trancado { background: #fee2e2; color: #b91c1c; }
+
+        /* Botão criar turma */
+        .btn-create-turma {
+            background: #006994;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .btn-create-turma:hover {
+            background: #004d6e;
+        }
+
+        /* Botão gerenciar modalidades */
+        .btn-manage-mod {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-manage-mod:hover {
+            background: #7c3aed;
+        }
+
+        /* Container para botões de ação */
+        .action-buttons-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        /* Checkbox group para dias */
+        .dias-checkbox-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .dias-checkbox-group label {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8rem;
+            background: #f1f5f9;
+            padding: 4px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -62,7 +124,7 @@
     <div id="appContainer">
         <div class="header">
             <div class="logo">
-                <h1>🏊 AquaControl <span>v4.0</span></h1>
+                <h1>🏊 AquaControl <span>v6.0</span></h1>
                 <p>Gestão de Horários - Academia</p>
             </div>
             <div class="header-controls">
@@ -149,14 +211,17 @@
                 </div>
             </div>
 
-            <!-- Ações rápidas -->
+            <!-- Ações rápidas - LINHA 1 -->
             <div class="action-tabs-row">
                 <button onclick="abrirSuperModal('alunos')" class="btn-action-tab btn-blue-highlight">👥 Buscar / Editar Alunos</button>
                 <button onclick="abrirSuperModal('vencidos')" class="btn-action-tab" style="background:#fef2f2;color:#b91c1c;border-color:#fca5a5;">⚠️ Alunos Vencidos</button>
                 <button onclick="abrirSuperModal('incompletos')" class="btn-action-tab">⚠️ Alunos Incompletos</button>
                 <button onclick="abrirSuperModal('experimentais_futuros')" class="btn-action-tab" style="background:#fef3c7;color:#b45309;border-color:#fde68a;">📅 Experimentais Futuras</button>
+                <button onclick="abrirSuperModal('modalidades')" class="btn-action-tab" style="background:#e0f2fe;color:#006994;border-color:#bae6fd;">🏷️ Gerenciar Modalidades</button>
             </div>
-                <div style="margin-bottom: 15px;">
+
+            <!-- Ações rápidas - LINHA 2 (Turmas) -->
+            <div class="action-buttons-row">
                 <button onclick="abrirCriarTurma()" class="btn-create-turma">➕ Criar Nova Turma</button>
             </div>
 
