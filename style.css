@@ -769,3 +769,48 @@ body.dark .aluno-box-item div { color: #e2e8f0; }
     flex: 1;
     min-width: 280px;
 }
+/* Botão de criar turma */
+.btn-create-turma {
+    background: #006994;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.btn-create-turma:hover {
+    background: #004d6e;
+}
+
+/* Inputs para edição de horário */
+.horario-edit-input {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    font-size: 0.85rem;
+    width: 100px;
+}
+
+.dias-checkbox-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.dias-checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    background: #f1f5f9;
+    padding: 4px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+}
