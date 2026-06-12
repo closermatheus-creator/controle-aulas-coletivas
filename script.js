@@ -1056,36 +1056,193 @@ function marcarPresencaExp(id, st, hId) {
 // ============================================================
 // EDIÇÃO COMPLETA DO ALUNO
 // ============================================================
-function abrirEdicaoCompletaInline(cod, hId) {
-    const a = alunos.find(al => al.codigo == cod);
-    if (!a) return;
+// ============================================================
+// EDIÇÃO COMPLETA DO ALUNO (MATRÍCULA)
+// ============================================================
+function abrirEdicaoCompletaInline(codigo, hId) {
+    console.log("abrirEdicaoCompletaInline chamado para código:", codigo);
+    
+    const aluno = alunos.find(a => a.codigo == codigo);
+    if (!aluno) {
+        console.error("Aluno não encontrado:", codigo);
+        mostrarToast('❌ Aluno não encontrado!', 'erro');
+        return;
+    }
+    
+    console.log("Aluno encontrado:", aluno.nome);
+    
+    // Determinar qual container usar
     const divId = hId ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
-    const div = document.getElementById(divId);
-    if (!div) return;
+    let div = document.getElementById(divId);
+    
+    // Se o container não existir, criar um
+    if (!div) {
+        console.log("Container não encontrado, criando...");
+        const corpo = document.getElementById('superModalCorpo');
+        if (corpo) {
+            const newDiv = document.createElement('div');
+            newDiv.id = divId;
+            newDiv.style.display = 'none';
+            newDiv.style.background = '#f8fafc';
+            newDiv.style.padding = '22px';
+            newDiv.style.borderRadius = '12px';
+            newDiv.style.marginBottom = '25px';
+            newDiv.style.border = '2px dashed #006994';
+            corpo.insertBefore(newDiv, corpo.firstChild);
+            div = newDiv;
+        }
+    }
+    
+    if (!div) {
+        console.error("Não foi possível criar o container de edição");
+        mostrarToast('❌ Erro ao abrir edição!', 'erro');
+        return;
+    }
+    
     div.style.display = 'block';
+    
     const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    
+    // Gerar selects para cada dia
     const selectGradeHtml = diasSemana.map(dia => {
         const campo = diasMap[dia];
-        const valorAtual = a[campo] || '';
+        const valorAtual = aluno[campo] || '';
         const opcoesDoDia = horariosConfig.filter(hc => hc.dias.includes(dia));
-        return `<div><label style="font-size:0.8rem;">${dia}:</label><select id="editGrade${campo}" class="form-select-field" style="width:100%;padding:6px;"><option value="">[ Não treina ]</option>${opcoesDoDia.map(hc => `<option value="${hc.id}" ${valorAtual == hc.id ? 'selected' : ''}>${hc.modalidade} (${hc.horario})</option>`).join('')}</select></div>`;
+        return `
+            <div style="margin-bottom:10px;">
+                <label style="font-size:0.8rem;font-weight:bold;display:block;margin-bottom:3px;">${dia}:</label>
+                <select id="editGrade${campo}" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+                    <option value="">[ Não treina ]</option>
+                    ${opcoesDoDia.map(hc => `<option value="${hc.id}" ${valorAtual == hc.id ? 'selected' : ''}>${hc.modalidade} (${hc.horario})</option>`).join('')}
+                </select>
+            </div>
+        `;
     }).join('');
-    const statusAtual = a.status || 'ATIVO';
-    const btnVoltar = hId ? `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal">⬅️ Voltar</button>` : `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal">⬅️ Cancelar</button>`;
+    
+    const statusAtual = aluno.status || 'ATIVO';
+    const btnVoltar = hId 
+        ? `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal" style="background:#e2e8f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">⬅️ Voltar para a Turma</button>`
+        : `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal" style="background:#e2e8f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">⬅️ Cancelar</button>`;
+    
     div.innerHTML = `
-        <h3 style="color:#006994;">✏️ Editar: #${a.codigo} — ${a.nome}</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:15px;">
-            <div><label>Código:</label><input type="number" id="editFullCodigo" class="search-input-field" value="${a.codigo}"></div>
-            <div><label>Nome:</label><input type="text" id="editFullN" class="search-input-field" value="${a.nome}"></div>
-            <div><label>Telefone:</label><input type="text" id="editFullP" class="search-input-field" value="${a.telefone}"></div>
-            <div><label>Vencimento:</label><input type="text" id="editFullV" class="search-input-field" value="${a.vencimento || ''}"></div>
-            <div><label>Modalidade:</label><select id="editFullMod" class="form-select-field modalidade-select">${modalidadesDisponiveis.map(m => `<option value="${m}" ${a.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
-            <div><label>Status:</label><select id="editFullStatus" class="form-select-field"><option value="ATIVO" ${statusAtual === 'ATIVO' ? 'selected' : ''}>🟢 ATIVO</option><option value="PAUSADO" ${statusAtual === 'PAUSADO' ? 'selected' : ''}>⏸ PAUSADO</option><option value="TRANCADO" ${statusAtual === 'TRANCADO' ? 'selected' : ''}>🔒 TRANCADO</option></select></div>
+        <h3 style="color:#006994;margin-bottom:15px;font-size:1.2rem;font-weight:bold;border-left:4px solid #006994;padding-left:8px;">✏️ Editar Matrícula: #${aluno.codigo} — ${aluno.nome}</h3>
+        
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px;">
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Código:</label>
+                <input type="number" id="editFullCodigo" class="search-input-field" value="${aluno.codigo}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Nome:</label>
+                <input type="text" id="editFullN" class="search-input-field" value="${aluno.nome}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Telefone:</label>
+                <input type="text" id="editFullP" class="search-input-field" value="${aluno.telefone}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Vencimento:</label>
+                <input type="text" id="editFullV" class="search-input-field" value="${aluno.vencimento || ''}" placeholder="DD/MM" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Modalidade:</label>
+                <select id="editFullMod" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+                    ${modalidadesDisponiveis.map(m => `<option value="${m}" ${aluno.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Status:</label>
+                <select id="editFullStatus" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+                    <option value="ATIVO" ${statusAtual === 'ATIVO' ? 'selected' : ''}>🟢 ATIVO</option>
+                    <option value="PAUSADO" ${statusAtual === 'PAUSADO' ? 'selected' : ''}>⏸ PAUSADO</option>
+                    <option value="TRANCADO" ${statusAtual === 'TRANCADO' ? 'selected' : ''}>🔒 TRANCADO</option>
+                </select>
+            </div>
         </div>
-        <div style="background:#edf2f7;padding:12px;border-radius:8px;margin-bottom:15px;"><span style="font-weight:bold;">🗓️ Grade Semanal:</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px;">${selectGradeHtml}</div></div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;"><button onclick="salvarEdicaoCompleta(${a.codigo},${hId})" class="btn-save-modal">💾 Salvar</button>${btnVoltar}</div>
+        
+        <div style="background:#edf2f7;padding:15px;border-radius:8px;margin-bottom:15px;">
+            <span style="font-weight:bold;font-size:0.9rem;color:#1e293b;display:block;margin-bottom:10px;">🗓️ Grade Semanal (Turmas que o aluno participa):</span>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">${selectGradeHtml}</div>
+        </div>
+        
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button onclick="salvarEdicaoCompleta(${aluno.codigo},${hId || 'null'})" class="btn-save-modal" style="background:#006994;color:white;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:bold;">💾 Salvar Alterações</button>
+            ${btnVoltar}
+        </div>
     `;
-    div.scrollIntoView({ behavior: 'smooth' });
+    
+    div.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ============================================================
+// SALVAR EDIÇÃO COMPLETA DO ALUNO
+// ============================================================
+async function salvarEdicaoCompleta(codigo, hId) {
+    console.log("salvarEdicaoCompleta chamado para código:", codigo);
+    
+    const aluno = alunos.find(a => a.codigo == codigo);
+    if (!aluno) {
+        mostrarToast('❌ Aluno não encontrado!', 'erro');
+        return;
+    }
+    
+    // Pegar valores dos campos
+    const novoCodigo = parseInt(document.getElementById('editFullCodigo')?.value);
+    const nome = document.getElementById('editFullN')?.value.trim();
+    const telefone = document.getElementById('editFullP')?.value.trim();
+    const vencimento = document.getElementById('editFullV')?.value.trim();
+    const modalidade = document.getElementById('editFullMod')?.value || aluno.modalidade;
+    const statusAluno = document.getElementById('editFullStatus')?.value || aluno.status || 'ATIVO';
+    
+    // Validações
+    if (!nome) { mostrarToast('⚠️ Nome é obrigatório!', 'erro'); return; }
+    if (!telefone) { mostrarToast('⚠️ Telefone é obrigatório!', 'erro'); return; }
+    
+    // Verificar se o novo código já existe em outro aluno
+    if (novoCodigo && novoCodigo !== aluno.codigo) {
+        const codigoExistente = alunos.find(a => a.codigo === novoCodigo && a._docId !== aluno._docId);
+        if (codigoExistente) {
+            mostrarToast(`⚠️ Código ${novoCodigo} já está em uso por ${codigoExistente.nome}!`, 'erro');
+            return;
+        }
+        aluno.codigo = novoCodigo;
+    }
+    
+    // Atualizar dados
+    aluno.nome = nome;
+    aluno.telefone = telefone;
+    aluno.vencimento = vencimento;
+    aluno.modalidade = modalidade;
+    aluno.status = statusAluno;
+    
+    // Atualizar grade semanal
+    aluno.seg = document.getElementById('editGradeseg')?.value ? parseInt(document.getElementById('editGradeseg').value) : '';
+    aluno.ter = document.getElementById('editGradeter')?.value ? parseInt(document.getElementById('editGradeter').value) : '';
+    aluno.qua = document.getElementById('editGradequa')?.value ? parseInt(document.getElementById('editGradequa').value) : '';
+    aluno.qui = document.getElementById('editGradequi')?.value ? parseInt(document.getElementById('editGradequi').value) : '';
+    aluno.sex = document.getElementById('editGradesex')?.value ? parseInt(document.getElementById('editGradesex').value) : '';
+    aluno.sab = document.getElementById('editGradesab')?.value ? parseInt(document.getElementById('editGradesab').value) : '';
+    
+    // Salvar no Firebase
+    await salvarNoGoogle(aluno);
+    
+    // Fechar o container de edição
+    const divId = hId && hId !== 'null' ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
+    const div = document.getElementById(divId);
+    if (div) div.style.display = 'none';
+    
+    // Re-renderizar tudo
+    renderizarTudo();
+    renderPainelExperimentaisHoje();
+    
+    // Se veio de uma turma, reabrir o modal da turma
+    if (hId && hId !== 'null') {
+        abrirModalHorario(parseInt(hId));
+    } else {
+        renderStudentTableSuper();
+    }
+    
+    mostrarToast(`✅ ${aluno.nome} atualizado com sucesso!`);
 }
 
 function salvarEdicaoCompleta(cod, hId) {
@@ -1409,7 +1566,22 @@ function renderStudentTableSuper() {
         if (a.seg) dParticipa.push("Seg"); if (a.ter) dParticipa.push("Ter");
         if (a.qua) dParticipa.push("Qua"); if (a.qui) dParticipa.push("Qui");
         if (a.sex) dParticipa.push("Sex"); if (a.sab) dParticipa.push("Sáb");
-        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td>${a.telefone}</td><td><span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td style="display:flex;gap:6px;flex-wrap:wrap;"><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WA</a><button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente(${a.codigo},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></td>`;
+        return `
+            <tr>
+                <td style="padding:8px;">#${a.codigo}</td>
+                <td style="padding:8px;"><strong>${a.nome}</strong></td>
+                <td style="padding:8px;">${a.telefone}</td>
+                <td style="padding:8px;"><span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${dateClean}</span></td>
+                <td style="padding:8px;">${badgeStatus(a.status)}</td>
+                <td style="padding:8px;">${dParticipa.join(', ') || 'Nenhum'}</td>
+                <td style="padding:8px;display:flex;gap:6px;flex-wrap:wrap;">
+                    <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed" style="padding:5px 8px;font-size:0.7rem;">💬 WA</a>
+                    <button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">✏️ Editar</button>
+                    <button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">📝 Obs</button>
+                    <button onclick="excluirAlunoPermanente(${a.codigo},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">🗑️ Excluir</button>
+                </td>
+            </tr>
+        `;
     }).join('');
 }
 
