@@ -1757,24 +1757,102 @@ function salvarMatriculaFab() {
     const telefone = document.getElementById('fPhone').value.trim();
     const modalidade = document.getElementById('fMod').value;
     const vencimento = document.getElementById('fVenc').value;
-    const seg = document.getElementById('cadGradeseg').value ? parseInt(document.getElementById('cadGradeseg').value) : '';
-    const ter = document.getElementById('cadGradeter').value ? parseInt(document.getElementById('cadGradeter').value) : '';
-    const qua = document.getElementById('cadGradequa').value ? parseInt(document.getElementById('cadGradequa').value) : '';
-    const qui = document.getElementById('cadGradequi').value ? parseInt(document.getElementById('cadGradequi').value) : '';
-    const sex = document.getElementById('cadGradesex').value ? parseInt(document.getElementById('cadGradesex').value) : '';
-    const sab = document.getElementById('cadGradesab').value ? parseInt(document.getElementById('cadGradesab').value) : '';
-    if (!codigo) { alert('⚠️ Digite o código!'); return; }
-    if (!nome || !telefone) { alert('⚠️ Nome e telefone obrigatórios!'); return; }
-    if (alunos.find(a => a.codigo == codigo)) { alert(`⚠️ Código ${codigo} já existe!`); return; }
+    
+    // PEGAR OS VALORES DOS DIAS
+    const seg = document.getElementById('cadGradeseg')?.value ? parseInt(document.getElementById('cadGradeseg').value) : '';
+    const ter = document.getElementById('cadGradeter')?.value ? parseInt(document.getElementById('cadGradeter').value) : '';
+    const qua = document.getElementById('cadGradequa')?.value ? parseInt(document.getElementById('cadGradequa').value) : '';
+    const qui = document.getElementById('cadGradequi')?.value ? parseInt(document.getElementById('cadGradequi').value) : '';
+    const sex = document.getElementById('cadGradesex')?.value ? parseInt(document.getElementById('cadGradesex').value) : '';
+    const sab = document.getElementById('cadGradesab')?.value ? parseInt(document.getElementById('cadGradesab').value) : '';
+    
+    // VALIDAÇÕES
+    if (!codigo) { 
+        alert('⚠️ Digite o código do aluno!'); 
+        return; 
+    }
+    if (!nome) { 
+        alert('⚠️ Digite o nome do aluno!'); 
+        return; 
+    }
+    if (!telefone) { 
+        alert('⚠️ Digite o telefone do aluno!'); 
+        return; 
+    }
+    
+    // VERIFICAR SE CÓDIGO JÁ EXISTE
+    const codigoNumero = parseInt(codigo);
+    if (isNaN(codigoNumero)) {
+        alert('⚠️ Código inválido! Digite apenas números.');
+        return;
+    }
+    
+    const codigoExistente = alunos.find(a => a.codigo === codigoNumero);
+    if (codigoExistente) { 
+        alert(`⚠️ Código ${codigoNumero} já está em uso por ${codigoExistente.nome}!`); 
+        return; 
+    }
+    
+    // DEFINIR STATUS
     const statusDef = (!seg && !ter && !qua && !qui && !sex && !sab) ? 'PENDENTE' : 'ATIVO';
-    const novoAluno = { codigo: parseInt(codigo), nome, telefone, vencimento, modalidade, seg, ter, qua, qui, sex, sab, status: statusDef, observacao: '' };
+    
+    // CRIAR ALUNO
+    const novoAluno = { 
+        codigo: codigoNumero,
+        nome: nome,
+        telefone: telefone,
+        vencimento: vencimento,
+        modalidade: modalidade,
+        seg: seg,
+        ter: ter,
+        qua: qua,
+        qui: qui,
+        sex: sex,
+        sab: sab,
+        status: statusDef,
+        observacao: ''
+    };
+    
+    console.log("Salvando aluno:", novoAluno);
+    
     alunos.push(novoAluno);
     salvarNoGoogle(novoAluno);
     renderizarTudo();
     renderPainelExperimentaisHoje();
     fecharSuperModal();
-    mostrarToast(`✅ ${nome} matriculado!`);
+    mostrarToast(`✅ ${nome} matriculado com sucesso!`);
 }
+
+// Função para corrigir alunos com código NaN
+function corrigirAlunosComCodigoInvalido() {
+    let corrigidos = 0;
+    
+    alunos.forEach(aluno => {
+        if (isNaN(aluno.codigo) || aluno.codigo === null || aluno.codigo === undefined || aluno.codigo === '') {
+            // Gerar um código novo
+            const novoCodigo = 2000 + corrigidos;
+            aluno.codigo = novoCodigo;
+            corrigidos++;
+            console.log(`Corrigido: ${aluno.nome} recebeu código ${novoCodigo}`);
+            
+            // Salvar no Firebase
+            salvarNoGoogle(aluno);
+        }
+    });
+    
+    if (corrigidos > 0) {
+        mostrarToast(`✅ Corrigidos ${corrigidos} alunos com código inválido!`);
+        renderizarTudo();
+        renderStudentTableSuper();
+    } else {
+        console.log("Nenhum aluno com código inválido encontrado");
+    }
+}
+
+// Executar a correção automaticamente ao carregar
+setTimeout(() => {
+    corrigirAlunosComCodigoInvalido();
+}, 2000);
 
 function salvarExpFab() {
     const nome = document.getElementById('fExpN').value.trim();
