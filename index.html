@@ -107,6 +107,82 @@
             border-radius: 20px;
             cursor: pointer;
         }
+
+        /* Botão Salvar Tudo - DESTAQUE */
+        .btn-save-all {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+            transition: all 0.3s ease;
+            animation: pulse-save 2s infinite;
+        }
+        .btn-save-all:hover {
+            background: #059669;
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+        }
+        .btn-save-all.salvando {
+            background: #f59e0b;
+            animation: none;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+        }
+        .btn-save-all.salvo {
+            background: #10b981;
+            animation: none;
+        }
+
+        @keyframes pulse-save {
+            0%, 100% { box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4); }
+            50% { box-shadow: 0 4px 24px rgba(16, 185, 129, 0.7); }
+        }
+
+        /* Indicador de salvamento automático */
+        .auto-save-indicator {
+            font-size: 0.75rem;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: #f1f5f9;
+            border-radius: 20px;
+        }
+        .auto-save-indicator .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .auto-save-indicator .status-dot.saving {
+            background: #f59e0b;
+            animation: blink 1s infinite;
+        }
+        .auto-save-indicator .status-dot.saved {
+            background: #10b981;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Botão Histórico */
+        .btn-historico-exp {
+            background: #e0e7ff;
+            color: #3730a3;
+            border-color: #c7d2fe;
+        }
+        .btn-historico-exp:hover {
+            background: #c7d2fe;
+        }
     </style>
 </head>
 <body>
@@ -218,11 +294,17 @@
                 <button onclick="abrirSuperModal('incompletos')" class="btn-action-tab">⚠️ Alunos Incompletos</button>
                 <button onclick="abrirSuperModal('experimentais_futuros')" class="btn-action-tab" style="background:#fef3c7;color:#b45309;border-color:#fde68a;">📅 Experimentais Futuras</button>
                 <button onclick="abrirSuperModal('modalidades')" class="btn-action-tab" style="background:#e0f2fe;color:#006994;border-color:#bae6fd;">🏷️ Gerenciar Modalidades</button>
+                <button onclick="abrirSuperModal('historico_experimentais')" class="btn-action-tab btn-historico-exp">📊 Histórico de Experimentais</button>
             </div>
 
-            <!-- Ações rápidas - LINHA 2 (Turmas) -->
+            <!-- Ações rápidas - LINHA 2 (Turmas + Salvar) -->
             <div class="action-buttons-row">
                 <button onclick="abrirCriarTurma()" class="btn-create-turma">➕ Criar Nova Turma</button>
+                <button onclick="salvarTudo()" class="btn-save-all" id="btnSalvarTudo">💾 SALVAR TUDO</button>
+                <span class="auto-save-indicator" id="autoSaveIndicator">
+                    <span class="status-dot saved" id="autoSaveDot"></span>
+                    <span id="autoSaveText">Salvo automaticamente</span>
+                </span>
             </div>
 
             <!-- Grid + Painel Lateral -->

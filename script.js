@@ -181,7 +181,6 @@ function salvarNovaModalidade() {
     modalidadesDisponiveis.push(novaModalidade);
     modalidadesDisponiveis.sort();
     
-    // Atualizar todos os dropdowns
     atualizarDropdownsModalidade();
     
     fecharSuperModal();
@@ -213,6 +212,9 @@ async function carregarDados() {
     document.getElementById('loadingBanner').style.display = 'block';
 
     try {
+        // Carregar turmas primeiro
+        await carregarTurmasDoFirebase();
+        
         const [snapAlunos, snapExperimentais] = await Promise.all([
             db.collection('alunos').get(),
             db.collection('experimentais').get()
@@ -223,6 +225,9 @@ async function carregarDados() {
 
         studentIdCounter = alunos.length > 0 ? Math.max(...alunos.map(a => a.codigo || 0), 1000) : 1000;
         expIdCounter = experimentais.length > 0 ? Math.max(...experimentais.map(e => e.id || 0), 1000) : 1000;
+
+        // Corrigir alunos com código inválido
+        corrigirAlunosComCodigoInvalido();
 
         if (statusEl) { statusEl.innerText = '✅ Online'; statusEl.classList.add('online'); }
     } catch (erro) {
@@ -296,7 +301,7 @@ function alunoContaOcupacao(a) {
 }
 
 // ============================================================
-// OCUPAÇÃO (CORRIGIDA - ALUNO APARECE EM TODAS AS TURMAS)
+// OCUPAÇÃO
 // ============================================================
 function getAlunosPorHorarioDia(horarioId, diaFiltro) {
     const horario = horariosConfig.find(h => h.id == horarioId);
@@ -456,7 +461,7 @@ function mostrarToast(msg, tipo = 'sucesso') {
 }
 
 // ============================================================
-// RENDERIZAÇÃO DOS CARDS
+// RENDERIZAÇÃO DOS CARDS (mantida igual)
 // ============================================================
 function renderizarTudo() {
     const grid = document.getElementById('cardsGrid');
@@ -562,7 +567,7 @@ function renderizarTudo() {
 }
 
 // ============================================================
-// EDIÇÃO COMPLETA DE TURMA (COM HORÁRIO)
+// EDIÇÃO DE TURMA
 // ============================================================
 function abrirEdicaoTurma(hId) {
     const h = horariosConfig.find(x => x.id === hId);
@@ -675,6 +680,9 @@ function salvarEdicaoCompletaTurma(hId) {
     h.capacidade = novaCapacidade;
     h.turno = novoTurno;
     
+    // Salvar turmas no Firebase
+    salvarTodasAsTurmas();
+    
     renderizarTudo();
     fecharSuperModal();
     mostrarToast(`✅ Turma "${novaModalidade}" (${novoHorario}) atualizada!`);
@@ -707,6 +715,9 @@ function excluirTurmaPermanente(hId) {
     
     const index = horariosConfig.findIndex(h => h.id === hId);
     if (index !== -1) horariosConfig.splice(index, 1);
+    
+    // Salvar turmas no Firebase
+    salvarTodasAsTurmas();
     
     renderizarTudo();
     fecharSuperModal();
@@ -816,6 +827,10 @@ function salvarNovaTurma() {
     };
     
     horariosConfig.push(novaTurma);
+    
+    // Salvar turmas no Firebase
+    salvarTodasAsTurmas();
+    
     renderizarTudo();
     fecharSuperModal();
     mostrarToast(`✅ Turma de ${modalidade} (${horario}) criada!`);
@@ -1054,10 +1069,7 @@ function marcarPresencaExp(id, st, hId) {
 }
 
 // ============================================================
-// EDIÇÃO COMPLETA DO ALUNO
-// ============================================================
-// ============================================================
-// EDIÇÃO COMPLETA DO ALUNO (MATRÍCULA)
+// EDIÇÃO COMPLETA DO ALUNO (MATRÍCULA) - VERSÃO ÚNICA
 // ============================================================
 function abrirEdicaoCompletaInline(codigo, hId) {
     console.log("abrirEdicaoCompletaInline chamado para código:", codigo);
@@ -1071,11 +1083,9 @@ function abrirEdicaoCompletaInline(codigo, hId) {
     
     console.log("Aluno encontrado:", aluno.nome);
     
-    // Determinar qual container usar
     const divId = hId ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
     let div = document.getElementById(divId);
     
-    // Se o container não existir, criar um
     if (!div) {
         console.log("Container não encontrado, criando...");
         const corpo = document.getElementById('superModalCorpo');
@@ -1102,8 +1112,6 @@ function abrirEdicaoCompletaInline(codigo, hId) {
     div.style.display = 'block';
     
     const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    
-    // Gerar selects para cada dia
     const selectGradeHtml = diasSemana.map(dia => {
         const campo = diasMap[dia];
         const valorAtual = aluno[campo] || '';
@@ -1175,7 +1183,7 @@ function abrirEdicaoCompletaInline(codigo, hId) {
 }
 
 // ============================================================
-// SALVAR EDIÇÃO COMPLETA DO ALUNO
+// SALVAR EDIÇÃO COMPLETA DO ALUNO - VERSÃO ÚNICA
 // ============================================================
 async function salvarEdicaoCompleta(codigo, hId) {
     console.log("salvarEdicaoCompleta chamado para código:", codigo);
@@ -1186,7 +1194,6 @@ async function salvarEdicaoCompleta(codigo, hId) {
         return;
     }
     
-    // Pegar valores dos campos
     const novoCodigo = parseInt(document.getElementById('editFullCodigo')?.value);
     const nome = document.getElementById('editFullN')?.value.trim();
     const telefone = document.getElementById('editFullP')?.value.trim();
@@ -1194,11 +1201,9 @@ async function salvarEdicaoCompleta(codigo, hId) {
     const modalidade = document.getElementById('editFullMod')?.value || aluno.modalidade;
     const statusAluno = document.getElementById('editFullStatus')?.value || aluno.status || 'ATIVO';
     
-    // Validações
     if (!nome) { mostrarToast('⚠️ Nome é obrigatório!', 'erro'); return; }
     if (!telefone) { mostrarToast('⚠️ Telefone é obrigatório!', 'erro'); return; }
     
-    // Verificar se o novo código já existe em outro aluno
     if (novoCodigo && novoCodigo !== aluno.codigo) {
         const codigoExistente = alunos.find(a => a.codigo === novoCodigo && a._docId !== aluno._docId);
         if (codigoExistente) {
@@ -1208,14 +1213,12 @@ async function salvarEdicaoCompleta(codigo, hId) {
         aluno.codigo = novoCodigo;
     }
     
-    // Atualizar dados
     aluno.nome = nome;
     aluno.telefone = telefone;
     aluno.vencimento = vencimento;
     aluno.modalidade = modalidade;
     aluno.status = statusAluno;
     
-    // Atualizar grade semanal
     aluno.seg = document.getElementById('editGradeseg')?.value ? parseInt(document.getElementById('editGradeseg').value) : '';
     aluno.ter = document.getElementById('editGradeter')?.value ? parseInt(document.getElementById('editGradeter').value) : '';
     aluno.qua = document.getElementById('editGradequa')?.value ? parseInt(document.getElementById('editGradequa').value) : '';
@@ -1223,19 +1226,15 @@ async function salvarEdicaoCompleta(codigo, hId) {
     aluno.sex = document.getElementById('editGradesex')?.value ? parseInt(document.getElementById('editGradesex').value) : '';
     aluno.sab = document.getElementById('editGradesab')?.value ? parseInt(document.getElementById('editGradesab').value) : '';
     
-    // Salvar no Firebase
     await salvarNoGoogle(aluno);
     
-    // Fechar o container de edição
     const divId = hId && hId !== 'null' ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
     const div = document.getElementById(divId);
     if (div) div.style.display = 'none';
     
-    // Re-renderizar tudo
     renderizarTudo();
     renderPainelExperimentaisHoje();
     
-    // Se veio de uma turma, reabrir o modal da turma
     if (hId && hId !== 'null') {
         abrirModalHorario(parseInt(hId));
     } else {
@@ -1243,36 +1242,6 @@ async function salvarEdicaoCompleta(codigo, hId) {
     }
     
     mostrarToast(`✅ ${aluno.nome} atualizado com sucesso!`);
-}
-
-function salvarEdicaoCompleta(cod, hId) {
-    const a = alunos.find(al => al.codigo == cod);
-    if (!a) return;
-    const novoCodigo = parseInt(document.getElementById('editFullCodigo').value);
-    if (novoCodigo !== a.codigo) {
-        const codigoExistente = alunos.find(al => al.codigo === novoCodigo && al._docId !== a._docId);
-        if (codigoExistente) { alert(`⚠️ Código ${novoCodigo} já existe!`); return; }
-        a.codigo = novoCodigo;
-    }
-    a.nome = document.getElementById('editFullN').value.trim();
-    a.telefone = document.getElementById('editFullP').value.trim();
-    a.vencimento = document.getElementById('editFullV').value.trim();
-    a.modalidade = document.getElementById('editFullMod')?.value || a.modalidade;
-    a.status = document.getElementById('editFullStatus')?.value || a.status || 'ATIVO';
-    a.seg = document.getElementById('editGradeseg')?.value ? parseInt(document.getElementById('editGradeseg').value) : '';
-    a.ter = document.getElementById('editGradeter')?.value ? parseInt(document.getElementById('editGradeter').value) : '';
-    a.qua = document.getElementById('editGradequa')?.value ? parseInt(document.getElementById('editGradequa').value) : '';
-    a.qui = document.getElementById('editGradequi')?.value ? parseInt(document.getElementById('editGradequi').value) : '';
-    a.sex = document.getElementById('editGradesex')?.value ? parseInt(document.getElementById('editGradesex').value) : '';
-    a.sab = document.getElementById('editGradesab')?.value ? parseInt(document.getElementById('editGradesab').value) : '';
-    salvarNoGoogle(a);
-    const divId = hId ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
-    document.getElementById(divId).style.display = 'none';
-    renderizarTudo();
-    renderPainelExperimentaisHoje();
-    if (hId) abrirModalHorario(hId);
-    else renderStudentTableSuper();
-    mostrarToast(`✅ ${a.nome} atualizado!`);
 }
 
 // ============================================================
@@ -1758,7 +1727,6 @@ function salvarMatriculaFab() {
     const modalidade = document.getElementById('fMod').value;
     const vencimento = document.getElementById('fVenc').value;
     
-    // PEGAR OS VALORES DOS DIAS
     const seg = document.getElementById('cadGradeseg')?.value ? parseInt(document.getElementById('cadGradeseg').value) : '';
     const ter = document.getElementById('cadGradeter')?.value ? parseInt(document.getElementById('cadGradeter').value) : '';
     const qua = document.getElementById('cadGradequa')?.value ? parseInt(document.getElementById('cadGradequa').value) : '';
@@ -1766,21 +1734,10 @@ function salvarMatriculaFab() {
     const sex = document.getElementById('cadGradesex')?.value ? parseInt(document.getElementById('cadGradesex').value) : '';
     const sab = document.getElementById('cadGradesab')?.value ? parseInt(document.getElementById('cadGradesab').value) : '';
     
-    // VALIDAÇÕES
-    if (!codigo) { 
-        alert('⚠️ Digite o código do aluno!'); 
-        return; 
-    }
-    if (!nome) { 
-        alert('⚠️ Digite o nome do aluno!'); 
-        return; 
-    }
-    if (!telefone) { 
-        alert('⚠️ Digite o telefone do aluno!'); 
-        return; 
-    }
+    if (!codigo) { alert('⚠️ Digite o código do aluno!'); return; }
+    if (!nome) { alert('⚠️ Digite o nome do aluno!'); return; }
+    if (!telefone) { alert('⚠️ Digite o telefone do aluno!'); return; }
     
-    // VERIFICAR SE CÓDIGO JÁ EXISTE
     const codigoNumero = parseInt(codigo);
     if (isNaN(codigoNumero)) {
         alert('⚠️ Código inválido! Digite apenas números.');
@@ -1793,10 +1750,7 @@ function salvarMatriculaFab() {
         return; 
     }
     
-    // DEFINIR STATUS
     const statusDef = (!seg && !ter && !qua && !qui && !sex && !sab) ? 'PENDENTE' : 'ATIVO';
-    
-    // CRIAR ALUNO
     const novoAluno = { 
         codigo: codigoNumero,
         nome: nome,
@@ -1823,19 +1777,15 @@ function salvarMatriculaFab() {
     mostrarToast(`✅ ${nome} matriculado com sucesso!`);
 }
 
-// Função para corrigir alunos com código NaN
 function corrigirAlunosComCodigoInvalido() {
     let corrigidos = 0;
     
     alunos.forEach(aluno => {
         if (isNaN(aluno.codigo) || aluno.codigo === null || aluno.codigo === undefined || aluno.codigo === '') {
-            // Gerar um código novo
             const novoCodigo = 2000 + corrigidos;
             aluno.codigo = novoCodigo;
             corrigidos++;
             console.log(`Corrigido: ${aluno.nome} recebeu código ${novoCodigo}`);
-            
-            // Salvar no Firebase
             salvarNoGoogle(aluno);
         }
     });
@@ -1848,11 +1798,6 @@ function corrigirAlunosComCodigoInvalido() {
         console.log("Nenhum aluno com código inválido encontrado");
     }
 }
-
-// Executar a correção automaticamente ao carregar
-setTimeout(() => {
-    corrigirAlunosComCodigoInvalido();
-}, 2000);
 
 function salvarExpFab() {
     const nome = document.getElementById('fExpN').value.trim();
@@ -1920,6 +1865,88 @@ function toggleTheme() {
 (function() { if (localStorage.getItem('aqua_theme') === 'dark') document.body.classList.add('dark'); })();
 
 // ============================================================
+// SISTEMA DE BACKUP E AUTO-SAVE
+// ============================================================
+
+// Salvar todas as turmas no Firebase
+async function salvarTodasAsTurmas() {
+    try {
+        await db.collection('config').doc('turmas').set({ 
+            turmas: horariosConfig,
+            ultimaAtualizacao: new Date().toISOString()
+        });
+        console.log("✅ Turmas salvas com sucesso!");
+        return true;
+    } catch (erro) {
+        console.error("❌ Erro ao salvar turmas:", erro);
+        return false;
+    }
+}
+
+// Salvar todos os alunos
+async function salvarTodosOsAlunos() {
+    try {
+        for (const aluno of alunos) {
+            await salvarNoGoogle(aluno);
+        }
+        console.log("✅ Alunos salvos com sucesso!");
+        return true;
+    } catch (erro) {
+        console.error("❌ Erro ao salvar alunos:", erro);
+        return false;
+    }
+}
+
+// Salvar tudo
+async function salvarTudo() {
+    const btn = document.getElementById('btnSalvarTudo');
+    if (btn) {
+        btn.textContent = '⏳ Salvando...';
+        btn.classList.add('salvando');
+    }
+    
+    mostrarToast('🔄 Salvando todas as informações...', 'info');
+    
+    let sucesso = true;
+    const turmasOk = await salvarTodasAsTurmas();
+    if (!turmasOk) sucesso = false;
+    const alunosOk = await salvarTodosOsAlunos();
+    if (!alunosOk) sucesso = false;
+    
+    if (btn) {
+        btn.textContent = '💾 SALVAR TUDO';
+        btn.classList.remove('salvando');
+        if (sucesso) btn.classList.add('salvo');
+    }
+    
+    if (sucesso) {
+        mostrarToast('✅ Todas as informações foram salvas com sucesso!', 'sucesso');
+    } else {
+        mostrarToast('⚠️ Alguns dados podem não ter sido salvos. Verifique o console.', 'erro');
+    }
+}
+
+// Carregar turmas do Firebase
+async function carregarTurmasDoFirebase() {
+    try {
+        const doc = await db.collection('config').doc('turmas').get();
+        if (doc.exists) {
+            const dados = doc.data();
+            if (dados && dados.turmas && dados.turmas.length > 0) {
+                horariosConfig = dados.turmas;
+                console.log("✅ Turmas carregadas do Firebase:", horariosConfig.length);
+                return true;
+            }
+        }
+        console.log("ℹ️ Nenhuma turma encontrada no Firebase, usando padrão.");
+        return false;
+    } catch (erro) {
+        console.error("❌ Erro ao carregar turmas:", erro);
+        return false;
+    }
+}
+
+// ============================================================
 // INICIALIZAÇÃO
 // ============================================================
 window.onload = function() {
@@ -1928,5 +1955,16 @@ window.onload = function() {
         document.getElementById("appContainer").style.display = "block";
         carregarDados();
     }
-    setInterval(() => { renderPainelExperimentaisHoje(); renderizarTudo(); }, 60000);
+    
+    // Auto-save a cada 60 segundos
+    setInterval(() => {
+        console.log("🔄 Auto-save executado em:", new Date().toLocaleTimeString());
+        salvarTudo();
+    }, 60000);
+    
+    // Atualizar painéis a cada 30 segundos
+    setInterval(() => { 
+        renderPainelExperimentaisHoje(); 
+        renderizarTudo(); 
+    }, 30000);
 };
