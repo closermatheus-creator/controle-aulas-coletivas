@@ -680,7 +680,6 @@ function salvarEdicaoCompletaTurma(hId) {
     h.capacidade = novaCapacidade;
     h.turno = novoTurno;
     
-    // Salvar turmas no Firebase
     salvarTodasAsTurmas();
     
     renderizarTudo();
@@ -716,7 +715,6 @@ function excluirTurmaPermanente(hId) {
     const index = horariosConfig.findIndex(h => h.id === hId);
     if (index !== -1) horariosConfig.splice(index, 1);
     
-    // Salvar turmas no Firebase
     salvarTodasAsTurmas();
     
     renderizarTudo();
@@ -827,8 +825,6 @@ function salvarNovaTurma() {
     };
     
     horariosConfig.push(novaTurma);
-    
-    // Salvar turmas no Firebase
     salvarTodasAsTurmas();
     
     renderizarTudo();
@@ -1069,25 +1065,19 @@ function marcarPresencaExp(id, st, hId) {
 }
 
 // ============================================================
-// EDIÇÃO COMPLETA DO ALUNO (MATRÍCULA) - VERSÃO ÚNICA
+// EDIÇÃO COMPLETA DO ALUNO (MATRÍCULA)
 // ============================================================
 function abrirEdicaoCompletaInline(codigo, hId) {
-    console.log("abrirEdicaoCompletaInline chamado para código:", codigo);
-    
     const aluno = alunos.find(a => a.codigo == codigo);
     if (!aluno) {
-        console.error("Aluno não encontrado:", codigo);
         mostrarToast('❌ Aluno não encontrado!', 'erro');
         return;
     }
-    
-    console.log("Aluno encontrado:", aluno.nome);
     
     const divId = hId ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
     let div = document.getElementById(divId);
     
     if (!div) {
-        console.log("Container não encontrado, criando...");
         const corpo = document.getElementById('superModalCorpo');
         if (corpo) {
             const newDiv = document.createElement('div');
@@ -1104,7 +1094,6 @@ function abrirEdicaoCompletaInline(codigo, hId) {
     }
     
     if (!div) {
-        console.error("Não foi possível criar o container de edição");
         mostrarToast('❌ Erro ao abrir edição!', 'erro');
         return;
     }
@@ -1182,12 +1171,7 @@ function abrirEdicaoCompletaInline(codigo, hId) {
     div.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-// ============================================================
-// SALVAR EDIÇÃO COMPLETA DO ALUNO - VERSÃO ÚNICA
-// ============================================================
 async function salvarEdicaoCompleta(codigo, hId) {
-    console.log("salvarEdicaoCompleta chamado para código:", codigo);
-    
     const aluno = alunos.find(a => a.codigo == codigo);
     if (!aluno) {
         mostrarToast('❌ Aluno não encontrado!', 'erro');
@@ -1294,6 +1278,8 @@ function abrirSuperModal(tipo) {
             </div>
         `;
         renderModalidadesList();
+    } else if (tipo === 'historico_experimentais') {
+        abrirHistoricoExperimentais();
     }
 }
 
@@ -1868,7 +1854,6 @@ function toggleTheme() {
 // SISTEMA DE BACKUP E AUTO-SAVE
 // ============================================================
 
-// Salvar todas as turmas no Firebase
 async function salvarTodasAsTurmas() {
     try {
         await db.collection('config').doc('turmas').set({ 
@@ -1883,7 +1868,6 @@ async function salvarTodasAsTurmas() {
     }
 }
 
-// Salvar todos os alunos
 async function salvarTodosOsAlunos() {
     try {
         for (const aluno of alunos) {
@@ -1897,7 +1881,6 @@ async function salvarTodosOsAlunos() {
     }
 }
 
-// Salvar tudo
 async function salvarTudo() {
     const btn = document.getElementById('btnSalvarTudo');
     if (btn) {
@@ -1926,7 +1909,6 @@ async function salvarTudo() {
     }
 }
 
-// Carregar turmas do Firebase
 async function carregarTurmasDoFirebase() {
     try {
         const doc = await db.collection('config').doc('turmas').get();
@@ -1947,6 +1929,273 @@ async function carregarTurmasDoFirebase() {
 }
 
 // ============================================================
+// HISTÓRICO DE EXPERIMENTAIS COM FILTROS DE PERÍODO
+// ============================================================
+
+let filtroStatusHistoricoExp = 'todos';
+
+function abrirHistoricoExperimentais() {
+    const modal = document.getElementById('globalSuperModal');
+    const titulo = document.getElementById('superModalTitulo');
+    const corpo = document.getElementById('superModalCorpo');
+    
+    titulo.innerHTML = '📋 Histórico de Aulas Experimentais';
+    
+    corpo.innerHTML = `
+        <div style="margin-bottom:20px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:15px;">
+                <div style="flex:1;min-width:150px;">
+                    <label style="font-weight:bold;display:block;margin-bottom:5px;">📅 Período:</label>
+                    <select id="filtroPeriodoHistorico" class="form-select-field" onchange="renderHistoricoExperimentais()" style="width:100%;padding:10px;">
+                        <option value="7">Últimos 7 dias</option>
+                        <option value="15">Últimos 15 dias</option>
+                        <option value="30" selected>Últimos 30 dias</option>
+                        <option value="60">Últimos 60 dias</option>
+                        <option value="90">Últimos 90 dias</option>
+                        <option value="180">Últimos 180 dias</option>
+                        <option value="365">Últimos 365 dias</option>
+                        <option value="0">Todos</option>
+                    </select>
+                </div>
+                <div style="flex:1;min-width:150px;">
+                    <label style="font-weight:bold;display:block;margin-bottom:5px;">🔍 Buscar:</label>
+                    <input type="text" id="buscarHistoricoExp" class="search-input-field" placeholder="Nome ou telefone..." oninput="renderHistoricoExperimentais()" style="width:100%;padding:10px;">
+                </div>
+                <div>
+                    <button onclick="exportarHistoricoExperimentais()" style="background:#10b981;color:white;border:none;padding:10px 15px;border-radius:8px;cursor:pointer;">📊 Exportar CSV</button>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;">
+                <button class="filter-chip active" onclick="filtrarStatusHistoricoExp('todos', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#006994;color:white;">📋 Todos</button>
+                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('compareceu', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">✅ Compareceram</button>
+                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('nao_compareceu', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">❌ Faltaram</button>
+                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('matriculados', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">📋 Efetivaram Matrícula</button>
+            </div>
+        </div>
+        <div class="table-container" style="max-height:500px;overflow-y:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead style="position:sticky;top:0;background:#f1f5f9;">
+                    <tr>
+                        <th style="padding:12px;text-align:left;">Data</th>
+                        <th style="padding:12px;text-align:left;">Horário</th>
+                        <th style="padding:12px;text-align:left;">Nome</th>
+                        <th style="padding:12px;text-align:left;">Telefone</th>
+                        <th style="padding:12px;text-align:left;">Status</th>
+                        <th style="padding:12px;text-align:left;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="historicoExperimentaisBody"></tbody>
+            </table>
+        </div>
+        <div style="margin-top:15px;padding:12px;background:#f1f5f9;border-radius:8px;display:flex;justify-content:space-between;flex-wrap:wrap;font-size:0.85rem;" id="historicoResumo">
+            Carregando...
+        </div>
+    `;
+    
+    modal.classList.add('active');
+    renderHistoricoExperimentais();
+}
+
+function filtrarStatusHistoricoExp(status, btn) {
+    filtroStatusHistoricoExp = status;
+    const container = btn.parentElement;
+    container.querySelectorAll('.filter-chip').forEach(b => {
+        b.style.background = '#f1f5f9';
+        b.style.color = '#334155';
+    });
+    btn.style.background = '#006994';
+    btn.style.color = 'white';
+    renderHistoricoExperimentais();
+}
+
+async function renderHistoricoExperimentais() {
+    const body = document.getElementById('historicoExperimentaisBody');
+    if (!body) return;
+    
+    const periodoDias = parseInt(document.getElementById('filtroPeriodoHistorico')?.value || '30');
+    const busca = document.getElementById('buscarHistoricoExp')?.value.toLowerCase() || '';
+    
+    const hoje = new Date();
+    let dataLimite = null;
+    if (periodoDias > 0) {
+        dataLimite = new Date(hoje);
+        dataLimite.setDate(dataLimite.getDate() - periodoDias);
+    }
+    
+    let historicoExp = [];
+    try {
+        const snap = await db.collection('historico_experimentais')
+            .orderBy('timestamp', 'desc')
+            .get();
+        historicoExp = snap.docs.map(doc => ({ ...doc.data(), _docId: doc.id }));
+    } catch (erro) {
+        console.error("Erro ao carregar histórico:", erro);
+    }
+    
+    const hojeStr = formatarDataISO();
+    const experimentaisPassados = experimentais.filter(e => {
+        if (e.status === 'agendado') return false;
+        if (e.dataAgendada && e.dataAgendada < hojeStr) return true;
+        return e.status !== 'agendado';
+    });
+    
+    let todos = [];
+    
+    historicoExp.forEach(item => {
+        let dataItem = item.data;
+        if (item.timestamp) {
+            const date = new Date(item.timestamp);
+            dataItem = date.toISOString().split('T')[0];
+        }
+        todos.push({
+            data: dataItem,
+            horario: item.horario || (item.horario_id ? (horariosConfig.find(h=>h.id===item.horario_id)?.horario || '??') : '??'),
+            nome: item.nome,
+            telefone: item.telefone,
+            resultado: item.resultado,
+            matriculado: item.matriculado || false,
+            timestamp: item.timestamp || dataItem,
+            dataOriginal: dataItem
+        });
+    });
+    
+    experimentaisPassados.forEach(e => {
+        const horario = horariosConfig.find(h => h.id === e.horario_id);
+        todos.push({
+            data: e.dataAgendada || e.data,
+            horario: horario ? horario.horario : '??',
+            nome: e.nome,
+            telefone: e.telefone,
+            resultado: e.status,
+            matriculado: false,
+            timestamp: e.dataAgendada || e.data,
+            dataOriginal: e.dataAgendada || e.data
+        });
+    });
+    
+    if (dataLimite) {
+        todos = todos.filter(item => {
+            if (!item.data) return false;
+            let dataItem;
+            if (item.data.includes('-')) {
+                dataItem = new Date(item.data);
+            } else {
+                const partes = item.data.split('/');
+                if (partes.length === 3) {
+                    dataItem = new Date(partes[2], partes[1]-1, partes[0]);
+                } else {
+                    dataItem = new Date(item.data);
+                }
+            }
+            if (isNaN(dataItem.getTime())) return true;
+            return dataItem >= dataLimite && dataItem <= hoje;
+        });
+    }
+    
+    if (busca) {
+        todos = todos.filter(item => 
+            item.nome.toLowerCase().includes(busca) || 
+            item.telefone.includes(busca)
+        );
+    }
+    
+    if (filtroStatusHistoricoExp === 'compareceu') {
+        todos = todos.filter(item => item.resultado === 'compareceu');
+    } else if (filtroStatusHistoricoExp === 'nao_compareceu') {
+        todos = todos.filter(item => item.resultado === 'nao_compareceu');
+    } else if (filtroStatusHistoricoExp === 'matriculados') {
+        todos = todos.filter(item => item.matriculado === true);
+    }
+    
+    todos.sort((a, b) => {
+        if (a.timestamp && b.timestamp) return b.timestamp.localeCompare(a.timestamp);
+        return b.data.localeCompare(a.data);
+    });
+    
+    const total = todos.length;
+    const compareceram = todos.filter(t => t.resultado === 'compareceu').length;
+    const faltaram = todos.filter(t => t.resultado === 'nao_compareceu').length;
+    const matriculados = todos.filter(t => t.matriculado === true).length;
+    const taxaConversao = total > 0 ? Math.round((matriculados / total) * 100) : 0;
+    
+    document.getElementById('historicoResumo').innerHTML = `
+        <span>📊 Total: <strong>${total}</strong></span>
+        <span>✅ Compareceram: <strong style="color:#15803d;">${compareceram}</strong></span>
+        <span>❌ Faltaram: <strong style="color:#b91c1c;">${faltaram}</strong></span>
+        <span>📋 Matriculados: <strong style="color:#0369a1;">${matriculados}</strong></span>
+        <span>🎯 Taxa de Conversão: <strong style="color:#006994;">${taxaConversao}%</strong></span>
+    `;
+    
+    if (todos.length === 0) {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">📭 Nenhuma aula experimental encontrada neste período</td></tr>';
+        return;
+    }
+    
+    body.innerHTML = todos.map(item => {
+        let statusHtml = '';
+        if (item.resultado === 'compareceu') {
+            statusHtml = '<span style="background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:20px;font-size:0.75rem;">✅ Compareceu</span>';
+        } else if (item.resultado === 'nao_compareceu') {
+            statusHtml = '<span style="background:#fee2e2;color:#b91c1c;padding:4px 10px;border-radius:20px;font-size:0.75rem;">❌ Faltou</span>';
+        } else {
+            statusHtml = '<span style="background:#fef3c7;color:#b45309;padding:4px 10px;border-radius:20px;font-size:0.75rem;">📅 Agendado</span>';
+        }
+        
+        if (item.matriculado) {
+            statusHtml += ' <span style="background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:20px;font-size:0.75rem;">📋 Matriculado</span>';
+        }
+        
+        const dataFormatada = item.data && item.data.includes('-') ? formatarDataBR(item.data) : (item.data || '—');
+        
+        return `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:12px;">${dataFormatada}</td>
+                <td style="padding:12px;">${item.horario}</td>
+                <td style="padding:12px;"><strong>${item.nome}</strong></td>
+                <td style="padding:12px;">${item.telefone}</td>
+                <td style="padding:12px;">${statusHtml}</td>
+                <td style="padding:12px;">
+                    <a href="https://wa.me/55${String(item.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 10px;border-radius:6px;text-decoration:none;font-size:0.7rem;">💬 WhatsApp</a>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function exportarHistoricoExperimentais() {
+    const body = document.getElementById('historicoExperimentaisBody');
+    if (!body) return;
+    
+    const rows = [];
+    const cabecalho = ['Data', 'Horário', 'Nome', 'Telefone', 'Status', 'Matriculado'];
+    rows.push(cabecalho);
+    
+    document.querySelectorAll('#historicoExperimentaisBody tr').forEach(tr => {
+        const cells = tr.querySelectorAll('td');
+        if (cells.length >= 5) {
+            const data = cells[0]?.innerText || '';
+            const horario = cells[1]?.innerText || '';
+            const nome = cells[2]?.innerText || '';
+            const telefone = cells[3]?.innerText || '';
+            const status = cells[4]?.innerText?.replace(/\n/g, ' ').trim() || '';
+            const matriculado = status.includes('Matriculado') ? 'Sim' : 'Não';
+            rows.push([data, horario, nome, telefone, status, matriculado]);
+        }
+    });
+    
+    const csv = rows.map(row => row.join(',')).join('\n');
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dataAtual = formatarData().replace(/\//g, '-');
+    a.href = url;
+    a.download = `historico_experimentais_${dataAtual}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarToast('✅ Histórico exportado!');
+}
+
+// ============================================================
 // INICIALIZAÇÃO
 // ============================================================
 window.onload = function() {
@@ -1956,13 +2205,11 @@ window.onload = function() {
         carregarDados();
     }
     
-    // Auto-save a cada 60 segundos
     setInterval(() => {
         console.log("🔄 Auto-save executado em:", new Date().toLocaleTimeString());
         salvarTudo();
     }, 60000);
     
-    // Atualizar painéis a cada 30 segundos
     setInterval(() => { 
         renderPainelExperimentaisHoje(); 
         renderizarTudo(); 
