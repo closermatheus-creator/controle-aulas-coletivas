@@ -183,6 +183,36 @@
         .btn-historico-exp:hover {
             background: #c7d2fe;
         }
+
+        /* Botão Exportar CSV */
+        .btn-export-csv {
+            background: #10b981;
+            color: white;
+            border-color: #34d399;
+        }
+        .btn-export-csv:hover {
+            background: #059669;
+        }
+
+        /* Botão Relatório */
+        .btn-relatorio {
+            background: #8b5cf6;
+            color: white;
+            border-color: #a78bfa;
+        }
+        .btn-relatorio:hover {
+            background: #7c3aed;
+        }
+
+        /* Botão Verificar */
+        .btn-verificar {
+            background: #f59e0b;
+            color: white;
+            border-color: #fbbf24;
+        }
+        .btn-verificar:hover {
+            background: #d97706;
+        }
     </style>
 </head>
 <body>
@@ -297,9 +327,12 @@
                 <button onclick="abrirSuperModal('historico_experimentais')" class="btn-action-tab btn-historico-exp">📊 Histórico de Experimentais</button>
             </div>
 
-            <!-- Ações rápidas - LINHA 2 (Turmas + Salvar) -->
+            <!-- Ações rápidas - LINHA 2 (Turmas + Exportar + Verificar) -->
             <div class="action-buttons-row">
                 <button onclick="abrirCriarTurma()" class="btn-create-turma">➕ Criar Nova Turma</button>
+                <button onclick="exportarCSV()" class="btn-action-tab btn-export-csv">📥 Exportar CSV Completo</button>
+                <button onclick="exportarRelatorioResumido()" class="btn-action-tab btn-relatorio">📊 Relatório Resumido</button>
+                <button onclick="verificarSalvamento()" class="btn-action-tab btn-verificar">🔍 Verificar Salvamento</button>
                 <button onclick="salvarTudo()" class="btn-save-all" id="btnSalvarTudo">💾 SALVAR TUDO</button>
                 <span class="auto-save-indicator" id="autoSaveIndicator">
                     <span class="status-dot saved" id="autoSaveDot"></span>

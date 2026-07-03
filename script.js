@@ -407,17 +407,22 @@ function filtrarDiaHub(dia, btn) {
 // ============================================================
 // WIDGETS
 // ============================================================
-function atualizarWidgets() {
-    const totalAlunos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO').length;
-    let vencidos = 0, emDia = 0;
-    alunos.forEach(a => {
-        if (a.status === 'TRANCADO' || a.status === 'PAUSADO') return;
-        if (verificarVencimento(a.vencimento).vencido) vencidos++;
-        else emDia++;
-    });
 
+// ============================================================
+// CONTAGEM CORRETA DE ALUNOS (SEM DUPLICAÇÃO)
+// ============================================================
+
+// Contar alunos únicos (cada aluno conta 1 vez)
+function contarAlunosUnicos() {
+    const ativos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO');
+    return ativos.length;
+}
+
+// Contar matrículas por turno (um aluno pode aparecer em vários turnos)
+function contarMatriculasPorTurno() {
     let manha = 0, tarde = 0, noite = 0, sabado = 0;
-    alunos.filter(alunoContaOcupacao).forEach(a => {
+    
+    alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO').forEach(a => {
         ['seg','ter','qua','qui','sex','sab'].forEach(d => {
             const hId = a[d];
             if (hId) {
@@ -431,8 +436,24 @@ function atualizarWidgets() {
             }
         });
     });
+    
+    return { manha, tarde, noite, sabado };
+}
 
-    const totalMatriculas = manha + tarde + noite + sabado;
+function atualizarWidgets() {
+    // Contagem correta de alunos únicos
+    const totalAlunos = contarAlunosUnicos();
+    
+    let vencidos = 0, emDia = 0;
+    alunos.forEach(a => {
+        if (a.status === 'TRANCADO' || a.status === 'PAUSADO') return;
+        if (verificarVencimento(a.vencimento).vencido) vencidos++;
+        else emDia++;
+    });
+
+    const matriculas = contarMatriculasPorTurno();
+    const totalMatriculas = matriculas.manha + matriculas.tarde + matriculas.noite + matriculas.sabado;
+    
     const capTotal = horariosConfig.reduce((s, h) => s + h.capacidade, 0);
     const pctOcupacao = capTotal > 0 ? Math.round((totalMatriculas / capTotal) * 100) : 0;
 
@@ -440,16 +461,17 @@ function atualizarWidgets() {
     if (!widget) return;
 
     widget.innerHTML = `
-        <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl">🎯 Total Alunos</div><div class="sub">Ativos</div></div>
+        <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl">🎯 Total Alunos</div><div class="sub">Alunos únicos ativos</div></div>
         <div class="widget vencidos-border"><div class="val" style="color:#ef4444;">${vencidos}</div><div class="lbl">⚠️ Vencidos</div><div class="sub">Planos Atrasados</div></div>
         <div class="widget emdia-border"><div class="val" style="color:#10b981;">${emDia}</div><div class="lbl">✅ Em Dia</div><div class="sub">Planos Ativos</div></div>
-        <div class="widget"><div class="val">${manha}</div><div class="lbl">🌅 Manhã</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${tarde}</div><div class="lbl">☀️ Tarde</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${noite}</div><div class="lbl">🌙 Noite</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${sabado}</div><div class="lbl">📅 Sábados</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${matriculas.manha}</div><div class="lbl">🌅 Manhã</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${matriculas.tarde}</div><div class="lbl">☀️ Tarde</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${matriculas.noite}</div><div class="lbl">🌙 Noite</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${matriculas.sabado}</div><div class="lbl">📅 Sábados</div><div class="sub">Matrículas</div></div>
         <div class="widget"><div class="val">${pctOcupacao}%</div><div class="lbl">📊 Ocupação</div><div class="progress-mini"><div class="progress-mini-fill" style="width:${pctOcupacao}%"></div></div></div>
     `;
 }
+
 
 function mostrarToast(msg, tipo = 'sucesso') {
     let t = document.getElementById('toastGlobal');
@@ -1831,16 +1853,126 @@ async function salvarNoGoogle(dadosAluno) {
     } catch (erro) { mostrarToast('❌ Erro: ' + erro.message, 'erro'); }
 }
 
+
 function exportarCSV() {
-    const header = ['Codigo','Nome','Telefone','Modalidade','Vencimento','Status','Seg','Ter','Qua','Qui','Sex','Sab','Observacao'];
-    const rows = alunos.map(a => [a.codigo, a.nome, a.telefone, a.modalidade, a.vencimento || '', a.status || 'ATIVO', a.seg || '', a.ter || '', a.qua || '', a.qui || '', a.sex || '', a.sab || '', (a.observacao || '').replace(/,/g,'|')]);
+    const header = [
+        'Código',
+        'Nome',
+        'Telefone',
+        'Modalidade Principal',
+        'Vencimento',
+        'Status',
+        'Segunda',
+        'Terça',
+        'Quarta',
+        'Quinta',
+        'Sexta',
+        'Sábado',
+        'Observação',
+        'Data Cadastro'
+    ];
+    
+    const rows = alunos.map(a => {
+        const dias = ['seg','ter','qua','qui','sex','sab'];
+        const diasNomes = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        
+        let diasInfo = dias.map((campo, idx) => {
+            const hId = a[campo];
+            if (hId) {
+                const horario = horariosConfig.find(h => h.id == hId);
+                return horario ? `${diasNomes[idx]}: ${horario.horario} (${horario.modalidade})` : '';
+            }
+            return '';
+        });
+        
+        return [
+            a.codigo || '',
+            a.nome || '',
+            a.telefone || '',
+            a.modalidade || '',
+            a.vencimento || '',
+            a.status || 'ATIVO',
+            diasInfo[0] || '',
+            diasInfo[1] || '',
+            diasInfo[2] || '',
+            diasInfo[3] || '',
+            diasInfo[4] || '',
+            diasInfo[5] || '',
+            (a.observacao || '').replace(/,/g, ';'),
+            a.dataCadastro || ''
+        ];
+    });
+    
     const csv = [header, ...rows].map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `aquacontrol_${formatarData().replace('/','')}.csv`; a.click();
+    const dataAtual = formatarData().replace(/\//g, '-');
+    a.href = url;
+    a.download = `aquacontrol_completo_${dataAtual}.csv`;
+    a.click();
     URL.revokeObjectURL(url);
-    mostrarToast('✅ CSV exportado!');
+    mostrarToast('✅ CSV completo exportado com ' + alunos.length + ' alunos!');
+}
+
+
+// Exportar também um relatório resumido
+function exportarRelatorioResumido() {
+    const totalAlunos = contarAlunosUnicos();
+    const matriculas = contarMatriculasPorTurno();
+    const vencidos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO' && verificarVencimento(a.vencimento).vencido).length;
+    const emDia = totalAlunos - vencidos;
+    
+    const resumo = [
+        ['RELATÓRIO AQUACONTROL'],
+        ['Data:', formatarData()],
+        [''],
+        ['RESUMO GERAL'],
+        ['Total de Alunos Únicos:', totalAlunos],
+        ['Alunos em Dia:', emDia],
+        ['Alunos Vencidos:', vencidos],
+        ['Matrículas Manhã:', matriculas.manha],
+        ['Matrículas Tarde:', matriculas.tarde],
+        ['Matrículas Noite:', matriculas.noite],
+        ['Matrículas Sábado:', matriculas.sabado],
+        ['Total de Matrículas:', matriculas.manha + matriculas.tarde + matriculas.noite + matriculas.sabado],
+        [''],
+        ['ALUNOS DETALHADOS'],
+        ['Código', 'Nome', 'Telefone', 'Modalidade', 'Vencimento', 'Status', 'Dias']
+    ];
+    
+    alunos.forEach(a => {
+        const dias = ['seg','ter','qua','qui','sex','sab'];
+        const diasNomes = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        let diasParticipa = dias.map((campo, idx) => {
+            if (a[campo]) {
+                const horario = horariosConfig.find(h => h.id == a[campo]);
+                return horario ? `${diasNomes[idx]}(${horario.horario})` : '';
+            }
+            return '';
+        }).filter(d => d).join(' | ');
+        
+        resumo.push([
+            a.codigo || '',
+            a.nome || '',
+            a.telefone || '',
+            a.modalidade || '',
+            a.vencimento || '',
+            a.status || 'ATIVO',
+            diasParticipa || 'Nenhum'
+        ]);
+    });
+    
+    const csv = resumo.map(r => r.join(',')).join('\n');
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dataAtual = formatarData().replace(/\//g, '-');
+    a.href = url;
+    a.download = `relatorio_aquacontrol_${dataAtual}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarToast('✅ Relatório exportado com sucesso!');
 }
 
 function toggleTheme() {
@@ -2215,3 +2347,226 @@ window.onload = function() {
         renderizarTudo(); 
     }, 30000);
 };
+
+// ============================================================
+// CONTAGEM CORRETA DE ALUNOS (SEM DUPLICAÇÃO)
+// ============================================================
+
+// Contar alunos únicos (cada aluno conta 1 vez, independente de quantas turmas faz)
+function contarAlunosUnicos() {
+    // Filtrar apenas alunos ativos (PAUSADO e TRANCADO não contam)
+    const ativos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO');
+    return ativos.length;
+}
+
+// Contar matrículas por turno (um aluno pode aparecer em vários turnos)
+function contarMatriculasPorTurno() {
+    let manha = 0, tarde = 0, noite = 0, sabado = 0;
+    
+    alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO').forEach(a => {
+        ['seg','ter','qua','qui','sex','sab'].forEach(d => {
+            const hId = a[d];
+            if (hId) {
+                const h = horariosConfig.find(hc => hc.id == hId);
+                if (h) {
+                    if (h.turno === 'manha') manha++;
+                    else if (h.turno === 'tarde') tarde++;
+                    else if (h.turno === 'noite') noite++;
+                    else if (h.turno === 'sabado') sabado++;
+                }
+            }
+        });
+    });
+    
+    return { manha, tarde, noite, sabado };
+}
+
+// ATUALIZAR OS WIDGETS COM CONTAGEM CORRETA
+function atualizarWidgets() {
+    // Contagem correta de alunos únicos
+    const totalAlunos = contarAlunosUnicos();
+    
+    let vencidos = 0, emDia = 0;
+    alunos.forEach(a => {
+        if (a.status === 'TRANCADO' || a.status === 'PAUSADO') return;
+        if (verificarVencimento(a.vencimento).vencido) vencidos++;
+        else emDia++;
+    });
+
+    // Contagem de matrículas por turno (pode ter duplicação)
+    const matriculas = contarMatriculasPorTurno();
+    const totalMatriculas = matriculas.manha + matriculas.tarde + matriculas.noite + matriculas.sabado;
+    
+    const capTotal = horariosConfig.reduce((s, h) => s + h.capacidade, 0);
+    const pctOcupacao = capTotal > 0 ? Math.round((totalMatriculas / capTotal) * 100) : 0;
+
+    const widget = document.getElementById('macroStatsWidget');
+    if (!widget) return;
+
+    widget.innerHTML = `
+        <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl">🎯 Total Alunos</div><div class="sub">Alunos únicos ativos</div></div>
+        <div class="widget vencidos-border"><div class="val" style="color:#ef4444;">${vencidos}</div><div class="lbl">⚠️ Vencidos</div><div class="sub">Planos Atrasados</div></div>
+        <div class="widget emdia-border"><div class="val" style="color:#10b981;">${emDia}</div><div class="lbl">✅ Em Dia</div><div class="sub">Planos Ativos</div></div>
+        <div class="widget"><div class="val">${matriculas.manha}</div><div class="lbl">🌅 Manhã</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${matriculas.tarde}</div><div class="lbl">☀️ Tarde</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${matriculas.noite}</div><div class="lbl">🌙 Noite</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${matriculas.sabado}</div><div class="lbl">📅 Sábados</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${pctOcupacao}%</div><div class="lbl">📊 Ocupação</div><div class="progress-mini"><div class="progress-mini-fill" style="width:${pctOcupacao}%"></div></div></div>
+    `;
+}
+
+// ============================================================
+// VERIFICAR SE DADOS FORAM SALVOS
+// ============================================================
+async function verificarSalvamento() {
+    console.log("🔍 VERIFICANDO SALVAMENTO...");
+    console.log("📊 Alunos na memória:", alunos.length);
+    console.log("📊 Turmas na memória:", horariosConfig.length);
+    
+    try {
+        // Verificar alunos no Firebase
+        const snapAlunos = await db.collection('alunos').get();
+        const alunosFirebase = snapAlunos.docs.length;
+        console.log("📊 Alunos no Firebase:", alunosFirebase);
+        
+        // Verificar turmas no Firebase
+        const doc = await db.collection('config').doc('turmas').get();
+        let turmasFirebase = 0;
+        if (doc.exists) {
+            const dados = doc.data();
+            turmasFirebase = dados.turmas ? dados.turmas.length : 0;
+        }
+        console.log("📊 Turmas no Firebase:", turmasFirebase);
+        
+        // Comparar
+        let msg = `📊 Alunos: ${alunos.length} (memória) vs ${alunosFirebase} (Firebase)`;
+        if (alunos.length === alunosFirebase) {
+            msg += ' ✅ OK';
+        } else {
+            msg += ' ⚠️ DIFERENÇA!';
+        }
+        mostrarToast(msg, alunos.length === alunosFirebase ? 'sucesso' : 'erro');
+        
+        let msgTurmas = `📊 Turmas: ${horariosConfig.length} (memória) vs ${turmasFirebase} (Firebase)`;
+        if (horariosConfig.length === turmasFirebase) {
+            msgTurmas += ' ✅ OK';
+        } else {
+            msgTurmas += ' ⚠️ DIFERENÇA!';
+        }
+        mostrarToast(msgTurmas, horariosConfig.length === turmasFirebase ? 'sucesso' : 'erro');
+        
+        console.log("✅ Verificação concluída!");
+        
+    } catch (erro) {
+        console.error("❌ Erro ao verificar:", erro);
+        mostrarToast('❌ Erro ao verificar dados!', 'erro');
+    }
+}
+
+// ============================================================
+// EXPORTAR RELATÓRIO RESUMIDO
+// ============================================================
+function exportarRelatorioResumido() {
+    const totalAlunos = contarAlunosUnicos();
+    const matriculas = contarMatriculasPorTurno();
+    const vencidos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO' && verificarVencimento(a.vencimento).vencido).length;
+    const emDia = totalAlunos - vencidos;
+    
+    const resumo = [
+        ['RELATÓRIO AQUACONTROL'],
+        ['Data:', formatarData()],
+        [''],
+        ['RESUMO GERAL'],
+        ['Total de Alunos Únicos:', totalAlunos],
+        ['Alunos em Dia:', emDia],
+        ['Alunos Vencidos:', vencidos],
+        ['Matrículas Manhã:', matriculas.manha],
+        ['Matrículas Tarde:', matriculas.tarde],
+        ['Matrículas Noite:', matriculas.noite],
+        ['Matrículas Sábado:', matriculas.sabado],
+        ['Total de Matrículas:', matriculas.manha + matriculas.tarde + matriculas.noite + matriculas.sabado],
+        [''],
+        ['ALUNOS DETALHADOS'],
+        ['Código', 'Nome', 'Telefone', 'Modalidade', 'Vencimento', 'Status', 'Dias']
+    ];
+    
+    alunos.forEach(a => {
+        const dias = ['seg','ter','qua','qui','sex','sab'];
+        const diasNomes = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        let diasParticipa = dias.map((campo, idx) => {
+            if (a[campo]) {
+                const horario = horariosConfig.find(h => h.id == a[campo]);
+                return horario ? `${diasNomes[idx]}(${horario.horario})` : '';
+            }
+            return '';
+        }).filter(d => d).join(' | ');
+        
+        resumo.push([
+            a.codigo || '',
+            a.nome || '',
+            a.telefone || '',
+            a.modalidade || '',
+            a.vencimento || '',
+            a.status || 'ATIVO',
+            diasParticipa || 'Nenhum'
+        ]);
+    });
+    
+    const csv = resumo.map(r => r.join(',')).join('\n');
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dataAtual = formatarData().replace(/\//g, '-');
+    a.href = url;
+    a.download = `relatorio_aquacontrol_${dataAtual}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarToast('✅ Relatório exportado com sucesso!');
+}
+
+// ============================================================
+// VERIFICAR SALVAMENTO
+// ============================================================
+async function verificarSalvamento() {
+    console.log("🔍 VERIFICANDO SALVAMENTO...");
+    console.log("📊 Alunos na memória:", alunos.length);
+    console.log("📊 Turmas na memória:", horariosConfig.length);
+    
+    try {
+        const snapAlunos = await db.collection('alunos').get();
+        const alunosFirebase = snapAlunos.docs.length;
+        console.log("📊 Alunos no Firebase:", alunosFirebase);
+        
+        const doc = await db.collection('config').doc('turmas').get();
+        let turmasFirebase = 0;
+        if (doc.exists) {
+            const dados = doc.data();
+            turmasFirebase = dados.turmas ? dados.turmas.length : 0;
+        }
+        console.log("📊 Turmas no Firebase:", turmasFirebase);
+        
+        let msg = `📊 Alunos: ${alunos.length} (memória) vs ${alunosFirebase} (Firebase)`;
+        if (alunos.length === alunosFirebase) {
+            msg += ' ✅ OK';
+            mostrarToast(msg, 'sucesso');
+        } else {
+            msg += ' ⚠️ DIFERENÇA!';
+            mostrarToast(msg, 'erro');
+        }
+        
+        let msgTurmas = `📊 Turmas: ${horariosConfig.length} (memória) vs ${turmasFirebase} (Firebase)`;
+        if (horariosConfig.length === turmasFirebase) {
+            msgTurmas += ' ✅ OK';
+            mostrarToast(msgTurmas, 'sucesso');
+        } else {
+            msgTurmas += ' ⚠️ DIFERENÇA!';
+            mostrarToast(msgTurmas, 'erro');
+        }
+        
+        console.log("✅ Verificação concluída!");
+        
+    } catch (erro) {
+        console.error("❌ Erro ao verificar:", erro);
+        mostrarToast('❌ Erro ao verificar dados!', 'erro');
+    }
+}
