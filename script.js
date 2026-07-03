@@ -5,11 +5,11 @@
 // ============================================================
 // CONFIGURAÇÃO DO SUPABASE
 // ============================================================
-const SUPABASE_URL = "https://kiaNy9c-My-wHiD8zI2eg_guEYcFnb.supabase.co";
+const SUPABASE_URL = "https://tibkrjcwtcinedijfuvt.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable__kiaNy9c-My-wHiD8zI2eg_guEYcFnb";
 
-const { createClient } = supabase;
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// CRIAR CLIENTE SUPABASE (USANDO A VARIÁVEL GLOBAL)
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ============================================================
 // LISTA DE MODALIDADES
@@ -100,10 +100,18 @@ let horariosConfig = [
     { id: 70, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "18:00-19:00", capacidade: 3, turno: "noite" },
     { id: 71, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "19:00-20:00", capacidade: 3, turno: "noite" },
     { id: 72, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "20:00-21:00", capacidade: 3, turno: "noite" },
-    { id: 73, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "21:00-22:00", capacidade: 3, turno: "noite" }
+    { id: 73, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "21:00-22:00", capacidade: 3, turno: "noite" },
+    { id: 74, modalidade: "Personal Class", dias: ["Sábado"], horario: "07:00-08:00", capacidade: 3, turno: "manha" },
+    { id: 75, modalidade: "Personal Class", dias: ["Sábado"], horario: "08:00-09:00", capacidade: 3, turno: "manha" },
+    { id: 76, modalidade: "Personal Class", dias: ["Sábado"], horario: "09:00-10:00", capacidade: 3, turno: "manha" },
+    { id: 77, modalidade: "Personal Class", dias: ["Sábado"], horario: "10:00-11:00", capacidade: 3, turno: "manha" },
+    { id: 78, modalidade: "Personal Class", dias: ["Sábado"], horario: "11:00-12:00", capacidade: 3, turno: "manha" },
+    { id: 79, modalidade: "Natação Infantil Nível 1", dias: ["Terça","Quinta"], horario: "14:50-15:20", capacidade: 10, turno: "tarde" },
+    { id: 80, modalidade: "Natação Adulto", dias: ["Sábado"], horario: "07:00-08:00", capacidade: 3, turno: "manha" },
+    { id: 81, modalidade: "Personal Class", dias: ["Segunda","Quarta","Sexta"], horario: "14:30-15:30", capacidade: 3, turno: "tarde" }
 ];
 
-// Corrigir turno
+// Corrigir turno baseado no horário (17h em diante = noite)
 horariosConfig = horariosConfig.map(h => {
     const horaInicio = parseInt(h.horario.split('-')[0].split(':')[0]);
     if (horaInicio >= 17 && h.turno !== 'sabado') {
@@ -126,13 +134,37 @@ const diasMap = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 
 const diasPtBr = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 
 // ============================================================
+// LOGIN
+// ============================================================
+const MASTER_PASSWORD = "aqua123";
+
+function checkPassword() {
+    if (document.getElementById("passwordInput").value === MASTER_PASSWORD) {
+        localStorage.setItem("aqua_authenticated", "true");
+        document.getElementById("loginScreen").style.display = "none";
+        document.getElementById("appContainer").style.display = "block";
+        carregarDados();
+    } else {
+        document.getElementById("loginError").style.display = "block";
+    }
+}
+
+function handleKeyPress(e) {
+    if (e.key === "Enter") checkPassword();
+}
+
+function logout() {
+    localStorage.removeItem("aqua_authenticated");
+    location.reload();
+}
+
+// ============================================================
 // FUNÇÕES DE BANCO DE DADOS (SUPABASE)
 // ============================================================
 
-// CARREGAR ALUNOS
 async function carregarAlunos() {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('alunos')
             .select('*')
             .order('codigo', { ascending: true });
@@ -149,17 +181,16 @@ async function carregarAlunos() {
     }
 }
 
-// SALVAR ALUNO
 async function salvarAluno(aluno) {
     try {
         if (aluno.id) {
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('alunos')
                 .update(aluno)
                 .eq('id', aluno.id);
             if (error) throw error;
         } else {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('alunos')
                 .insert([aluno])
                 .select();
@@ -176,10 +207,9 @@ async function salvarAluno(aluno) {
     }
 }
 
-// EXCLUIR ALUNO
 async function excluirAluno(id) {
     try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('alunos')
             .delete()
             .eq('id', id);
@@ -192,10 +222,9 @@ async function excluirAluno(id) {
     }
 }
 
-// CARREGAR EXPERIMENTAIS
 async function carregarExperimentais() {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('experimentais')
             .select('*')
             .order('id', { ascending: true });
@@ -212,17 +241,16 @@ async function carregarExperimentais() {
     }
 }
 
-// SALVAR EXPERIMENTAL
 async function salvarExperimental(exp) {
     try {
         if (exp.id) {
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('experimentais')
                 .update(exp)
                 .eq('id', exp.id);
             if (error) throw error;
         } else {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('experimentais')
                 .insert([exp])
                 .select();
@@ -238,10 +266,9 @@ async function salvarExperimental(exp) {
     }
 }
 
-// EXCLUIR EXPERIMENTAL
 async function excluirExperimental(id) {
     try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('experimentais')
             .delete()
             .eq('id', id);
@@ -253,10 +280,9 @@ async function excluirExperimental(id) {
     }
 }
 
-// SALVAR HISTÓRICO EXPERIMENTAL
 async function salvarHistoricoExperimental(item) {
     try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('historico_experimentais')
             .insert([item]);
         if (error) throw error;
@@ -268,10 +294,9 @@ async function salvarHistoricoExperimental(item) {
     }
 }
 
-// CARREGAR HISTÓRICO EXPERIMENTAL
 async function carregarHistoricoExperimental() {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('historico_experimentais')
             .select('*')
             .order('timestamp', { ascending: false });
@@ -285,18 +310,16 @@ async function carregarHistoricoExperimental() {
     }
 }
 
-// CARREGAR TURMAS
 async function carregarTurmas() {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('config')
             .select('valor')
             .eq('chave', 'turmas')
             .single();
         
         if (error) {
-            // Se não existir, criar
-            await supabase
+            await supabaseClient
                 .from('config')
                 .insert([{ chave: 'turmas', valor: JSON.stringify(horariosConfig) }]);
             console.log("✅ Configuração de turmas criada");
@@ -317,10 +340,9 @@ async function carregarTurmas() {
     }
 }
 
-// SALVAR TURMAS
 async function salvarTurmas() {
     try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('config')
             .update({ 
                 valor: JSON.stringify(horariosConfig),
@@ -336,24 +358,6 @@ async function salvarTurmas() {
         return false;
     }
 }
-
-// ============================================================
-// LOGIN
-// ============================================================
-const MASTER_PASSWORD = "aqua123";
-
-function checkPassword() {
-    if (document.getElementById("passwordInput").value === MASTER_PASSWORD) {
-        localStorage.setItem("aqua_authenticated", "true");
-        document.getElementById("loginScreen").style.display = "none";
-        document.getElementById("appContainer").style.display = "block";
-        carregarDados();
-    } else {
-        document.getElementById("loginError").style.display = "block";
-    }
-}
-function handleKeyPress(e) { if (e.key === "Enter") checkPassword(); }
-function logout() { localStorage.removeItem("aqua_authenticated"); location.reload(); }
 
 // ============================================================
 // CARREGAR DADOS
@@ -441,7 +445,7 @@ function alunoContaOcupacao(a) {
 }
 
 // ============================================================
-// CONTAGEM DE ALUNOS (CORRIGIDA)
+// CONTAGEM DE ALUNOS
 // ============================================================
 function contarAlunosUnicos() {
     const ativos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO');
@@ -663,14 +667,14 @@ function getOcupacaoHorarioDia(horarioId, diaFiltro) {
         expCount = experimentais.filter(e => {
             if (e.horario_id !== horarioId) return false;
             if (e.status !== 'agendado') return false;
-            if (e.data_agendada && e.data_agendada !== hojeStr) return false;
+            if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
             return diasFiltroArray.includes(e.dia);
         }).length;
     } else {
         expCount = experimentais.filter(e => {
             if (e.horario_id !== horarioId) return false;
             if (e.status !== 'agendado') return false;
-            if (e.data_agendada && e.data_agendada !== hojeStr) return false;
+            if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
             return true;
         }).length;
     }
@@ -760,9 +764,9 @@ function abrirEdicaoTurma(hId) {
             </div>
             
             <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">⏰ HORÁRIO (ex: 08:00-09:00):</label>
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">⏰ HORÁRIO:</label>
                 <input type="text" id="editTurmaHorario" class="search-input-field" value="${h.horario}" style="width:100%;padding:10px;font-size:1rem;" placeholder="08:00-09:00">
-                <small style="color:#64748b;">Formato: HH:MM-HH:MM (ex: 14:30-15:10)</small>
+                <small style="color:#64748b;">Formato: HH:MM-HH:MM</small>
             </div>
             
             <div style="margin-bottom:15px;">
@@ -778,9 +782,9 @@ function abrirEdicaoTurma(hId) {
             <div style="margin-bottom:20px;">
                 <label style="font-weight:bold;display:block;margin-bottom:5px;">🌙 Turno:</label>
                 <select id="editTurmaTurno" class="form-select-field" style="width:100%;padding:10px;">
-                    <option value="manha" ${h.turno === 'manha' ? 'selected' : ''}>🌅 Manhã (até 11:59)</option>
-                    <option value="tarde" ${h.turno === 'tarde' ? 'selected' : ''}>☀️ Tarde (12:00 - 16:59)</option>
-                    <option value="noite" ${h.turno === 'noite' ? 'selected' : ''}>🌙 Noite (17:00 em diante)</option>
+                    <option value="manha" ${h.turno === 'manha' ? 'selected' : ''}>🌅 Manhã</option>
+                    <option value="tarde" ${h.turno === 'tarde' ? 'selected' : ''}>☀️ Tarde</option>
+                    <option value="noite" ${h.turno === 'noite' ? 'selected' : ''}>🌙 Noite</option>
                     <option value="sabado" ${h.turno === 'sabado' ? 'selected' : ''}>📅 Sábado</option>
                 </select>
             </div>
@@ -820,7 +824,7 @@ function salvarEdicaoCompletaTurma(hId) {
     
     if (!novoHorario) { alert('⚠️ Digite o horário!'); return; }
     if (!novoHorario.match(/^\d{2}:\d{2}-\d{2}:\d{2}$/)) {
-        alert('⚠️ Formato de horário inválido! Use HH:MM-HH:MM (ex: 08:00-09:00)');
+        alert('⚠️ Formato inválido! Use HH:MM-HH:MM');
         return;
     }
     if (novosDias.length === 0) { alert('⚠️ Selecione pelo menos um dia!'); return; }
@@ -831,13 +835,6 @@ function salvarEdicaoCompletaTurma(hId) {
     else if (horaInicio >= 12 && horaInicio < 17) novoTurno = 'tarde';
     else if (horaInicio >= 6 && horaInicio < 12) novoTurno = 'manha';
     
-    const conflito = horariosConfig.find(t => t.id !== hId && t.horario === novoHorario && t.dias.some(d => novosDias.includes(d)));
-    if (conflito) {
-        if (!confirm(`⚠️ Já existe uma turma de "${conflito.modalidade}" no horário ${novoHorario}. Deseja continuar?`)) {
-            return;
-        }
-    }
-    
     h.modalidade = novaModalidade;
     h.horario = novoHorario;
     h.dias = novosDias;
@@ -845,7 +842,6 @@ function salvarEdicaoCompletaTurma(hId) {
     h.turno = novoTurno;
     
     salvarTurmas();
-    
     renderizarTudo();
     fecharSuperModal();
     mostrarToast(`✅ Turma "${novaModalidade}" (${novoHorario}) atualizada!`);
@@ -880,7 +876,6 @@ function excluirTurmaPermanente(hId) {
     if (index !== -1) horariosConfig.splice(index, 1);
     
     salvarTurmas();
-    
     renderizarTudo();
     fecharSuperModal();
     mostrarToast(`✅ Turma "${turma.modalidade}" excluída!`);
@@ -990,7 +985,6 @@ function salvarNovaTurma() {
     
     horariosConfig.push(novaTurma);
     salvarTurmas();
-    
     renderizarTudo();
     fecharSuperModal();
     mostrarToast(`✅ Turma de ${modalidade} (${horario}) criada!`);
@@ -1065,7 +1059,7 @@ function abrirModalHorario(horarioId) {
                         const alerta = faltas >= 2 ? `<div style="background:#fee2e2;color:#b91c1c;font-size:0.75rem;padding:4px;border-radius:5px;margin-top:4px;">⚠️ Faltou ${faltas}x antes</div>` : '';
                         return `
                             <div style="background:white;padding:12px;border-radius:10px;border:1px solid #fde68a;margin-bottom:10px;">
-                                <div><strong>${exp.nome}</strong><div style="font-size:0.85rem;">📞 ${exp.telefone}</div>${alerta}<div style="font-size:0.8rem;color:#0369a1;">📅 ${formatarDataBR(exp.data_agendada)} | ${horariosConfig.find(h=>h.id===exp.horario_id)?.horario || '??'}</div></div>
+                                <div><strong>${exp.nome}</strong><div style="font-size:0.85rem;">📞 ${exp.telefone}</div>${alerta}<div style="font-size:0.8rem;color:#0369a1;">📅 ${formatarDataBR(exp.dataAgendada)} | ${horariosConfig.find(h=>h.id===exp.horario_id)?.horario || '??'}</div></div>
                                 <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;">
                                     <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WA</a>
                                     <button onclick="marcarPresencaExp(${exp.id},'compareceu',${horarioId})" style="background:#10b981;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;">✔️ Veio</button>
@@ -1182,7 +1176,7 @@ function renderPainelExperimentaisHoje() {
     const hojeStr = formatarDataISO();
     const expHoje = experimentais.filter(e => {
         if (e.status !== 'agendado') return false;
-        if (e.data_agendada && e.data_agendada !== hojeStr) return false;
+        if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
         const h = horariosConfig.find(hc => hc.id === e.horario_id);
         const hojeSemana = diasPtBr[new Date().getDay()];
         return h && h.dias.includes(hojeSemana);
@@ -1215,7 +1209,7 @@ function marcarPresencaExpPainel(id, st) {
         salvarHistoricoExperimental({
             nome: exp.nome,
             telefone: exp.telefone,
-            data: exp.data_agendada || formatarDataISO(),
+            data: exp.dataAgendada || formatarDataISO(),
             horario_id: exp.horario_id,
             resultado: 'nao_compareceu',
             matriculado: false
@@ -1226,7 +1220,7 @@ function marcarPresencaExpPainel(id, st) {
         salvarHistoricoExperimental({
             nome: exp.nome,
             telefone: exp.telefone,
-            data: exp.data_agendada || formatarDataISO(),
+            data: exp.dataAgendada || formatarDataISO(),
             horario_id: exp.horario_id,
             resultado: 'compareceu',
             matriculado: false
@@ -1250,7 +1244,7 @@ function marcarPresencaExp(id, st, hId) {
         salvarHistoricoExperimental({
             nome: exp.nome,
             telefone: exp.telefone,
-            data: exp.data_agendada || formatarDataISO(),
+            data: exp.dataAgendada || formatarDataISO(),
             horario_id: exp.horario_id,
             resultado: 'nao_compareceu',
             matriculado: false
@@ -1261,7 +1255,7 @@ function marcarPresencaExp(id, st, hId) {
         salvarHistoricoExperimental({
             nome: exp.nome,
             telefone: exp.telefone,
-            data: exp.data_agendada || formatarDataISO(),
+            data: exp.dataAgendada || formatarDataISO(),
             horario_id: exp.horario_id,
             resultado: 'compareceu',
             matriculado: false
@@ -1537,9 +1531,7 @@ function salvarNovaModalidade() {
     
     modalidadesDisponiveis.push(novaModalidade);
     modalidadesDisponiveis.sort();
-    
     atualizarDropdownsModalidade();
-    
     fecharSuperModal();
     mostrarToast(`✅ Modalidade "${novaModalidade}" criada com sucesso!`);
 }
@@ -1645,11 +1637,11 @@ function renderExperimentaisFuturos() {
     
     let futuros = experimentais.filter(e => {
         if (e.status !== 'agendado') return false;
-        if (!e.data_agendada) return false;
-        return e.data_agendada >= hoje;
+        if (!e.dataAgendada) return false;
+        return e.dataAgendada >= hoje;
     });
     
-    futuros.sort((a, b) => a.data_agendada.localeCompare(b.data_agendada));
+    futuros.sort((a, b) => a.dataAgendada.localeCompare(b.dataAgendada));
     
     if (busca) {
         futuros = futuros.filter(e => e.nome.toLowerCase().includes(busca) || e.telefone.includes(busca));
@@ -1664,7 +1656,7 @@ function renderExperimentaisFuturos() {
         const horario = horariosConfig.find(h => h.id === exp.horario_id);
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:12px;"><strong>${formatarDataBR(exp.data_agendada)}</strong></td>
+                <td style="padding:12px;"><strong>${formatarDataBR(exp.dataAgendada)}</strong></td>
                 <td style="padding:12px;">${horario ? horario.horario : '??'} - ${exp.dia || ''}</td>
                 <td style="padding:12px;"><strong>${exp.nome}</strong></td>
                 <td style="padding:12px;">${exp.telefone}</td>
@@ -1692,7 +1684,7 @@ function abrirEdicaoExperimental(expId) {
         <div style="max-width:500px;margin:0 auto;">
             <div style="margin-bottom:15px;"><label>Nome:</label><input type="text" id="editExpNome" class="search-input-field" value="${exp.nome}"></div>
             <div style="margin-bottom:15px;"><label>Telefone:</label><input type="text" id="editExpTelefone" class="search-input-field" value="${exp.telefone}"></div>
-            <div style="margin-bottom:15px;"><label>Data da Aula:</label><input type="date" id="editExpData" class="search-input-field" value="${exp.data_agendada || ''}"></div>
+            <div style="margin-bottom:15px;"><label>Data da Aula:</label><input type="date" id="editExpData" class="search-input-field" value="${exp.dataAgendada || ''}"></div>
             <div style="margin-bottom:15px;"><label>Modalidade:</label>
                 <select id="editExpModalidade" class="form-select-field" onchange="carregarDiasExpEdicao()">
                     <option value="">-- Selecione --</option>
@@ -1787,7 +1779,7 @@ function salvarEdicaoExperimental(expId) {
     
     exp.nome = novoNome;
     exp.telefone = novoTelefone;
-    exp.data_agendada = novaData;
+    exp.dataAgendada = novaData;
     exp.horario_id = parseInt(hId);
     exp.dia = dia;
     exp.modalidade = modalidade;
@@ -1911,14 +1903,14 @@ async function renderHistoricoExperimentais() {
     const hojeStr = formatarDataISO();
     const experimentaisPassados = experimentais.filter(e => {
         if (e.status === 'agendado') return false;
-        if (e.data_agendada && e.data_agendada < hojeStr) return true;
+        if (e.dataAgendada && e.dataAgendada < hojeStr) return true;
         return e.status !== 'agendado';
     });
     
     let todos = [];
     
     historicoExp.forEach(item => {
-        let dataItem = item.data || item.data_agendada || '';
+        let dataItem = item.data || item.dataAgendada || '';
         if (item.timestamp) {
             const date = new Date(item.timestamp);
             dataItem = date.toISOString().split('T')[0];
@@ -1937,13 +1929,13 @@ async function renderHistoricoExperimentais() {
     experimentaisPassados.forEach(e => {
         const horario = horariosConfig.find(h => h.id === e.horario_id);
         todos.push({
-            data: e.data_agendada || '',
+            data: e.dataAgendada || '',
             horario: horario ? horario.horario : '??',
             nome: e.nome || 'Nome não informado',
             telefone: e.telefone || '',
             resultado: e.status || 'agendado',
             matriculado: false,
-            timestamp: e.data_agendada || new Date().toISOString()
+            timestamp: e.dataAgendada || new Date().toISOString()
         });
     });
     
@@ -2360,7 +2352,7 @@ function salvarExpFab() {
         id: ++expIdCounter, 
         nome, 
         telefone, 
-        data_agendada: data, 
+        dataAgendada: data, 
         horario_id: parseInt(hId), 
         dia, 
         status: 'agendado', 
@@ -2517,14 +2509,14 @@ async function verificarSalvamento() {
     console.log("📊 Turmas na memória:", horariosConfig.length);
     
     try {
-        const { data: alunosDB, error: errAlunos, count } = await supabase
+        const { data: alunosDB, error: errAlunos, count } = await supabaseClient
             .from('alunos')
             .select('*', { count: 'exact', head: true });
         
         const alunosFirebase = errAlunos ? 0 : count;
         console.log("📊 Alunos no Supabase:", alunosFirebase);
         
-        const { data: configDB, error: errConfig } = await supabase
+        const { data: configDB, error: errConfig } = await supabaseClient
             .from('config')
             .select('valor')
             .eq('chave', 'turmas')
@@ -2626,7 +2618,10 @@ function toggleTheme() {
     localStorage.setItem('aqua_theme', isDark ? 'dark' : 'light');
     document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
 }
-(function() { if (localStorage.getItem('aqua_theme') === 'dark') document.body.classList.add('dark'); })();
+
+(function() { 
+    if (localStorage.getItem('aqua_theme') === 'dark') document.body.classList.add('dark'); 
+})();
 
 // ============================================================
 // INICIALIZAÇÃO
