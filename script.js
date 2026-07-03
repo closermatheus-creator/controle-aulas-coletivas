@@ -1923,7 +1923,8 @@ async function renderHistoricoExperimentais() {
             telefone: item.telefone || '',
             resultado: item.resultado || 'agendado',
             matriculado: item.matriculado || false,
-            timestamp: item.timestamp || dataItem
+            timestamp: item.timestamp || dataItem,
+            origem: 'historico'
         });
     });
     
@@ -1937,7 +1938,8 @@ async function renderHistoricoExperimentais() {
             telefone: e.telefone || '',
             resultado: e.status || 'agendado',
             matriculado: false,
-            timestamp: e.dataAgendada || new Date().toISOString()
+            timestamp: e.dataAgendada || new Date().toISOString(),
+            origem: 'experimental'
         });
     });
     
@@ -2020,6 +2022,8 @@ async function renderHistoricoExperimentais() {
         
         const dataFormatada = item.data && item.data.includes('-') ? formatarDataBR(item.data) : (item.data || '—');
         const telefone = item.telefone || '';
+        const id = item.id || '';
+        const origem = item.origem || 'historico';
         
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
@@ -2029,10 +2033,11 @@ async function renderHistoricoExperimentais() {
                 <td style="padding:12px;">${telefone}</td>
                 <td style="padding:12px;">${statusHtml}</td>
                 <td style="padding:12px;display:flex;gap:4px;flex-wrap:wrap;">
-                    <button onclick="editarStatusExperimental('${item.id}', 'compareceu')" style="background:#10b981;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;">✅ Compareceu</button>
-                    <button onclick="editarStatusExperimental('${item.id}', 'nao_compareceu')" style="background:#ef4444;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;">❌ Faltou</button>
-                    <button onclick="editarMatriculaExperimental('${item.id}')" style="background:#006994;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;">📋 Matricular</button>
-                    ${telefone ? `<a href="https://wa.me/55${String(telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:0.7rem;">💬 WhatsApp</a>` : ''}
+                    <button onclick="editarStatusExperimental('${id}', 'compareceu', '${origem}')" style="background:#10b981;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;">✅</button>
+                    <button onclick="editarStatusExperimental('${id}', 'nao_compareceu', '${origem}')" style="background:#ef4444;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;">❌</button>
+                    <button onclick="editarMatriculaExperimental('${id}', '${origem}')" style="background:#006994;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;">📋</button>
+                    <button onclick="excluirExperimentalHistorico('${id}', '${origem}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;" title="Excluir">🗑️</button>
+                    ${telefone ? `<a href="https://wa.me/55${String(telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:0.7rem;">💬</a>` : ''}
                 </td>
             </tr>
         `;
@@ -2042,45 +2047,96 @@ async function renderHistoricoExperimentais() {
 // ============================================================
 // EDITAR STATUS DO EXPERIMENTAL NO HISTÓRICO
 // ============================================================
-async function editarStatusExperimental(id, novoStatus) {
+// ============================================================
+// EDITAR STATUS DO EXPERIMENTAL NO HISTÓRICO
+// ============================================================
+async function editarStatusExperimental(id, novoStatus, origem) {
     if (!id) {
-        mostrarToast('❌ ID do experimental não encontrado!', 'erro');
+        mostrarToast('❌ ID não encontrado!', 'erro');
         return;
     }
     
-    // Verificar se é do histórico ou do experimentais
-    let encontrado = false;
-    
-    // Tentar encontrar no histórico
     try {
-        const { data, error } = await supabaseClient
-            .from('historico_experimentais')
-            .update({ resultado: novoStatus })
-            .eq('id', id);
-        
-        if (!error) {
-            encontrado = true;
+        if (origem === 'historico') {
+            // Atualizar no histórico
+            const { error } = await supabaseClient
+                .from('historico_experimentais')
+                .update({ resultado: novoStatus })
+                .eq('id', id);
+            
+            if (error) throw error;
             mostrarToast(`✅ Status alterado para ${novoStatus === 'compareceu' ? 'Compareceu' : 'Faltou'}!`);
-            renderHistoricoExperimentais();
-            return;
+            
+        } else if (origem === 'experimental') {
+            // Atualizar no experimentais
+            const exp = experimentais.find(e => e.id == id);
+            if (exp) {
+                exp.status = novoStatus;
+                await salvarExperimental(exp);
+                mostrarToast(`✅ Status alterado para ${novoStatus === 'compareceu' ? 'Compareceu' : 'Faltou'}!`);
+            } else {
+                mostrarToast('❌ Experimental não encontrado!', 'erro');
+                return;
+            }
         }
-    } catch (e) {}
-    
-    // Se não encontrou no histórico, tentar nos experimentais
-    const exp = experimentais.find(e => e.id == id);
-    if (exp) {
-        exp.status = novoStatus;
-        await salvarExperimental(exp);
-        encontrado = true;
-        mostrarToast(`✅ Status alterado para ${novoStatus === 'compareceu' ? 'Compareceu' : 'Faltou'}!`);
+        
         renderHistoricoExperimentais();
         renderizarTudo();
         renderPainelExperimentaisHoje();
+        
+    } catch (erro) {
+        console.error('❌ Erro ao editar status:', erro);
+        mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
+    }
+}
+
+// ============================================================
+// EDITAR MATRÍCULA DO EXPERIMENTAL NO HISTÓRICO
+// ============================================================
+async function editarMatriculaExperimental(id, origem) {
+    if (!id) {
+        mostrarToast('❌ ID não encontrado!', 'erro');
         return;
     }
     
-    if (!encontrado) {
-        mostrarToast('❌ Experimental não encontrado!', 'erro');
+    try {
+        if (origem === 'historico') {
+            // Buscar o registro
+            const { data, error } = await supabaseClient
+                .from('historico_experimentais')
+                .select('*')
+                .eq('id', id)
+                .single();
+            
+            if (error) throw error;
+            
+            const novoStatus = data.matriculado ? false : true;
+            const { error: updateError } = await supabaseClient
+                .from('historico_experimentais')
+                .update({ matriculado: novoStatus })
+                .eq('id', id);
+            
+            if (updateError) throw updateError;
+            mostrarToast(`✅ ${novoStatus ? 'Matrícula efetivada' : 'Matrícula removida'}!`);
+            
+        } else if (origem === 'experimental') {
+            // Efetivar matrícula do experimental
+            const exp = experimentais.find(e => e.id == id);
+            if (exp) {
+                await matricularExperimentalInSuper(exp.id);
+                return;
+            } else {
+                mostrarToast('❌ Experimental não encontrado!', 'erro');
+                return;
+            }
+        }
+        
+        renderHistoricoExperimentais();
+        renderizarTudo();
+        
+    } catch (erro) {
+        console.error('❌ Erro ao editar matrícula:', erro);
+        mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
     }
 }
 
@@ -2736,3 +2792,53 @@ window.onload = function() {
         renderizarTudo(); 
     }, 30000);
 };
+
+// ============================================================
+// EXCLUIR EXPERIMENTAL DO HISTÓRICO
+// ============================================================
+async function excluirExperimentalHistorico(id, origem) {
+    if (!id) {
+        mostrarToast('❌ ID não encontrado!', 'erro');
+        return;
+    }
+    
+    // Confirmar exclusão
+    if (!confirm('⚠️ Tem certeza que deseja excluir este registro do histórico?\n\nEsta ação NÃO pode ser desfeita!')) {
+        return;
+    }
+    
+    try {
+        if (origem === 'historico') {
+            // Excluir do histórico
+            const { error } = await supabaseClient
+                .from('historico_experimentais')
+                .delete()
+                .eq('id', id);
+            
+            if (error) throw error;
+            mostrarToast('✅ Registro excluído do histórico!');
+            
+        } else if (origem === 'experimental') {
+            // Excluir do experimentais
+            const exp = experimentais.find(e => e.id == id);
+            if (exp) {
+                await excluirExperimental(id);
+                const index = experimentais.findIndex(e => e.id == id);
+                if (index !== -1) experimentais.splice(index, 1);
+                mostrarToast('✅ Experimental excluído!');
+            } else {
+                mostrarToast('❌ Experimental não encontrado!', 'erro');
+                return;
+            }
+        }
+        
+        // Re-renderizar
+        renderHistoricoExperimentais();
+        renderizarTudo();
+        renderPainelExperimentaisHoje();
+        
+    } catch (erro) {
+        console.error('❌ Erro ao excluir:', erro);
+        mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
+    }
+}
