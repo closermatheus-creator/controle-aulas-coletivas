@@ -1,22 +1,18 @@
 // ============================================================
-// AQUACONTROL v6.0 — SISTEMA COMPLETO COM CRIAÇÃO DE MODALIDADES
+// AQUACONTROL v7.0 — SUPABASE VERSION
 // ============================================================
-const MASTER_PASSWORD = "aqua123";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCMGMg8ITNtDK7J0ZFxAxkcot5PmU3znt0",
-  authDomain: "aquacontrol-453ab.firebaseapp.com",
-  projectId: "aquacontrol-453ab",
-  storageBucket: "aquacontrol-453ab.firebasestorage.app",
-  messagingSenderId: "519539395936",
-  appId: "1:519539395936:web:61a37956c32bc24d506205"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
 
 // ============================================================
-// LISTA DE MODALIDADES (PODE SER EDITADA PELO USUÁRIO)
+// CONFIGURAÇÃO DO SUPABASE
+// ============================================================
+const SUPABASE_URL = "https://kiaNy9c-My-wHiD8zI2eg_guEYcFnb.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable__kiaNy9c-My-wHiD8zI2eg_guEYcFnb";
+
+const { createClient } = supabase;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ============================================================
+// LISTA DE MODALIDADES
 // ============================================================
 let modalidadesDisponiveis = [
     "Natação Adulto",
@@ -29,7 +25,7 @@ let modalidadesDisponiveis = [
 ];
 
 // ============================================================
-// GRADE HORÁRIA COMPLETA
+// GRADE HORÁRIA
 // ============================================================
 let horariosConfig = [
     { id: 1, modalidade: "Natação Adulto", dias: ["Segunda","Quarta","Sexta"], horario: "06:00-06:40", capacidade: 10, turno: "manha" },
@@ -107,7 +103,7 @@ let horariosConfig = [
     { id: 73, modalidade: "Personal Class", dias: ["Segunda","Terça","Quarta","Quinta","Sexta"], horario: "21:00-22:00", capacidade: 3, turno: "noite" }
 ];
 
-// Corrigir turno baseado no horário (17h em diante = noite)
+// Corrigir turno
 horariosConfig = horariosConfig.map(h => {
     const horaInicio = parseInt(h.horario.split('-')[0].split(':')[0]);
     if (horaInicio >= 17 && h.turno !== 'sabado') {
@@ -130,66 +126,222 @@ const diasMap = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 
 const diasPtBr = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 
 // ============================================================
-// FUNÇÃO PARA ATUALIZAR DROPDOWNS DE MODALIDADE
+// FUNÇÕES DE BANCO DE DADOS (SUPABASE)
 // ============================================================
-function atualizarDropdownsModalidade() {
-    const selects = document.querySelectorAll('.modalidade-select');
-    selects.forEach(select => {
-        const valorAtual = select.value;
-        select.innerHTML = modalidadesDisponiveis.map(m => `<option value="${m}" ${valorAtual === m ? 'selected' : ''}>${m}</option>`).join('');
-    });
+
+// CARREGAR ALUNOS
+async function carregarAlunos() {
+    try {
+        const { data, error } = await supabase
+            .from('alunos')
+            .select('*')
+            .order('codigo', { ascending: true });
+        
+        if (error) throw error;
+        alunos = data || [];
+        studentIdCounter = alunos.length > 0 ? Math.max(...alunos.map(a => a.codigo || 0), 1000) : 1000;
+        console.log("✅ Alunos carregados:", alunos.length);
+        return alunos;
+    } catch (erro) {
+        console.error("❌ Erro ao carregar alunos:", erro);
+        alunos = [];
+        return [];
+    }
 }
 
-// ============================================================
-// CRIAR NOVA MODALIDADE
-// ============================================================
-function abrirCriarModalidade() {
-    const modal = document.getElementById('globalSuperModal');
-    const titulo = document.getElementById('superModalTitulo');
-    const corpo = document.getElementById('superModalCorpo');
-    
-    titulo.innerHTML = '➕ Criar Nova Modalidade';
-    corpo.innerHTML = `
-        <div style="max-width:400px;margin:0 auto;">
-            <div style="margin-bottom:20px;">
-                <label style="font-weight:bold;display:block;margin-bottom:8px;">Nome da Nova Modalidade:</label>
-                <input type="text" id="novaModalidadeNome" class="search-input-field" style="width:100%;padding:12px;" placeholder="Ex: Natação Competição, Alongamento, etc.">
-            </div>
-            <div style="margin-bottom:20px;padding:12px;background:#e0f2fe;border-radius:8px;color:#0369a1;">
-                💡 A nova modalidade aparecerá em todos os lugares (cadastro de alunos, criação de turmas, filtros).
-            </div>
-            <div class="form-actions-row" style="display:flex;gap:10px;justify-content:flex-end;">
-                <button class="btn-save-modal" onclick="salvarNovaModalidade()" style="background:#006994;">✅ Criar Modalidade</button>
-                <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
-            </div>
-        </div>
-    `;
-    modal.classList.add('active');
+// SALVAR ALUNO
+async function salvarAluno(aluno) {
+    try {
+        if (aluno.id) {
+            const { error } = await supabase
+                .from('alunos')
+                .update(aluno)
+                .eq('id', aluno.id);
+            if (error) throw error;
+        } else {
+            const { data, error } = await supabase
+                .from('alunos')
+                .insert([aluno])
+                .select();
+            if (error) throw error;
+            if (data && data.length > 0) {
+                aluno.id = data[0].id;
+            }
+        }
+        console.log("✅ Aluno salvo:", aluno.nome);
+        return aluno;
+    } catch (erro) {
+        console.error("❌ Erro ao salvar aluno:", erro);
+        throw erro;
+    }
 }
 
-function salvarNovaModalidade() {
-    const novaModalidade = document.getElementById('novaModalidadeNome').value.trim();
-    if (!novaModalidade) {
-        alert('⚠️ Digite o nome da nova modalidade!');
-        return;
+// EXCLUIR ALUNO
+async function excluirAluno(id) {
+    try {
+        const { error } = await supabase
+            .from('alunos')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+        console.log("✅ Aluno excluído:", id);
+        return true;
+    } catch (erro) {
+        console.error("❌ Erro ao excluir aluno:", erro);
+        return false;
     }
-    if (modalidadesDisponiveis.includes(novaModalidade)) {
-        alert(`⚠️ A modalidade "${novaModalidade}" já existe!`);
-        return;
+}
+
+// CARREGAR EXPERIMENTAIS
+async function carregarExperimentais() {
+    try {
+        const { data, error } = await supabase
+            .from('experimentais')
+            .select('*')
+            .order('id', { ascending: true });
+        
+        if (error) throw error;
+        experimentais = data || [];
+        expIdCounter = experimentais.length > 0 ? Math.max(...experimentais.map(e => e.id || 0), 1000) : 1000;
+        console.log("✅ Experimentais carregados:", experimentais.length);
+        return experimentais;
+    } catch (erro) {
+        console.error("❌ Erro ao carregar experimentais:", erro);
+        experimentais = [];
+        return [];
     }
-    
-    modalidadesDisponiveis.push(novaModalidade);
-    modalidadesDisponiveis.sort();
-    
-    atualizarDropdownsModalidade();
-    
-    fecharSuperModal();
-    mostrarToast(`✅ Modalidade "${novaModalidade}" criada com sucesso!`);
+}
+
+// SALVAR EXPERIMENTAL
+async function salvarExperimental(exp) {
+    try {
+        if (exp.id) {
+            const { error } = await supabase
+                .from('experimentais')
+                .update(exp)
+                .eq('id', exp.id);
+            if (error) throw error;
+        } else {
+            const { data, error } = await supabase
+                .from('experimentais')
+                .insert([exp])
+                .select();
+            if (error) throw error;
+            if (data && data.length > 0) {
+                exp.id = data[0].id;
+            }
+        }
+        return exp;
+    } catch (erro) {
+        console.error("❌ Erro ao salvar experimental:", erro);
+        throw erro;
+    }
+}
+
+// EXCLUIR EXPERIMENTAL
+async function excluirExperimental(id) {
+    try {
+        const { error } = await supabase
+            .from('experimentais')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+        return true;
+    } catch (erro) {
+        console.error("❌ Erro ao excluir experimental:", erro);
+        return false;
+    }
+}
+
+// SALVAR HISTÓRICO EXPERIMENTAL
+async function salvarHistoricoExperimental(item) {
+    try {
+        const { error } = await supabase
+            .from('historico_experimentais')
+            .insert([item]);
+        if (error) throw error;
+        console.log("✅ Histórico salvo:", item.nome);
+        return true;
+    } catch (erro) {
+        console.error("❌ Erro ao salvar histórico:", erro);
+        return false;
+    }
+}
+
+// CARREGAR HISTÓRICO EXPERIMENTAL
+async function carregarHistoricoExperimental() {
+    try {
+        const { data, error } = await supabase
+            .from('historico_experimentais')
+            .select('*')
+            .order('timestamp', { ascending: false });
+        
+        if (error) throw error;
+        console.log("✅ Histórico carregado:", data ? data.length : 0);
+        return data || [];
+    } catch (erro) {
+        console.error("❌ Erro ao carregar histórico:", erro);
+        return [];
+    }
+}
+
+// CARREGAR TURMAS
+async function carregarTurmas() {
+    try {
+        const { data, error } = await supabase
+            .from('config')
+            .select('valor')
+            .eq('chave', 'turmas')
+            .single();
+        
+        if (error) {
+            // Se não existir, criar
+            await supabase
+                .from('config')
+                .insert([{ chave: 'turmas', valor: JSON.stringify(horariosConfig) }]);
+            console.log("✅ Configuração de turmas criada");
+            return horariosConfig;
+        }
+        
+        if (data && data.valor) {
+            const turmas = typeof data.valor === 'string' ? JSON.parse(data.valor) : data.valor;
+            if (turmas && turmas.length > 0) {
+                horariosConfig = turmas;
+                console.log("✅ Turmas carregadas:", horariosConfig.length);
+            }
+        }
+        return horariosConfig;
+    } catch (erro) {
+        console.error("❌ Erro ao carregar turmas:", erro);
+        return horariosConfig;
+    }
+}
+
+// SALVAR TURMAS
+async function salvarTurmas() {
+    try {
+        const { error } = await supabase
+            .from('config')
+            .update({ 
+                valor: JSON.stringify(horariosConfig),
+                ultima_atualizacao: new Date().toISOString()
+            })
+            .eq('chave', 'turmas');
+        
+        if (error) throw error;
+        console.log("✅ Turmas salvas:", horariosConfig.length);
+        return true;
+    } catch (erro) {
+        console.error("❌ Erro ao salvar turmas:", erro);
+        return false;
+    }
 }
 
 // ============================================================
 // LOGIN
 // ============================================================
+const MASTER_PASSWORD = "aqua123";
+
 function checkPassword() {
     if (document.getElementById("passwordInput").value === MASTER_PASSWORD) {
         localStorage.setItem("aqua_authenticated", "true");
@@ -204,7 +356,7 @@ function handleKeyPress(e) { if (e.key === "Enter") checkPassword(); }
 function logout() { localStorage.removeItem("aqua_authenticated"); location.reload(); }
 
 // ============================================================
-// CARREGAR DADOS DO FIREBASE
+// CARREGAR DADOS
 // ============================================================
 async function carregarDados() {
     const statusEl = document.getElementById('googleStatus');
@@ -212,26 +364,13 @@ async function carregarDados() {
     document.getElementById('loadingBanner').style.display = 'block';
 
     try {
-        // Carregar turmas primeiro
-        await carregarTurmasDoFirebase();
+        await carregarTurmas();
+        await carregarAlunos();
+        await carregarExperimentais();
         
-        const [snapAlunos, snapExperimentais] = await Promise.all([
-            db.collection('alunos').get(),
-            db.collection('experimentais').get()
-        ]);
-
-        alunos = snapAlunos.docs.map(doc => ({ ...doc.data(), _docId: doc.id }));
-        experimentais = snapExperimentais.docs.map(doc => ({ ...doc.data(), _docId: doc.id }));
-
-        studentIdCounter = alunos.length > 0 ? Math.max(...alunos.map(a => a.codigo || 0), 1000) : 1000;
-        expIdCounter = experimentais.length > 0 ? Math.max(...experimentais.map(e => e.id || 0), 1000) : 1000;
-
-        // Corrigir alunos com código inválido
-        corrigirAlunosComCodigoInvalido();
-
         if (statusEl) { statusEl.innerText = '✅ Online'; statusEl.classList.add('online'); }
     } catch (erro) {
-        console.error("Erro Firebase:", erro);
+        console.error("Erro ao carregar dados:", erro);
         if (statusEl) statusEl.innerText = '⚠️ Modo Local';
     } finally {
         document.getElementById('loadingBanner').style.display = 'none';
@@ -241,8 +380,9 @@ async function carregarDados() {
 }
 
 // ============================================================
-// HELPERS
+// FUNÇÕES DO SISTEMA
 // ============================================================
+
 function formatarData() {
     const h = new Date();
     return `${String(h.getDate()).padStart(2,'0')}/${String(h.getMonth()+1).padStart(2,'0')}`;
@@ -301,124 +441,13 @@ function alunoContaOcupacao(a) {
 }
 
 // ============================================================
-// OCUPAÇÃO
+// CONTAGEM DE ALUNOS (CORRIGIDA)
 // ============================================================
-function getAlunosPorHorarioDia(horarioId, diaFiltro) {
-    const horario = horariosConfig.find(h => h.id == horarioId);
-    if (!horario) return [];
-
-    return alunos.filter(aluno => {
-        if (diaFiltro && diaFiltro !== 'TODOS' && diaFiltro.length > 0) {
-            const diasAtivos = Array.isArray(diaFiltro) ? diaFiltro : [diaFiltro];
-            return diasAtivos.some(dia => {
-                if (!horario.dias.includes(dia)) return false;
-                const campo = diasMap[dia];
-                return aluno[campo] == horarioId;
-            });
-        } else {
-            for (const dia of horario.dias) {
-                const campo = diasMap[dia];
-                if (aluno[campo] == horarioId) {
-                    return true;
-                }
-            }
-            return false;
-        }
-    });
-}
-
-function getOcupacaoHorarioDia(horarioId, diaFiltro) {
-    const alunosCount = getAlunosPorHorarioDia(horarioId, diaFiltro).filter(alunoContaOcupacao).length;
-    const hojeStr = formatarDataISO();
-    
-    let expCount = 0;
-    if (diaFiltro && diaFiltro.length > 0) {
-        const diasFiltroArray = Array.isArray(diaFiltro) ? diaFiltro : [diaFiltro];
-        expCount = experimentais.filter(e => {
-            if (e.horario_id !== horarioId) return false;
-            if (e.status !== 'agendado') return false;
-            if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
-            return diasFiltroArray.includes(e.dia);
-        }).length;
-    } else {
-        expCount = experimentais.filter(e => {
-            if (e.horario_id !== horarioId) return false;
-            if (e.status !== 'agendado') return false;
-            if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
-            return true;
-        }).length;
-    }
-    
-    return alunosCount + expCount;
-}
-
-function gerarCardsDisponibilidade(horario, diasFiltro) {
-    const diasRef = diasFiltro && diasFiltro.length > 0 ? diasFiltro : horario.dias;
-    const cards = diasRef.map(dia => {
-        const ocupacao = getOcupacaoHorarioDia(horario.id, [dia]);
-        const capacidade = horario.capacidade;
-        const pct = (ocupacao / capacidade) * 100;
-        let cor = '#10b981', bg = '#dcfce7';
-        if (pct >= 100) { cor = '#ef4444'; bg = '#fee2e2'; }
-        else if (pct >= 70) { cor = '#f59e0b'; bg = '#fef3c7'; }
-        const diaAbrev = dia.substring(0,3).toUpperCase();
-        return `<span style="background:${bg};color:${cor};padding:6px 12px;border-radius:20px;font-size:0.8rem;font-weight:bold;">${diaAbrev}: ${ocupacao}/${capacidade}</span>`;
-    }).join('');
-    return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;padding:10px;background:#f8fafc;border-radius:12px;">${cards}</div>`;
-}
-
-// ============================================================
-// FILTROS HUB
-// ============================================================
-function filtrarTurnoHub(t, b) { activeFilters.turno = t; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
-function filtrarModalidadeHub(m, b) { activeFilters.modalidade = m; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
-function filtrarOcupacaoHub(o, b) { activeFilters.ocupacao = o; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
-
-function filtrarDiaHub(dia, btn) {
-    if (dia === 'TODOS') {
-        activeFilters.dias = [];
-        btn.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active'));
-        btn.classList.add('active');
-    } else if (dia === 'HOJE') {
-        const hojeIdx = new Date().getDay();
-        const hojeStr = diasPtBr[hojeIdx];
-        activeFilters.dias = (hojeStr !== 'Domingo') ? [hojeStr] : [];
-        btn.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active'));
-        btn.classList.add('active');
-    } else {
-        btn.parentElement.querySelector('button:first-child').classList.remove('active');
-        btn.parentElement.querySelectorAll('button').forEach(x => {
-            if (x.getAttribute('onclick') && x.getAttribute('onclick').includes('HOJE')) x.classList.remove('active');
-        });
-        if (btn.classList.contains('active')) {
-            btn.classList.remove('active');
-            activeFilters.dias = activeFilters.dias.filter(d => d !== dia);
-        } else {
-            btn.classList.add('active');
-            activeFilters.dias.push(dia);
-        }
-        if (activeFilters.dias.length === 0) {
-            btn.parentElement.querySelector('button:first-child').classList.add('active');
-        }
-    }
-    renderizarTudo();
-}
-
-// ============================================================
-// WIDGETS
-// ============================================================
-
-// ============================================================
-// CONTAGEM CORRETA DE ALUNOS (SEM DUPLICAÇÃO)
-// ============================================================
-
-// Contar alunos únicos (cada aluno conta 1 vez)
 function contarAlunosUnicos() {
     const ativos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO');
     return ativos.length;
 }
 
-// Contar matrículas por turno (um aluno pode aparecer em vários turnos)
 function contarMatriculasPorTurno() {
     let manha = 0, tarde = 0, noite = 0, sabado = 0;
     
@@ -441,7 +470,6 @@ function contarMatriculasPorTurno() {
 }
 
 function atualizarWidgets() {
-    // Contagem correta de alunos únicos
     const totalAlunos = contarAlunosUnicos();
     
     let vencidos = 0, emDia = 0;
@@ -472,7 +500,6 @@ function atualizarWidgets() {
     `;
 }
 
-
 function mostrarToast(msg, tipo = 'sucesso') {
     let t = document.getElementById('toastGlobal');
     if (!t) { t = document.createElement('div'); t.id = 'toastGlobal'; t.className = 'toast'; document.body.appendChild(t); }
@@ -483,7 +510,18 @@ function mostrarToast(msg, tipo = 'sucesso') {
 }
 
 // ============================================================
-// RENDERIZAÇÃO DOS CARDS (mantida igual)
+// FUNÇÃO PARA ATUALIZAR DROPDOWNS
+// ============================================================
+function atualizarDropdownsModalidade() {
+    const selects = document.querySelectorAll('.modalidade-select');
+    selects.forEach(select => {
+        const valorAtual = select.value;
+        select.innerHTML = modalidadesDisponiveis.map(m => `<option value="${m}" ${valorAtual === m ? 'selected' : ''}>${m}</option>`).join('');
+    });
+}
+
+// ============================================================
+// RENDERIZAÇÃO DOS CARDS
 // ============================================================
 function renderizarTudo() {
     const grid = document.getElementById('cardsGrid');
@@ -586,6 +624,110 @@ function renderizarTudo() {
             </div>
         `;
     }).join('');
+}
+
+// ============================================================
+// OCUPAÇÃO
+// ============================================================
+function getAlunosPorHorarioDia(horarioId, diaFiltro) {
+    const horario = horariosConfig.find(h => h.id == horarioId);
+    if (!horario) return [];
+
+    return alunos.filter(aluno => {
+        if (diaFiltro && diaFiltro !== 'TODOS' && diaFiltro.length > 0) {
+            const diasAtivos = Array.isArray(diaFiltro) ? diaFiltro : [diaFiltro];
+            return diasAtivos.some(dia => {
+                if (!horario.dias.includes(dia)) return false;
+                const campo = diasMap[dia];
+                return aluno[campo] == horarioId;
+            });
+        } else {
+            for (const dia of horario.dias) {
+                const campo = diasMap[dia];
+                if (aluno[campo] == horarioId) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    });
+}
+
+function getOcupacaoHorarioDia(horarioId, diaFiltro) {
+    const alunosCount = getAlunosPorHorarioDia(horarioId, diaFiltro).filter(alunoContaOcupacao).length;
+    const hojeStr = formatarDataISO();
+    
+    let expCount = 0;
+    if (diaFiltro && diaFiltro.length > 0) {
+        const diasFiltroArray = Array.isArray(diaFiltro) ? diaFiltro : [diaFiltro];
+        expCount = experimentais.filter(e => {
+            if (e.horario_id !== horarioId) return false;
+            if (e.status !== 'agendado') return false;
+            if (e.data_agendada && e.data_agendada !== hojeStr) return false;
+            return diasFiltroArray.includes(e.dia);
+        }).length;
+    } else {
+        expCount = experimentais.filter(e => {
+            if (e.horario_id !== horarioId) return false;
+            if (e.status !== 'agendado') return false;
+            if (e.data_agendada && e.data_agendada !== hojeStr) return false;
+            return true;
+        }).length;
+    }
+    
+    return alunosCount + expCount;
+}
+
+function gerarCardsDisponibilidade(horario, diasFiltro) {
+    const diasRef = diasFiltro && diasFiltro.length > 0 ? diasFiltro : horario.dias;
+    const cards = diasRef.map(dia => {
+        const ocupacao = getOcupacaoHorarioDia(horario.id, [dia]);
+        const capacidade = horario.capacidade;
+        const pct = (ocupacao / capacidade) * 100;
+        let cor = '#10b981', bg = '#dcfce7';
+        if (pct >= 100) { cor = '#ef4444'; bg = '#fee2e2'; }
+        else if (pct >= 70) { cor = '#f59e0b'; bg = '#fef3c7'; }
+        const diaAbrev = dia.substring(0,3).toUpperCase();
+        return `<span style="background:${bg};color:${cor};padding:6px 12px;border-radius:20px;font-size:0.8rem;font-weight:bold;">${diaAbrev}: ${ocupacao}/${capacidade}</span>`;
+    }).join('');
+    return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;padding:10px;background:#f8fafc;border-radius:12px;">${cards}</div>`;
+}
+
+// ============================================================
+// FILTROS
+// ============================================================
+function filtrarTurnoHub(t, b) { activeFilters.turno = t; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
+function filtrarModalidadeHub(m, b) { activeFilters.modalidade = m; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
+function filtrarOcupacaoHub(o, b) { activeFilters.ocupacao = o; b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); renderizarTudo(); }
+
+function filtrarDiaHub(dia, btn) {
+    if (dia === 'TODOS') {
+        activeFilters.dias = [];
+        btn.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+        btn.classList.add('active');
+    } else if (dia === 'HOJE') {
+        const hojeIdx = new Date().getDay();
+        const hojeStr = diasPtBr[hojeIdx];
+        activeFilters.dias = (hojeStr !== 'Domingo') ? [hojeStr] : [];
+        btn.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+        btn.classList.add('active');
+    } else {
+        btn.parentElement.querySelector('button:first-child').classList.remove('active');
+        btn.parentElement.querySelectorAll('button').forEach(x => {
+            if (x.getAttribute('onclick') && x.getAttribute('onclick').includes('HOJE')) x.classList.remove('active');
+        });
+        if (btn.classList.contains('active')) {
+            btn.classList.remove('active');
+            activeFilters.dias = activeFilters.dias.filter(d => d !== dia);
+        } else {
+            btn.classList.add('active');
+            activeFilters.dias.push(dia);
+        }
+        if (activeFilters.dias.length === 0) {
+            btn.parentElement.querySelector('button:first-child').classList.add('active');
+        }
+    }
+    renderizarTudo();
 }
 
 // ============================================================
@@ -702,7 +844,7 @@ function salvarEdicaoCompletaTurma(hId) {
     h.capacidade = novaCapacidade;
     h.turno = novoTurno;
     
-    salvarTodasAsTurmas();
+    salvarTurmas();
     
     renderizarTudo();
     fecharSuperModal();
@@ -731,13 +873,13 @@ function excluirTurmaPermanente(hId) {
             const campo = diasMap[dia];
             if (a[campo] == hId) a[campo] = '';
         });
-        salvarNoGoogle(a);
+        salvarAluno(a);
     });
     
     const index = horariosConfig.findIndex(h => h.id === hId);
     if (index !== -1) horariosConfig.splice(index, 1);
     
-    salvarTodasAsTurmas();
+    salvarTurmas();
     
     renderizarTudo();
     fecharSuperModal();
@@ -847,7 +989,7 @@ function salvarNovaTurma() {
     };
     
     horariosConfig.push(novaTurma);
-    salvarTodasAsTurmas();
+    salvarTurmas();
     
     renderizarTudo();
     fecharSuperModal();
@@ -893,7 +1035,7 @@ function abrirModalHorario(horarioId) {
                         const statusAtual = a.status || 'ATIVO';
                         const obsHtml = a.observacao ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;font-size:0.82rem;color:#78350f;margin-top:5px;">📝 ${a.observacao}</div>` : '';
                         const diasDoAluno = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(d => d.substring(0,3)).join(', ');
-                        const botoesExcluir = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(dia => `<button onclick="excluirAlunoDaTurma(${a.codigo}, ${horarioId}, '${dia}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 8px;border-radius:6px;font-size:0.7rem;cursor:pointer;" title="Remover da ${dia}">🗑️ ${dia.substring(0,3)}</button>`).join('');
+                        const botoesExcluir = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(dia => `<button onclick="excluirAlunoDaTurma(${a.id}, ${horarioId}, '${dia}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 8px;border-radius:6px;font-size:0.7rem;cursor:pointer;" title="Remover da ${dia}">🗑️ ${dia.substring(0,3)}</button>`).join('');
                         return `
                             <div style="margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -905,10 +1047,10 @@ function abrirModalHorario(horarioId) {
                                 <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px;">
                                     ${botoesExcluir}
                                     <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WhatsApp</a>
-                                    <button onclick="abrirEdicaoCompletaInline(${a.codigo},${horarioId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">✏️ Editar</button>
-                                    <button onclick="abrirModalObs(${a.codigo},${horarioId})" style="background:#fef9c3;color:#854d0e;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">📝 Obs</button>
-                                    <button onclick="alternarStatusAluno(${a.codigo},${horarioId})" style="background:#f1f5f9;color:#334155;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🔄 Status</button>
-                                    <button onclick="excluirAlunoPermanente(${a.codigo},${horarioId})" style="background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🗑️ Excluir</button>
+                                    <button onclick="abrirEdicaoCompletaInline(${a.id},${horarioId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">✏️ Editar</button>
+                                    <button onclick="abrirModalObs(${a.id},${horarioId})" style="background:#fef9c3;color:#854d0e;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">📝 Obs</button>
+                                    <button onclick="alternarStatusAluno(${a.id},${horarioId})" style="background:#f1f5f9;color:#334155;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🔄 Status</button>
+                                    <button onclick="excluirAlunoPermanente(${a.id},${horarioId})" style="background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🗑️ Excluir</button>
                                 </div>
                             </div>
                         `;
@@ -923,7 +1065,7 @@ function abrirModalHorario(horarioId) {
                         const alerta = faltas >= 2 ? `<div style="background:#fee2e2;color:#b91c1c;font-size:0.75rem;padding:4px;border-radius:5px;margin-top:4px;">⚠️ Faltou ${faltas}x antes</div>` : '';
                         return `
                             <div style="background:white;padding:12px;border-radius:10px;border:1px solid #fde68a;margin-bottom:10px;">
-                                <div><strong>${exp.nome}</strong><div style="font-size:0.85rem;">📞 ${exp.telefone}</div>${alerta}<div style="font-size:0.8rem;color:#0369a1;">📅 ${formatarDataBR(exp.dataAgendada)} | ${horariosConfig.find(h=>h.id===exp.horario_id)?.horario || '??'}</div></div>
+                                <div><strong>${exp.nome}</strong><div style="font-size:0.85rem;">📞 ${exp.telefone}</div>${alerta}<div style="font-size:0.8rem;color:#0369a1;">📅 ${formatarDataBR(exp.data_agendada)} | ${horariosConfig.find(h=>h.id===exp.horario_id)?.horario || '??'}</div></div>
                                 <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;">
                                     <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WA</a>
                                     <button onclick="marcarPresencaExp(${exp.id},'compareceu',${horarioId})" style="background:#10b981;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;">✔️ Veio</button>
@@ -959,13 +1101,13 @@ function toggleEditNomeTurma(hId) {
 // ============================================================
 // EXCLUIR ALUNO DA TURMA
 // ============================================================
-async function excluirAlunoDaTurma(codigo, horarioId, dia) {
-    const aluno = alunos.find(a => a.codigo == codigo);
+async function excluirAlunoDaTurma(id, horarioId, dia) {
+    const aluno = alunos.find(a => a.id == id);
     if (!aluno) return;
     if (!confirm(`Remover ${aluno.nome} da turma de ${dia}?`)) return;
     const campo = diasMap[dia];
     if (aluno[campo] == horarioId) aluno[campo] = '';
-    await salvarNoGoogle(aluno);
+    await salvarAluno(aluno);
     renderizarTudo();
     abrirModalHorario(horarioId);
     mostrarToast(`✅ ${aluno.nome} removido da ${dia}`);
@@ -974,16 +1116,16 @@ async function excluirAlunoDaTurma(codigo, horarioId, dia) {
 // ============================================================
 // EXCLUIR ALUNO PERMANENTEMENTE
 // ============================================================
-async function excluirAlunoPermanente(codigo, hId) {
-    const aluno = alunos.find(a => a.codigo == codigo);
+async function excluirAlunoPermanente(id, hId) {
+    const aluno = alunos.find(a => a.id == id);
     if (!aluno) { mostrarToast('❌ Aluno não encontrado!', 'erro'); return; }
     const confirmado = confirm(`⚠️ EXCLUIR PERMANENTEMENTE?\n\n#${aluno.codigo} - ${aluno.nome}\n\nEsta ação NÃO pode ser desfeita!`);
     if (!confirmado) return;
     const confirmText = prompt(`Digite "SIM" para confirmar exclusão de ${aluno.nome}:`);
     if (confirmText !== "SIM") { alert("❌ Cancelado!"); return; }
     try {
-        if (aluno._docId) await db.collection('alunos').doc(aluno._docId).delete();
-        const index = alunos.findIndex(a => a.codigo == codigo);
+        await excluirAluno(aluno.id);
+        const index = alunos.findIndex(a => a.id == id);
         if (index !== -1) alunos.splice(index, 1);
         renderizarTudo();
         renderPainelExperimentaisHoje();
@@ -995,8 +1137,8 @@ async function excluirAlunoPermanente(codigo, hId) {
 // ============================================================
 // OBSERVAÇÕES
 // ============================================================
-function abrirModalObs(cod, hId) {
-    const a = alunos.find(al => al.codigo == cod);
+function abrirModalObs(id, hId) {
+    const a = alunos.find(al => al.id == id);
     if (!a) return;
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
@@ -1004,28 +1146,28 @@ function abrirModalObs(cod, hId) {
     titulo.innerHTML = `📝 Observações — ${a.nome}`;
     corpo.innerHTML = `
         <div style="max-width:500px;"><textarea id="obsTexto" style="width:100%;min-height:120px;padding:12px;border-radius:8px;border:1px solid #cbd5e1;">${a.observacao || ''}</textarea>
-        <div class="form-actions-row" style="margin-top:12px;"><button class="btn-save-modal" onclick="salvarObservacao(${cod},${hId || 'null'})">💾 Salvar</button><button class="btn-discard-modal" onclick="${hId ? `abrirModalHorario(${hId})` : 'fecharSuperModal()'}">⬅️ Voltar</button></div></div>
+        <div class="form-actions-row" style="margin-top:12px;"><button class="btn-save-modal" onclick="salvarObservacao(${id},${hId || 'null'})">💾 Salvar</button><button class="btn-discard-modal" onclick="${hId ? `abrirModalHorario(${hId})` : 'fecharSuperModal()'}">⬅️ Voltar</button></div></div>
     `;
     modal.classList.add('active');
 }
 
-async function salvarObservacao(cod, hId) {
-    const a = alunos.find(al => al.codigo == cod);
+async function salvarObservacao(id, hId) {
+    const a = alunos.find(al => al.id == id);
     if (!a) return;
     a.observacao = document.getElementById('obsTexto').value.trim();
-    await salvarNoGoogle(a);
+    await salvarAluno(a);
     if (hId) abrirModalHorario(hId);
     else { fecharSuperModal(); renderStudentTableSuper(); }
 }
 
-function alternarStatusAluno(cod, hId) {
-    const a = alunos.find(al => al.codigo == cod);
+function alternarStatusAluno(id, hId) {
+    const a = alunos.find(al => al.id == id);
     if (!a) return;
     const ciclo = ['ATIVO', 'PAUSADO', 'TRANCADO'];
     const atual = a.status || 'ATIVO';
     const proximo = ciclo[(ciclo.indexOf(atual) + 1) % ciclo.length];
     a.status = proximo;
-    salvarNoGoogle(a);
+    salvarAluno(a);
     renderizarTudo();
     if (hId) abrirModalHorario(hId);
     mostrarToast(`✅ Status → ${proximo}`);
@@ -1040,7 +1182,7 @@ function renderPainelExperimentaisHoje() {
     const hojeStr = formatarDataISO();
     const expHoje = experimentais.filter(e => {
         if (e.status !== 'agendado') return false;
-        if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
+        if (e.data_agendada && e.data_agendada !== hojeStr) return false;
         const h = horariosConfig.find(hc => hc.id === e.horario_id);
         const hojeSemana = diasPtBr[new Date().getDay()];
         return h && h.dias.includes(hojeSemana);
@@ -1068,9 +1210,34 @@ function renderPainelExperimentaisHoje() {
 function marcarPresencaExpPainel(id, st) {
     const exp = experimentais.find(e => e.id === id);
     if (!exp) return;
-    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
+    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') {
+        historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
+        salvarHistoricoExperimental({
+            nome: exp.nome,
+            telefone: exp.telefone,
+            data: exp.data_agendada || formatarDataISO(),
+            horario_id: exp.horario_id,
+            resultado: 'nao_compareceu',
+            matriculado: false
+        });
+    }
     exp.status = st;
-    if (st === 'compareceu') setTimeout(() => { if (confirm(`📋 ${exp.nome} compareceu. Efetivar matrícula?`)) matricularExperimentalInSuper(exp.id); }, 100);
+    if (st === 'compareceu') {
+        salvarHistoricoExperimental({
+            nome: exp.nome,
+            telefone: exp.telefone,
+            data: exp.data_agendada || formatarDataISO(),
+            horario_id: exp.horario_id,
+            resultado: 'compareceu',
+            matriculado: false
+        });
+        setTimeout(() => {
+            if (confirm(`📋 ${exp.nome} compareceu. Efetivar matrícula?`)) {
+                matricularExperimentalInSuper(exp.id);
+            }
+        }, 100);
+    }
+    salvarExperimental(exp);
     renderizarTudo();
     renderPainelExperimentaisHoje();
 }
@@ -1078,19 +1245,44 @@ function marcarPresencaExpPainel(id, st) {
 function marcarPresencaExp(id, st, hId) {
     const exp = experimentais.find(e => e.id === id);
     if (!exp) return;
-    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
+    if (st === 'nao_compareceu' && exp.status !== 'nao_compareceu') {
+        historicoFaltasExperimentais[exp.telefone] = (historicoFaltasExperimentais[exp.telefone] || 0) + 1;
+        salvarHistoricoExperimental({
+            nome: exp.nome,
+            telefone: exp.telefone,
+            data: exp.data_agendada || formatarDataISO(),
+            horario_id: exp.horario_id,
+            resultado: 'nao_compareceu',
+            matriculado: false
+        });
+    }
     exp.status = st;
-    if (st === 'compareceu') setTimeout(() => { if (confirm(`📋 ${exp.nome} compareceu. Efetivar matrícula?`)) matricularExperimentalInSuper(exp.id); }, 100);
+    if (st === 'compareceu') {
+        salvarHistoricoExperimental({
+            nome: exp.nome,
+            telefone: exp.telefone,
+            data: exp.data_agendada || formatarDataISO(),
+            horario_id: exp.horario_id,
+            resultado: 'compareceu',
+            matriculado: false
+        });
+        setTimeout(() => {
+            if (confirm(`📋 ${exp.nome} compareceu. Efetivar matrícula?`)) {
+                matricularExperimentalInSuper(exp.id);
+            }
+        }, 100);
+    }
+    salvarExperimental(exp);
     renderizarTudo();
     renderPainelExperimentaisHoje();
     abrirModalHorario(hId);
 }
 
 // ============================================================
-// EDIÇÃO COMPLETA DO ALUNO (MATRÍCULA)
+// EDIÇÃO COMPLETA DO ALUNO
 // ============================================================
-function abrirEdicaoCompletaInline(codigo, hId) {
-    const aluno = alunos.find(a => a.codigo == codigo);
+function abrirEdicaoCompletaInline(id, hId) {
+    const aluno = alunos.find(a => a.id == id);
     if (!aluno) {
         mostrarToast('❌ Aluno não encontrado!', 'erro');
         return;
@@ -1185,7 +1377,7 @@ function abrirEdicaoCompletaInline(codigo, hId) {
         </div>
         
         <div style="display:flex;gap:12px;justify-content:flex-end;">
-            <button onclick="salvarEdicaoCompleta(${aluno.codigo},${hId || 'null'})" class="btn-save-modal" style="background:#006994;color:white;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:bold;">💾 Salvar Alterações</button>
+            <button onclick="salvarEdicaoCompleta(${aluno.id},${hId || 'null'})" class="btn-save-modal" style="background:#006994;color:white;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:bold;">💾 Salvar Alterações</button>
             ${btnVoltar}
         </div>
     `;
@@ -1193,8 +1385,8 @@ function abrirEdicaoCompletaInline(codigo, hId) {
     div.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-async function salvarEdicaoCompleta(codigo, hId) {
-    const aluno = alunos.find(a => a.codigo == codigo);
+async function salvarEdicaoCompleta(id, hId) {
+    const aluno = alunos.find(a => a.id == id);
     if (!aluno) {
         mostrarToast('❌ Aluno não encontrado!', 'erro');
         return;
@@ -1211,7 +1403,7 @@ async function salvarEdicaoCompleta(codigo, hId) {
     if (!telefone) { mostrarToast('⚠️ Telefone é obrigatório!', 'erro'); return; }
     
     if (novoCodigo && novoCodigo !== aluno.codigo) {
-        const codigoExistente = alunos.find(a => a.codigo === novoCodigo && a._docId !== aluno._docId);
+        const codigoExistente = alunos.find(a => a.codigo === novoCodigo && a.id !== aluno.id);
         if (codigoExistente) {
             mostrarToast(`⚠️ Código ${novoCodigo} já está em uso por ${codigoExistente.nome}!`, 'erro');
             return;
@@ -1232,7 +1424,7 @@ async function salvarEdicaoCompleta(codigo, hId) {
     aluno.sex = document.getElementById('editGradesex')?.value ? parseInt(document.getElementById('editGradesex').value) : '';
     aluno.sab = document.getElementById('editGradesab')?.value ? parseInt(document.getElementById('editGradesab').value) : '';
     
-    await salvarNoGoogle(aluno);
+    await salvarAluno(aluno);
     
     const divId = hId && hId !== 'null' ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
     const div = document.getElementById(divId);
@@ -1305,13 +1497,63 @@ function abrirSuperModal(tipo) {
     }
 }
 
+// ============================================================
+// MODALIDADES
+// ============================================================
+function abrirCriarModalidade() {
+    const modal = document.getElementById('globalSuperModal');
+    const titulo = document.getElementById('superModalTitulo');
+    const corpo = document.getElementById('superModalCorpo');
+    
+    titulo.innerHTML = '➕ Criar Nova Modalidade';
+    corpo.innerHTML = `
+        <div style="max-width:400px;margin:0 auto;">
+            <div style="margin-bottom:20px;">
+                <label style="font-weight:bold;display:block;margin-bottom:8px;">Nome da Nova Modalidade:</label>
+                <input type="text" id="novaModalidadeNome" class="search-input-field" style="width:100%;padding:12px;" placeholder="Ex: Natação Competição, Alongamento, etc.">
+            </div>
+            <div style="margin-bottom:20px;padding:12px;background:#e0f2fe;border-radius:8px;color:#0369a1;">
+                💡 A nova modalidade aparecerá em todos os lugares (cadastro de alunos, criação de turmas, filtros).
+            </div>
+            <div class="form-actions-row" style="display:flex;gap:10px;justify-content:flex-end;">
+                <button class="btn-save-modal" onclick="salvarNovaModalidade()" style="background:#006994;">✅ Criar Modalidade</button>
+                <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
+            </div>
+        </div>
+    `;
+    modal.classList.add('active');
+}
+
+function salvarNovaModalidade() {
+    const novaModalidade = document.getElementById('novaModalidadeNome').value.trim();
+    if (!novaModalidade) {
+        alert('⚠️ Digite o nome da nova modalidade!');
+        return;
+    }
+    if (modalidadesDisponiveis.includes(novaModalidade)) {
+        alert(`⚠️ A modalidade "${novaModalidade}" já existe!`);
+        return;
+    }
+    
+    modalidadesDisponiveis.push(novaModalidade);
+    modalidadesDisponiveis.sort();
+    
+    atualizarDropdownsModalidade();
+    
+    fecharSuperModal();
+    mostrarToast(`✅ Modalidade "${novaModalidade}" criada com sucesso!`);
+}
+
 function renderModalidadesList() {
     const body = document.getElementById('modalidadesListBody');
     if (!body) return;
     body.innerHTML = modalidadesDisponiveis.map(mod => `
         <tr>
             <td style="padding:10px;">🏊 ${mod}</td>
-            <td style="padding:10px;"><button onclick="excluirModalidade('${mod}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td>
+            <td style="padding:10px;display:flex;gap:6px;flex-wrap:wrap;">
+                <button onclick="abrirEditarModalidade('${mod}')" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;">✏️ Editar</button>
+                <button onclick="excluirModalidade('${mod}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button>
+            </td>
         </tr>
     `).join('');
 }
@@ -1329,6 +1571,72 @@ function excluirModalidade(modalidade) {
     mostrarToast(`✅ Modalidade "${modalidade}" excluída!`);
 }
 
+function abrirEditarModalidade(modalidadeAntiga) {
+    const modal = document.getElementById('globalSuperModal');
+    const titulo = document.getElementById('superModalTitulo');
+    const corpo = document.getElementById('superModalCorpo');
+    
+    titulo.innerHTML = `✏️ Editar Modalidade: ${modalidadeAntiga}`;
+    corpo.innerHTML = `
+        <div style="max-width:400px;margin:0 auto;">
+            <div style="margin-bottom:20px;">
+                <label style="font-weight:bold;display:block;margin-bottom:8px;">Novo nome da modalidade:</label>
+                <input type="text" id="editModalidadeNome" class="search-input-field" style="width:100%;padding:12px;" value="${modalidadeAntiga}">
+            </div>
+            <div style="margin-bottom:20px;padding:12px;background:#e0f2fe;border-radius:8px;color:#0369a1;">
+                ⚠️ Atenção: Isso vai atualizar todas as turmas e alunos que usam esta modalidade.
+            </div>
+            <div class="form-actions-row" style="display:flex;gap:10px;justify-content:flex-end;">
+                <button class="btn-save-modal" onclick="salvarEdicaoModalidade('${modalidadeAntiga}')" style="background:#006994;">💾 Salvar Alterações</button>
+                <button class="btn-discard-modal" onclick="fecharSuperModal(); renderModalidadesList();">Cancelar</button>
+            </div>
+        </div>
+    `;
+    modal.classList.add('active');
+}
+
+function salvarEdicaoModalidade(modalidadeAntiga) {
+    const novoNome = document.getElementById('editModalidadeNome').value.trim();
+    
+    if (!novoNome) {
+        alert('⚠️ Digite o novo nome da modalidade!');
+        return;
+    }
+    
+    if (modalidadesDisponiveis.includes(novoNome) && novoNome !== modalidadeAntiga) {
+        alert(`⚠️ A modalidade "${novoNome}" já existe!`);
+        return;
+    }
+    
+    const index = modalidadesDisponiveis.indexOf(modalidadeAntiga);
+    if (index !== -1) {
+        modalidadesDisponiveis[index] = novoNome;
+    }
+    
+    horariosConfig.forEach(turma => {
+        if (turma.modalidade === modalidadeAntiga) {
+            turma.modalidade = novoNome;
+        }
+    });
+    
+    alunos.forEach(aluno => {
+        if (aluno.modalidade === modalidadeAntiga) {
+            aluno.modalidade = novoNome;
+            salvarAluno(aluno);
+        }
+    });
+    
+    salvarTurmas();
+    atualizarDropdownsModalidade();
+    fecharSuperModal();
+    renderModalidadesList();
+    renderizarTudo();
+    mostrarToast(`✅ Modalidade "${modalidadeAntiga}" alterada para "${novoNome}" com sucesso!`);
+}
+
+// ============================================================
+// FUNÇÕES DE EXPERIMENTAIS
+// ============================================================
 function renderExperimentaisFuturos() {
     const body = document.getElementById('experimentaisFuturosBody');
     if (!body) return;
@@ -1337,11 +1645,11 @@ function renderExperimentaisFuturos() {
     
     let futuros = experimentais.filter(e => {
         if (e.status !== 'agendado') return false;
-        if (!e.dataAgendada) return false;
-        return e.dataAgendada >= hoje;
+        if (!e.data_agendada) return false;
+        return e.data_agendada >= hoje;
     });
     
-    futuros.sort((a, b) => a.dataAgendada.localeCompare(b.dataAgendada));
+    futuros.sort((a, b) => a.data_agendada.localeCompare(b.data_agendada));
     
     if (busca) {
         futuros = futuros.filter(e => e.nome.toLowerCase().includes(busca) || e.telefone.includes(busca));
@@ -1356,7 +1664,7 @@ function renderExperimentaisFuturos() {
         const horario = horariosConfig.find(h => h.id === exp.horario_id);
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:12px;"><strong>${formatarDataBR(exp.dataAgendada)}</strong></td>
+                <td style="padding:12px;"><strong>${formatarDataBR(exp.data_agendada)}</strong></td>
                 <td style="padding:12px;">${horario ? horario.horario : '??'} - ${exp.dia || ''}</td>
                 <td style="padding:12px;"><strong>${exp.nome}</strong></td>
                 <td style="padding:12px;">${exp.telefone}</td>
@@ -1384,7 +1692,7 @@ function abrirEdicaoExperimental(expId) {
         <div style="max-width:500px;margin:0 auto;">
             <div style="margin-bottom:15px;"><label>Nome:</label><input type="text" id="editExpNome" class="search-input-field" value="${exp.nome}"></div>
             <div style="margin-bottom:15px;"><label>Telefone:</label><input type="text" id="editExpTelefone" class="search-input-field" value="${exp.telefone}"></div>
-            <div style="margin-bottom:15px;"><label>Data da Aula:</label><input type="date" id="editExpData" class="search-input-field" value="${exp.dataAgendada || ''}"></div>
+            <div style="margin-bottom:15px;"><label>Data da Aula:</label><input type="date" id="editExpData" class="search-input-field" value="${exp.data_agendada || ''}"></div>
             <div style="margin-bottom:15px;"><label>Modalidade:</label>
                 <select id="editExpModalidade" class="form-select-field" onchange="carregarDiasExpEdicao()">
                     <option value="">-- Selecione --</option>
@@ -1479,36 +1787,25 @@ function salvarEdicaoExperimental(expId) {
     
     exp.nome = novoNome;
     exp.telefone = novoTelefone;
-    exp.dataAgendada = novaData;
+    exp.data_agendada = novaData;
     exp.horario_id = parseInt(hId);
     exp.dia = dia;
     exp.modalidade = modalidade;
     
-    salvarExperimentalNoFirebase(exp);
+    salvarExperimental(exp);
     fecharSuperModal();
     renderExperimentaisFuturos();
     renderizarTudo();
     mostrarToast('✅ Experimental atualizada!');
 }
 
-async function salvarExperimentalNoFirebase(exp) {
-    try {
-        if (exp._docId) {
-            await db.collection('experimentais').doc(exp._docId).set(exp);
-        } else {
-            const docRef = await db.collection('experimentais').add(exp);
-            exp._docId = docRef.id;
-        }
-    } catch (erro) { console.error("Erro:", erro); }
-}
-
 function cancelarExperimental(expId) {
     if (!confirm('⚠️ Cancelar esta aula experimental?')) return;
-    const index = experimentais.findIndex(e => e.id === expId);
-    if (index !== -1) {
-        const exp = experimentais[index];
-        if (exp._docId) db.collection('experimentais').doc(exp._docId).delete().catch(console.error);
-        experimentais.splice(index, 1);
+    const exp = experimentais.find(e => e.id === expId);
+    if (exp) {
+        excluirExperimental(exp.id);
+        const index = experimentais.findIndex(e => e.id === expId);
+        if (index !== -1) experimentais.splice(index, 1);
     }
     renderExperimentaisFuturos();
     renderizarTudo();
@@ -1516,6 +1813,271 @@ function cancelarExperimental(expId) {
     mostrarToast('✅ Experimental cancelada!');
 }
 
+// ============================================================
+// HISTÓRICO DE EXPERIMENTAIS
+// ============================================================
+let filtroStatusHistoricoExp = 'todos';
+
+function abrirHistoricoExperimentais() {
+    const modal = document.getElementById('globalSuperModal');
+    const titulo = document.getElementById('superModalTitulo');
+    const corpo = document.getElementById('superModalCorpo');
+    
+    titulo.innerHTML = '📋 Histórico de Aulas Experimentais';
+    
+    corpo.innerHTML = `
+        <div style="margin-bottom:20px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:15px;">
+                <div style="flex:1;min-width:150px;">
+                    <label style="font-weight:bold;display:block;margin-bottom:5px;">📅 Período:</label>
+                    <select id="filtroPeriodoHistorico" class="form-select-field" onchange="renderHistoricoExperimentais()" style="width:100%;padding:10px;">
+                        <option value="7">Últimos 7 dias</option>
+                        <option value="15">Últimos 15 dias</option>
+                        <option value="30" selected>Últimos 30 dias</option>
+                        <option value="60">Últimos 60 dias</option>
+                        <option value="90">Últimos 90 dias</option>
+                        <option value="180">Últimos 180 dias</option>
+                        <option value="365">Últimos 365 dias</option>
+                        <option value="0">Todos</option>
+                    </select>
+                </div>
+                <div style="flex:1;min-width:150px;">
+                    <label style="font-weight:bold;display:block;margin-bottom:5px;">🔍 Buscar:</label>
+                    <input type="text" id="buscarHistoricoExp" class="search-input-field" placeholder="Nome ou telefone..." oninput="renderHistoricoExperimentais()" style="width:100%;padding:10px;">
+                </div>
+                <div>
+                    <button onclick="exportarHistoricoExperimentais()" style="background:#10b981;color:white;border:none;padding:10px 15px;border-radius:8px;cursor:pointer;">📊 Exportar CSV</button>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;">
+                <button class="filter-chip active" onclick="filtrarStatusHistoricoExp('todos', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#006994;color:white;">📋 Todos</button>
+                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('compareceu', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">✅ Compareceram</button>
+                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('nao_compareceu', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">❌ Faltaram</button>
+                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('matriculados', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">📋 Efetivaram Matrícula</button>
+            </div>
+        </div>
+        <div class="table-container" style="max-height:500px;overflow-y:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead style="position:sticky;top:0;background:#f1f5f9;">
+                    <tr>
+                        <th style="padding:12px;text-align:left;">Data</th>
+                        <th style="padding:12px;text-align:left;">Horário</th>
+                        <th style="padding:12px;text-align:left;">Nome</th>
+                        <th style="padding:12px;text-align:left;">Telefone</th>
+                        <th style="padding:12px;text-align:left;">Status</th>
+                        <th style="padding:12px;text-align:left;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="historicoExperimentaisBody"></tbody>
+            </table>
+        </div>
+        <div style="margin-top:15px;padding:12px;background:#f1f5f9;border-radius:8px;display:flex;justify-content:space-between;flex-wrap:wrap;font-size:0.85rem;" id="historicoResumo">
+            Carregando...
+        </div>
+    `;
+    
+    modal.classList.add('active');
+    renderHistoricoExperimentais();
+}
+
+function filtrarStatusHistoricoExp(status, btn) {
+    filtroStatusHistoricoExp = status;
+    const container = btn.parentElement;
+    container.querySelectorAll('.filter-chip').forEach(b => {
+        b.style.background = '#f1f5f9';
+        b.style.color = '#334155';
+    });
+    btn.style.background = '#006994';
+    btn.style.color = 'white';
+    renderHistoricoExperimentais();
+}
+
+async function renderHistoricoExperimentais() {
+    const body = document.getElementById('historicoExperimentaisBody');
+    if (!body) return;
+    
+    const periodoDias = parseInt(document.getElementById('filtroPeriodoHistorico')?.value || '30');
+    const busca = document.getElementById('buscarHistoricoExp')?.value.toLowerCase() || '';
+    
+    const hoje = new Date();
+    let dataLimite = null;
+    if (periodoDias > 0) {
+        dataLimite = new Date(hoje);
+        dataLimite.setDate(dataLimite.getDate() - periodoDias);
+    }
+    
+    const historicoExp = await carregarHistoricoExperimental();
+    
+    const hojeStr = formatarDataISO();
+    const experimentaisPassados = experimentais.filter(e => {
+        if (e.status === 'agendado') return false;
+        if (e.data_agendada && e.data_agendada < hojeStr) return true;
+        return e.status !== 'agendado';
+    });
+    
+    let todos = [];
+    
+    historicoExp.forEach(item => {
+        let dataItem = item.data || item.data_agendada || '';
+        if (item.timestamp) {
+            const date = new Date(item.timestamp);
+            dataItem = date.toISOString().split('T')[0];
+        }
+        todos.push({
+            data: dataItem,
+            horario: item.horario || '??',
+            nome: item.nome || 'Nome não informado',
+            telefone: item.telefone || '',
+            resultado: item.resultado || 'agendado',
+            matriculado: item.matriculado || false,
+            timestamp: item.timestamp || dataItem
+        });
+    });
+    
+    experimentaisPassados.forEach(e => {
+        const horario = horariosConfig.find(h => h.id === e.horario_id);
+        todos.push({
+            data: e.data_agendada || '',
+            horario: horario ? horario.horario : '??',
+            nome: e.nome || 'Nome não informado',
+            telefone: e.telefone || '',
+            resultado: e.status || 'agendado',
+            matriculado: false,
+            timestamp: e.data_agendada || new Date().toISOString()
+        });
+    });
+    
+    if (dataLimite) {
+        todos = todos.filter(item => {
+            if (!item.data) return false;
+            let dataItem;
+            if (item.data.includes('-')) {
+                dataItem = new Date(item.data);
+            } else {
+                const partes = item.data.split('/');
+                if (partes.length === 3) {
+                    dataItem = new Date(partes[2], partes[1]-1, partes[0]);
+                } else {
+                    dataItem = new Date(item.data);
+                }
+            }
+            if (isNaN(dataItem.getTime())) return true;
+            return dataItem >= dataLimite && dataItem <= hoje;
+        });
+    }
+    
+    if (busca) {
+        todos = todos.filter(item => 
+            (item.nome || '').toLowerCase().includes(busca) || 
+            (item.telefone || '').includes(busca)
+        );
+    }
+    
+    if (filtroStatusHistoricoExp === 'compareceu') {
+        todos = todos.filter(item => item.resultado === 'compareceu');
+    } else if (filtroStatusHistoricoExp === 'nao_compareceu') {
+        todos = todos.filter(item => item.resultado === 'nao_compareceu');
+    } else if (filtroStatusHistoricoExp === 'matriculados') {
+        todos = todos.filter(item => item.matriculado === true);
+    }
+    
+    todos.sort((a, b) => {
+        if (a.timestamp && b.timestamp) return b.timestamp.localeCompare(a.timestamp);
+        return (b.data || '').localeCompare(a.data || '');
+    });
+    
+    const total = todos.length;
+    const compareceram = todos.filter(t => t.resultado === 'compareceu').length;
+    const faltaram = todos.filter(t => t.resultado === 'nao_compareceu').length;
+    const matriculados = todos.filter(t => t.matriculado === true).length;
+    const taxaConversao = total > 0 ? Math.round((matriculados / total) * 100) : 0;
+    
+    const resumo = document.getElementById('historicoResumo');
+    if (resumo) {
+        resumo.innerHTML = `
+            <span>📊 Total: <strong>${total}</strong></span>
+            <span>✅ Compareceram: <strong style="color:#15803d;">${compareceram}</strong></span>
+            <span>❌ Faltaram: <strong style="color:#b91c1c;">${faltaram}</strong></span>
+            <span>📋 Matriculados: <strong style="color:#0369a1;">${matriculados}</strong></span>
+            <span>🎯 Taxa de Conversão: <strong style="color:#006994;">${taxaConversao}%</strong></span>
+        `;
+    }
+    
+    if (todos.length === 0) {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">📭 Nenhuma aula experimental encontrada neste período</td></tr>';
+        return;
+    }
+    
+    body.innerHTML = todos.map(item => {
+        let statusHtml = '';
+        const resultado = item.resultado || '';
+        
+        if (resultado === 'compareceu') {
+            statusHtml = '<span style="background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:20px;font-size:0.75rem;">✅ Compareceu</span>';
+        } else if (resultado === 'nao_compareceu') {
+            statusHtml = '<span style="background:#fee2e2;color:#b91c1c;padding:4px 10px;border-radius:20px;font-size:0.75rem;">❌ Faltou</span>';
+        } else {
+            statusHtml = '<span style="background:#fef3c7;color:#b45309;padding:4px 10px;border-radius:20px;font-size:0.75rem;">📅 Agendado</span>';
+        }
+        
+        if (item.matriculado) {
+            statusHtml += ' <span style="background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:20px;font-size:0.75rem;">📋 Matriculado</span>';
+        }
+        
+        const dataFormatada = item.data && item.data.includes('-') ? formatarDataBR(item.data) : (item.data || '—');
+        const telefone = item.telefone || '';
+        
+        return `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:12px;">${dataFormatada}</td>
+                <td style="padding:12px;">${item.horario}</td>
+                <td style="padding:12px;"><strong>${item.nome}</strong></td>
+                <td style="padding:12px;">${telefone}</td>
+                <td style="padding:12px;">${statusHtml}</td>
+                <td style="padding:12px;">
+                    ${telefone ? `<a href="https://wa.me/55${String(telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 10px;border-radius:6px;text-decoration:none;font-size:0.7rem;">💬 WhatsApp</a>` : '—'}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function exportarHistoricoExperimentais() {
+    const body = document.getElementById('historicoExperimentaisBody');
+    if (!body) return;
+    
+    const rows = [];
+    const cabecalho = ['Data', 'Horário', 'Nome', 'Telefone', 'Status', 'Matriculado'];
+    rows.push(cabecalho);
+    
+    document.querySelectorAll('#historicoExperimentaisBody tr').forEach(tr => {
+        const cells = tr.querySelectorAll('td');
+        if (cells.length >= 5) {
+            const data = cells[0]?.innerText || '';
+            const horario = cells[1]?.innerText || '';
+            const nome = cells[2]?.innerText || '';
+            const telefone = cells[3]?.innerText || '';
+            const status = cells[4]?.innerText?.replace(/\n/g, ' ').trim() || '';
+            const matriculado = status.includes('Matriculado') ? 'Sim' : 'Não';
+            rows.push([data, horario, nome, telefone, status, matriculado]);
+        }
+    });
+    
+    const csv = rows.map(row => row.join(',')).join('\n');
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dataAtual = formatarData().replace(/\//g, '-');
+    a.href = url;
+    a.download = `historico_experimentais_${dataAtual}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarToast('✅ Histórico exportado!');
+}
+
+// ============================================================
+// FUNÇÕES DE LISTAS (ALUNOS)
+// ============================================================
 let listaAlunosFiltro = 'todos';
 
 function filtrarListaAlunos(tipo, btn) {
@@ -1553,9 +2115,9 @@ function renderStudentTableSuper() {
                 <td style="padding:8px;">${dParticipa.join(', ') || 'Nenhum'}</td>
                 <td style="padding:8px;display:flex;gap:6px;flex-wrap:wrap;">
                     <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed" style="padding:5px 8px;font-size:0.7rem;">💬 WA</a>
-                    <button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">✏️ Editar</button>
-                    <button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">📝 Obs</button>
-                    <button onclick="excluirAlunoPermanente(${a.codigo},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">🗑️ Excluir</button>
+                    <button onclick="abrirEdicaoCompletaInline(${a.id},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">✏️ Editar</button>
+                    <button onclick="abrirModalObs(${a.id},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">📝 Obs</button>
+                    <button onclick="excluirAlunoPermanente(${a.id},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">🗑️ Excluir</button>
                 </td>
             </tr>
         `;
@@ -1577,7 +2139,7 @@ function renderVencidosSuper() {
         if (a.seg) dParticipa.push("Seg"); if (a.ter) dParticipa.push("Ter");
         if (a.qua) dParticipa.push("Qua"); if (a.qui) dParticipa.push("Qui");
         if (a.sex) dParticipa.push("Sex"); if (a.sab) dParticipa.push("Sáb");
-        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" style="color:#25d366;">💬 ${a.telefone}</a></td><td><span class="badge badge-vencido">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td><button onclick="abrirEdicaoCompletaInline(${a.codigo},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs(${a.codigo},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente(${a.codigo},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></tr>`;
+        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" style="color:#25d366;">💬 ${a.telefone}</a></td><td><span class="badge badge-vencido">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td><button onclick="abrirEdicaoCompletaInline(${a.id},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs(${a.id},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente(${a.id},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></tr>`;
     }).join('');
 }
 
@@ -1590,22 +2152,22 @@ function renderIncompletosSuper() {
         const gradeHtml = diasSemana.map(dia => {
             const campo = diasMap[dia];
             const turmasCompativeis = horariosConfig.filter(h => h.modalidade === a.modalidade && h.dias.includes(dia));
-            return `<div style="display:flex;align-items:center;gap:5px;"><span style="font-size:0.7rem;width:40px;">${dia.substring(0,3)}:</span><select class="inc-select-${a.codigo}-${campo}" style="flex:1;"><option value="">--</option>${turmasCompativeis.map(h => `<option value="${h.id}">${h.horario}</option>`).join('')}</select></div>`;
+            return `<div style="display:flex;align-items:center;gap:5px;"><span style="font-size:0.7rem;width:40px;">${dia.substring(0,3)}:</span><select class="inc-select-${a.id}-${campo}" style="flex:1;"><option value="">--</option>${turmasCompativeis.map(h => `<option value="${h.id}">${h.horario}</option>`).join('')}</select></div>`;
         }).join('');
-        return `<tr><td>${a.nome}</td><td><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">${gradeHtml}</div></td><td><button class="btn-save" data-codigo="${a.codigo}">💾 Salvar</button></td></tr>`;
+        return `<tr><td>${a.nome}</td><td><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">${gradeHtml}</div></td><td><button class="btn-save" data-id="${a.id}">💾 Salvar</button></td></tr>`;
     }).join('');
-    document.querySelectorAll('.btn-save').forEach(btn => btn.addEventListener('click', function() { vincularIncompleto(this.getAttribute('data-codigo')); }));
+    document.querySelectorAll('.btn-save').forEach(btn => btn.addEventListener('click', function() { vincularIncompleto(this.getAttribute('data-id')); }));
 }
 
-function vincularIncompleto(cod) {
-    const al = alunos.find(a => a.codigo == cod);
+function vincularIncompleto(id) {
+    const al = alunos.find(a => a.id == id);
     if (!al) return;
     ['seg','ter','qua','qui','sex','sab'].forEach(campo => {
-        const select = document.querySelector(`.inc-select-${al.codigo}-${campo}`);
+        const select = document.querySelector(`.inc-select-${al.id}-${campo}`);
         if (select && select.value) al[campo] = parseInt(select.value);
     });
     al.status = 'ATIVO';
-    salvarNoGoogle(al);
+    salvarAluno(al);
     abrirSuperModal('incompletos');
 }
 
@@ -1778,33 +2340,11 @@ function salvarMatriculaFab() {
     console.log("Salvando aluno:", novoAluno);
     
     alunos.push(novoAluno);
-    salvarNoGoogle(novoAluno);
+    salvarAluno(novoAluno);
     renderizarTudo();
     renderPainelExperimentaisHoje();
     fecharSuperModal();
     mostrarToast(`✅ ${nome} matriculado com sucesso!`);
-}
-
-function corrigirAlunosComCodigoInvalido() {
-    let corrigidos = 0;
-    
-    alunos.forEach(aluno => {
-        if (isNaN(aluno.codigo) || aluno.codigo === null || aluno.codigo === undefined || aluno.codigo === '') {
-            const novoCodigo = 2000 + corrigidos;
-            aluno.codigo = novoCodigo;
-            corrigidos++;
-            console.log(`Corrigido: ${aluno.nome} recebeu código ${novoCodigo}`);
-            salvarNoGoogle(aluno);
-        }
-    });
-    
-    if (corrigidos > 0) {
-        mostrarToast(`✅ Corrigidos ${corrigidos} alunos com código inválido!`);
-        renderizarTudo();
-        renderStudentTableSuper();
-    } else {
-        console.log("Nenhum aluno com código inválido encontrado");
-    }
 }
 
 function salvarExpFab() {
@@ -1816,9 +2356,18 @@ function salvarExpFab() {
     if (!data) { alert('⚠️ Selecione a data!'); return; }
     const [hId, dia] = valor.split('_');
     const modalidade = document.getElementById('fExpMod').value;
-    const novoExp = { id: ++expIdCounter, nome, telefone, dataAgendada: data, horario_id: parseInt(hId), dia, status: 'agendado', modalidade };
+    const novoExp = { 
+        id: ++expIdCounter, 
+        nome, 
+        telefone, 
+        data_agendada: data, 
+        horario_id: parseInt(hId), 
+        dia, 
+        status: 'agendado', 
+        modalidade 
+    };
     experimentais.push(novoExp);
-    salvarExperimentalNoFirebase(novoExp);
+    salvarExperimental(novoExp);
     renderizarTudo();
     renderPainelExperimentaisHoje();
     fecharSuperModal();
@@ -1836,24 +2385,15 @@ function matricularExperimentalInSuper(id) {
         if (nEl) nEl.value = exp.nome;
         if (pEl) pEl.value = exp.telefone;
         experimentais = experimentais.filter(e => e.id !== id);
-        if (exp._docId) db.collection('experimentais').doc(exp._docId).delete();
+        if (exp.id) excluirExperimental(exp.id);
         renderizarTudo();
         renderPainelExperimentaisHoje();
     }, 250);
 }
 
 // ============================================================
-// FIREBASE SAVE
+// FUNÇÕES DE EXPORTAÇÃO
 // ============================================================
-async function salvarNoGoogle(dadosAluno) {
-    try {
-        if (dadosAluno._docId) await db.collection('alunos').doc(dadosAluno._docId).set(dadosAluno);
-        else { const docRef = await db.collection('alunos').add(dadosAluno); dadosAluno._docId = docRef.id; }
-        mostrarToast('✅ Salvo!');
-    } catch (erro) { mostrarToast('❌ Erro: ' + erro.message, 'erro'); }
-}
-
-
 function exportarCSV() {
     const header = [
         'Código',
@@ -1868,8 +2408,7 @@ function exportarCSV() {
         'Quinta',
         'Sexta',
         'Sábado',
-        'Observação',
-        'Data Cadastro'
+        'Observação'
     ];
     
     const rows = alunos.map(a => {
@@ -1898,8 +2437,7 @@ function exportarCSV() {
             diasInfo[3] || '',
             diasInfo[4] || '',
             diasInfo[5] || '',
-            (a.observacao || '').replace(/,/g, ';'),
-            a.dataCadastro || ''
+            (a.observacao || '').replace(/,/g, ';')
         ];
     });
     
@@ -1915,8 +2453,6 @@ function exportarCSV() {
     mostrarToast('✅ CSV completo exportado com ' + alunos.length + ' alunos!');
 }
 
-
-// Exportar também um relatório resumido
 function exportarRelatorioResumido() {
     const totalAlunos = contarAlunosUnicos();
     const matriculas = contarMatriculasPorTurno();
@@ -1975,41 +2511,55 @@ function exportarRelatorioResumido() {
     mostrarToast('✅ Relatório exportado com sucesso!');
 }
 
-function toggleTheme() {
-    const isDark = document.body.classList.toggle('dark');
-    localStorage.setItem('aqua_theme', isDark ? 'dark' : 'light');
-    document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
-}
-(function() { if (localStorage.getItem('aqua_theme') === 'dark') document.body.classList.add('dark'); })();
-
-// ============================================================
-// SISTEMA DE BACKUP E AUTO-SAVE
-// ============================================================
-
-async function salvarTodasAsTurmas() {
+async function verificarSalvamento() {
+    console.log("🔍 VERIFICANDO SALVAMENTO...");
+    console.log("📊 Alunos na memória:", alunos.length);
+    console.log("📊 Turmas na memória:", horariosConfig.length);
+    
     try {
-        await db.collection('config').doc('turmas').set({ 
-            turmas: horariosConfig,
-            ultimaAtualizacao: new Date().toISOString()
-        });
-        console.log("✅ Turmas salvas com sucesso!");
-        return true;
-    } catch (erro) {
-        console.error("❌ Erro ao salvar turmas:", erro);
-        return false;
-    }
-}
-
-async function salvarTodosOsAlunos() {
-    try {
-        for (const aluno of alunos) {
-            await salvarNoGoogle(aluno);
+        const { data: alunosDB, error: errAlunos, count } = await supabase
+            .from('alunos')
+            .select('*', { count: 'exact', head: true });
+        
+        const alunosFirebase = errAlunos ? 0 : count;
+        console.log("📊 Alunos no Supabase:", alunosFirebase);
+        
+        const { data: configDB, error: errConfig } = await supabase
+            .from('config')
+            .select('valor')
+            .eq('chave', 'turmas')
+            .single();
+        
+        let turmasFirebase = 0;
+        if (configDB && configDB.valor) {
+            const turmas = typeof configDB.valor === 'string' ? JSON.parse(configDB.valor) : configDB.valor;
+            turmasFirebase = turmas.length;
         }
-        console.log("✅ Alunos salvos com sucesso!");
-        return true;
+        console.log("📊 Turmas no Supabase:", turmasFirebase);
+        
+        let msg = `📊 Alunos: ${alunos.length} (memória) vs ${alunosFirebase} (Supabase)`;
+        if (alunos.length === alunosFirebase) {
+            msg += ' ✅ OK';
+            mostrarToast(msg, 'sucesso');
+        } else {
+            msg += ' ⚠️ DIFERENÇA!';
+            mostrarToast(msg, 'erro');
+        }
+        
+        let msgTurmas = `📊 Turmas: ${horariosConfig.length} (memória) vs ${turmasFirebase} (Supabase)`;
+        if (horariosConfig.length === turmasFirebase) {
+            msgTurmas += ' ✅ OK';
+            mostrarToast(msgTurmas, 'sucesso');
+        } else {
+            msgTurmas += ' ⚠️ DIFERENÇA!';
+            mostrarToast(msgTurmas, 'erro');
+        }
+        
+        console.log("✅ Verificação concluída!");
+        
     } catch (erro) {
-        console.error("❌ Erro ao salvar alunos:", erro);
-        return false;
+        console.error("❌ Erro ao verificar:", erro);
+        mostrarToast('❌ Erro ao verificar dados!', 'erro');
     }
 }
 
@@ -2023,10 +2573,18 @@ async function salvarTudo() {
     mostrarToast('🔄 Salvando todas as informações...', 'info');
     
     let sucesso = true;
-    const turmasOk = await salvarTodasAsTurmas();
+    const turmasOk = await salvarTurmas();
     if (!turmasOk) sucesso = false;
-    const alunosOk = await salvarTodosOsAlunos();
-    if (!alunosOk) sucesso = false;
+    
+    try {
+        for (const aluno of alunos) {
+            await salvarAluno(aluno);
+        }
+        console.log("✅ Alunos salvos com sucesso!");
+    } catch (erro) {
+        console.error("❌ Erro ao salvar alunos:", erro);
+        sucesso = false;
+    }
     
     if (btn) {
         btn.textContent = '💾 SALVAR TUDO';
@@ -2041,291 +2599,34 @@ async function salvarTudo() {
     }
 }
 
-async function carregarTurmasDoFirebase() {
-    try {
-        const doc = await db.collection('config').doc('turmas').get();
-        if (doc.exists) {
-            const dados = doc.data();
-            if (dados && dados.turmas && dados.turmas.length > 0) {
-                horariosConfig = dados.turmas;
-                console.log("✅ Turmas carregadas do Firebase:", horariosConfig.length);
-                return true;
-            }
-        }
-        console.log("ℹ️ Nenhuma turma encontrada no Firebase, usando padrão.");
-        return false;
-    } catch (erro) {
-        console.error("❌ Erro ao carregar turmas:", erro);
-        return false;
-    }
-}
-
-// ============================================================
-// HISTÓRICO DE EXPERIMENTAIS COM FILTROS DE PERÍODO
-// ============================================================
-
-let filtroStatusHistoricoExp = 'todos';
-
-function abrirHistoricoExperimentais() {
-    const modal = document.getElementById('globalSuperModal');
-    const titulo = document.getElementById('superModalTitulo');
-    const corpo = document.getElementById('superModalCorpo');
+function corrigirAlunosComCodigoInvalido() {
+    let corrigidos = 0;
     
-    titulo.innerHTML = '📋 Histórico de Aulas Experimentais';
-    
-    corpo.innerHTML = `
-        <div style="margin-bottom:20px;">
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:15px;">
-                <div style="flex:1;min-width:150px;">
-                    <label style="font-weight:bold;display:block;margin-bottom:5px;">📅 Período:</label>
-                    <select id="filtroPeriodoHistorico" class="form-select-field" onchange="renderHistoricoExperimentais()" style="width:100%;padding:10px;">
-                        <option value="7">Últimos 7 dias</option>
-                        <option value="15">Últimos 15 dias</option>
-                        <option value="30" selected>Últimos 30 dias</option>
-                        <option value="60">Últimos 60 dias</option>
-                        <option value="90">Últimos 90 dias</option>
-                        <option value="180">Últimos 180 dias</option>
-                        <option value="365">Últimos 365 dias</option>
-                        <option value="0">Todos</option>
-                    </select>
-                </div>
-                <div style="flex:1;min-width:150px;">
-                    <label style="font-weight:bold;display:block;margin-bottom:5px;">🔍 Buscar:</label>
-                    <input type="text" id="buscarHistoricoExp" class="search-input-field" placeholder="Nome ou telefone..." oninput="renderHistoricoExperimentais()" style="width:100%;padding:10px;">
-                </div>
-                <div>
-                    <button onclick="exportarHistoricoExperimentais()" style="background:#10b981;color:white;border:none;padding:10px 15px;border-radius:8px;cursor:pointer;">📊 Exportar CSV</button>
-                </div>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;">
-                <button class="filter-chip active" onclick="filtrarStatusHistoricoExp('todos', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#006994;color:white;">📋 Todos</button>
-                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('compareceu', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">✅ Compareceram</button>
-                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('nao_compareceu', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">❌ Faltaram</button>
-                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('matriculados', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">📋 Efetivaram Matrícula</button>
-            </div>
-        </div>
-        <div class="table-container" style="max-height:500px;overflow-y:auto;">
-            <table style="width:100%;border-collapse:collapse;">
-                <thead style="position:sticky;top:0;background:#f1f5f9;">
-                    <tr>
-                        <th style="padding:12px;text-align:left;">Data</th>
-                        <th style="padding:12px;text-align:left;">Horário</th>
-                        <th style="padding:12px;text-align:left;">Nome</th>
-                        <th style="padding:12px;text-align:left;">Telefone</th>
-                        <th style="padding:12px;text-align:left;">Status</th>
-                        <th style="padding:12px;text-align:left;">Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="historicoExperimentaisBody"></tbody>
-            </table>
-        </div>
-        <div style="margin-top:15px;padding:12px;background:#f1f5f9;border-radius:8px;display:flex;justify-content:space-between;flex-wrap:wrap;font-size:0.85rem;" id="historicoResumo">
-            Carregando...
-        </div>
-    `;
-    
-    modal.classList.add('active');
-    renderHistoricoExperimentais();
-}
-
-function filtrarStatusHistoricoExp(status, btn) {
-    filtroStatusHistoricoExp = status;
-    const container = btn.parentElement;
-    container.querySelectorAll('.filter-chip').forEach(b => {
-        b.style.background = '#f1f5f9';
-        b.style.color = '#334155';
-    });
-    btn.style.background = '#006994';
-    btn.style.color = 'white';
-    renderHistoricoExperimentais();
-}
-
-async function renderHistoricoExperimentais() {
-    const body = document.getElementById('historicoExperimentaisBody');
-    if (!body) return;
-    
-    const periodoDias = parseInt(document.getElementById('filtroPeriodoHistorico')?.value || '30');
-    const busca = document.getElementById('buscarHistoricoExp')?.value.toLowerCase() || '';
-    
-    const hoje = new Date();
-    let dataLimite = null;
-    if (periodoDias > 0) {
-        dataLimite = new Date(hoje);
-        dataLimite.setDate(dataLimite.getDate() - periodoDias);
-    }
-    
-    let historicoExp = [];
-    try {
-        const snap = await db.collection('historico_experimentais')
-            .orderBy('timestamp', 'desc')
-            .get();
-        historicoExp = snap.docs.map(doc => ({ ...doc.data(), _docId: doc.id }));
-    } catch (erro) {
-        console.error("Erro ao carregar histórico:", erro);
-    }
-    
-    const hojeStr = formatarDataISO();
-    const experimentaisPassados = experimentais.filter(e => {
-        if (e.status === 'agendado') return false;
-        if (e.dataAgendada && e.dataAgendada < hojeStr) return true;
-        return e.status !== 'agendado';
-    });
-    
-    let todos = [];
-    
-    historicoExp.forEach(item => {
-        let dataItem = item.data;
-        if (item.timestamp) {
-            const date = new Date(item.timestamp);
-            dataItem = date.toISOString().split('T')[0];
-        }
-        todos.push({
-            data: dataItem,
-            horario: item.horario || (item.horario_id ? (horariosConfig.find(h=>h.id===item.horario_id)?.horario || '??') : '??'),
-            nome: item.nome,
-            telefone: item.telefone,
-            resultado: item.resultado,
-            matriculado: item.matriculado || false,
-            timestamp: item.timestamp || dataItem,
-            dataOriginal: dataItem
-        });
-    });
-    
-    experimentaisPassados.forEach(e => {
-        const horario = horariosConfig.find(h => h.id === e.horario_id);
-        todos.push({
-            data: e.dataAgendada || e.data,
-            horario: horario ? horario.horario : '??',
-            nome: e.nome,
-            telefone: e.telefone,
-            resultado: e.status,
-            matriculado: false,
-            timestamp: e.dataAgendada || e.data,
-            dataOriginal: e.dataAgendada || e.data
-        });
-    });
-    
-    if (dataLimite) {
-        todos = todos.filter(item => {
-            if (!item.data) return false;
-            let dataItem;
-            if (item.data.includes('-')) {
-                dataItem = new Date(item.data);
-            } else {
-                const partes = item.data.split('/');
-                if (partes.length === 3) {
-                    dataItem = new Date(partes[2], partes[1]-1, partes[0]);
-                } else {
-                    dataItem = new Date(item.data);
-                }
-            }
-            if (isNaN(dataItem.getTime())) return true;
-            return dataItem >= dataLimite && dataItem <= hoje;
-        });
-    }
-    
-    if (busca) {
-        todos = todos.filter(item => 
-            item.nome.toLowerCase().includes(busca) || 
-            item.telefone.includes(busca)
-        );
-    }
-    
-    if (filtroStatusHistoricoExp === 'compareceu') {
-        todos = todos.filter(item => item.resultado === 'compareceu');
-    } else if (filtroStatusHistoricoExp === 'nao_compareceu') {
-        todos = todos.filter(item => item.resultado === 'nao_compareceu');
-    } else if (filtroStatusHistoricoExp === 'matriculados') {
-        todos = todos.filter(item => item.matriculado === true);
-    }
-    
-    todos.sort((a, b) => {
-        if (a.timestamp && b.timestamp) return b.timestamp.localeCompare(a.timestamp);
-        return b.data.localeCompare(a.data);
-    });
-    
-    const total = todos.length;
-    const compareceram = todos.filter(t => t.resultado === 'compareceu').length;
-    const faltaram = todos.filter(t => t.resultado === 'nao_compareceu').length;
-    const matriculados = todos.filter(t => t.matriculado === true).length;
-    const taxaConversao = total > 0 ? Math.round((matriculados / total) * 100) : 0;
-    
-    document.getElementById('historicoResumo').innerHTML = `
-        <span>📊 Total: <strong>${total}</strong></span>
-        <span>✅ Compareceram: <strong style="color:#15803d;">${compareceram}</strong></span>
-        <span>❌ Faltaram: <strong style="color:#b91c1c;">${faltaram}</strong></span>
-        <span>📋 Matriculados: <strong style="color:#0369a1;">${matriculados}</strong></span>
-        <span>🎯 Taxa de Conversão: <strong style="color:#006994;">${taxaConversao}%</strong></span>
-    `;
-    
-    if (todos.length === 0) {
-        body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">📭 Nenhuma aula experimental encontrada neste período</td></tr>';
-        return;
-    }
-    
-    body.innerHTML = todos.map(item => {
-        let statusHtml = '';
-        if (item.resultado === 'compareceu') {
-            statusHtml = '<span style="background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:20px;font-size:0.75rem;">✅ Compareceu</span>';
-        } else if (item.resultado === 'nao_compareceu') {
-            statusHtml = '<span style="background:#fee2e2;color:#b91c1c;padding:4px 10px;border-radius:20px;font-size:0.75rem;">❌ Faltou</span>';
-        } else {
-            statusHtml = '<span style="background:#fef3c7;color:#b45309;padding:4px 10px;border-radius:20px;font-size:0.75rem;">📅 Agendado</span>';
-        }
-        
-        if (item.matriculado) {
-            statusHtml += ' <span style="background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:20px;font-size:0.75rem;">📋 Matriculado</span>';
-        }
-        
-        const dataFormatada = item.data && item.data.includes('-') ? formatarDataBR(item.data) : (item.data || '—');
-        
-        return `
-            <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:12px;">${dataFormatada}</td>
-                <td style="padding:12px;">${item.horario}</td>
-                <td style="padding:12px;"><strong>${item.nome}</strong></td>
-                <td style="padding:12px;">${item.telefone}</td>
-                <td style="padding:12px;">${statusHtml}</td>
-                <td style="padding:12px;">
-                    <a href="https://wa.me/55${String(item.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 10px;border-radius:6px;text-decoration:none;font-size:0.7rem;">💬 WhatsApp</a>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function exportarHistoricoExperimentais() {
-    const body = document.getElementById('historicoExperimentaisBody');
-    if (!body) return;
-    
-    const rows = [];
-    const cabecalho = ['Data', 'Horário', 'Nome', 'Telefone', 'Status', 'Matriculado'];
-    rows.push(cabecalho);
-    
-    document.querySelectorAll('#historicoExperimentaisBody tr').forEach(tr => {
-        const cells = tr.querySelectorAll('td');
-        if (cells.length >= 5) {
-            const data = cells[0]?.innerText || '';
-            const horario = cells[1]?.innerText || '';
-            const nome = cells[2]?.innerText || '';
-            const telefone = cells[3]?.innerText || '';
-            const status = cells[4]?.innerText?.replace(/\n/g, ' ').trim() || '';
-            const matriculado = status.includes('Matriculado') ? 'Sim' : 'Não';
-            rows.push([data, horario, nome, telefone, status, matriculado]);
+    alunos.forEach(aluno => {
+        if (isNaN(aluno.codigo) || aluno.codigo === null || aluno.codigo === undefined || aluno.codigo === '') {
+            const novoCodigo = 2000 + corrigidos;
+            aluno.codigo = novoCodigo;
+            corrigidos++;
+            console.log(`Corrigido: ${aluno.nome} recebeu código ${novoCodigo}`);
+            salvarAluno(aluno);
         }
     });
     
-    const csv = rows.map(row => row.join(',')).join('\n');
-    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const dataAtual = formatarData().replace(/\//g, '-');
-    a.href = url;
-    a.download = `historico_experimentais_${dataAtual}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    mostrarToast('✅ Histórico exportado!');
+    if (corrigidos > 0) {
+        mostrarToast(`✅ Corrigidos ${corrigidos} alunos com código inválido!`);
+        renderizarTudo();
+        renderStudentTableSuper();
+    } else {
+        console.log("Nenhum aluno com código inválido encontrado");
+    }
 }
+
+function toggleTheme() {
+    const isDark = document.body.classList.toggle('dark');
+    localStorage.setItem('aqua_theme', isDark ? 'dark' : 'light');
+    document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
+}
+(function() { if (localStorage.getItem('aqua_theme') === 'dark') document.body.classList.add('dark'); })();
 
 // ============================================================
 // INICIALIZAÇÃO
@@ -2347,226 +2648,3 @@ window.onload = function() {
         renderizarTudo(); 
     }, 30000);
 };
-
-// ============================================================
-// CONTAGEM CORRETA DE ALUNOS (SEM DUPLICAÇÃO)
-// ============================================================
-
-// Contar alunos únicos (cada aluno conta 1 vez, independente de quantas turmas faz)
-function contarAlunosUnicos() {
-    // Filtrar apenas alunos ativos (PAUSADO e TRANCADO não contam)
-    const ativos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO');
-    return ativos.length;
-}
-
-// Contar matrículas por turno (um aluno pode aparecer em vários turnos)
-function contarMatriculasPorTurno() {
-    let manha = 0, tarde = 0, noite = 0, sabado = 0;
-    
-    alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO').forEach(a => {
-        ['seg','ter','qua','qui','sex','sab'].forEach(d => {
-            const hId = a[d];
-            if (hId) {
-                const h = horariosConfig.find(hc => hc.id == hId);
-                if (h) {
-                    if (h.turno === 'manha') manha++;
-                    else if (h.turno === 'tarde') tarde++;
-                    else if (h.turno === 'noite') noite++;
-                    else if (h.turno === 'sabado') sabado++;
-                }
-            }
-        });
-    });
-    
-    return { manha, tarde, noite, sabado };
-}
-
-// ATUALIZAR OS WIDGETS COM CONTAGEM CORRETA
-function atualizarWidgets() {
-    // Contagem correta de alunos únicos
-    const totalAlunos = contarAlunosUnicos();
-    
-    let vencidos = 0, emDia = 0;
-    alunos.forEach(a => {
-        if (a.status === 'TRANCADO' || a.status === 'PAUSADO') return;
-        if (verificarVencimento(a.vencimento).vencido) vencidos++;
-        else emDia++;
-    });
-
-    // Contagem de matrículas por turno (pode ter duplicação)
-    const matriculas = contarMatriculasPorTurno();
-    const totalMatriculas = matriculas.manha + matriculas.tarde + matriculas.noite + matriculas.sabado;
-    
-    const capTotal = horariosConfig.reduce((s, h) => s + h.capacidade, 0);
-    const pctOcupacao = capTotal > 0 ? Math.round((totalMatriculas / capTotal) * 100) : 0;
-
-    const widget = document.getElementById('macroStatsWidget');
-    if (!widget) return;
-
-    widget.innerHTML = `
-        <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl">🎯 Total Alunos</div><div class="sub">Alunos únicos ativos</div></div>
-        <div class="widget vencidos-border"><div class="val" style="color:#ef4444;">${vencidos}</div><div class="lbl">⚠️ Vencidos</div><div class="sub">Planos Atrasados</div></div>
-        <div class="widget emdia-border"><div class="val" style="color:#10b981;">${emDia}</div><div class="lbl">✅ Em Dia</div><div class="sub">Planos Ativos</div></div>
-        <div class="widget"><div class="val">${matriculas.manha}</div><div class="lbl">🌅 Manhã</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${matriculas.tarde}</div><div class="lbl">☀️ Tarde</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${matriculas.noite}</div><div class="lbl">🌙 Noite</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${matriculas.sabado}</div><div class="lbl">📅 Sábados</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${pctOcupacao}%</div><div class="lbl">📊 Ocupação</div><div class="progress-mini"><div class="progress-mini-fill" style="width:${pctOcupacao}%"></div></div></div>
-    `;
-}
-
-// ============================================================
-// VERIFICAR SE DADOS FORAM SALVOS
-// ============================================================
-async function verificarSalvamento() {
-    console.log("🔍 VERIFICANDO SALVAMENTO...");
-    console.log("📊 Alunos na memória:", alunos.length);
-    console.log("📊 Turmas na memória:", horariosConfig.length);
-    
-    try {
-        // Verificar alunos no Firebase
-        const snapAlunos = await db.collection('alunos').get();
-        const alunosFirebase = snapAlunos.docs.length;
-        console.log("📊 Alunos no Firebase:", alunosFirebase);
-        
-        // Verificar turmas no Firebase
-        const doc = await db.collection('config').doc('turmas').get();
-        let turmasFirebase = 0;
-        if (doc.exists) {
-            const dados = doc.data();
-            turmasFirebase = dados.turmas ? dados.turmas.length : 0;
-        }
-        console.log("📊 Turmas no Firebase:", turmasFirebase);
-        
-        // Comparar
-        let msg = `📊 Alunos: ${alunos.length} (memória) vs ${alunosFirebase} (Firebase)`;
-        if (alunos.length === alunosFirebase) {
-            msg += ' ✅ OK';
-        } else {
-            msg += ' ⚠️ DIFERENÇA!';
-        }
-        mostrarToast(msg, alunos.length === alunosFirebase ? 'sucesso' : 'erro');
-        
-        let msgTurmas = `📊 Turmas: ${horariosConfig.length} (memória) vs ${turmasFirebase} (Firebase)`;
-        if (horariosConfig.length === turmasFirebase) {
-            msgTurmas += ' ✅ OK';
-        } else {
-            msgTurmas += ' ⚠️ DIFERENÇA!';
-        }
-        mostrarToast(msgTurmas, horariosConfig.length === turmasFirebase ? 'sucesso' : 'erro');
-        
-        console.log("✅ Verificação concluída!");
-        
-    } catch (erro) {
-        console.error("❌ Erro ao verificar:", erro);
-        mostrarToast('❌ Erro ao verificar dados!', 'erro');
-    }
-}
-
-// ============================================================
-// EXPORTAR RELATÓRIO RESUMIDO
-// ============================================================
-function exportarRelatorioResumido() {
-    const totalAlunos = contarAlunosUnicos();
-    const matriculas = contarMatriculasPorTurno();
-    const vencidos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO' && verificarVencimento(a.vencimento).vencido).length;
-    const emDia = totalAlunos - vencidos;
-    
-    const resumo = [
-        ['RELATÓRIO AQUACONTROL'],
-        ['Data:', formatarData()],
-        [''],
-        ['RESUMO GERAL'],
-        ['Total de Alunos Únicos:', totalAlunos],
-        ['Alunos em Dia:', emDia],
-        ['Alunos Vencidos:', vencidos],
-        ['Matrículas Manhã:', matriculas.manha],
-        ['Matrículas Tarde:', matriculas.tarde],
-        ['Matrículas Noite:', matriculas.noite],
-        ['Matrículas Sábado:', matriculas.sabado],
-        ['Total de Matrículas:', matriculas.manha + matriculas.tarde + matriculas.noite + matriculas.sabado],
-        [''],
-        ['ALUNOS DETALHADOS'],
-        ['Código', 'Nome', 'Telefone', 'Modalidade', 'Vencimento', 'Status', 'Dias']
-    ];
-    
-    alunos.forEach(a => {
-        const dias = ['seg','ter','qua','qui','sex','sab'];
-        const diasNomes = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-        let diasParticipa = dias.map((campo, idx) => {
-            if (a[campo]) {
-                const horario = horariosConfig.find(h => h.id == a[campo]);
-                return horario ? `${diasNomes[idx]}(${horario.horario})` : '';
-            }
-            return '';
-        }).filter(d => d).join(' | ');
-        
-        resumo.push([
-            a.codigo || '',
-            a.nome || '',
-            a.telefone || '',
-            a.modalidade || '',
-            a.vencimento || '',
-            a.status || 'ATIVO',
-            diasParticipa || 'Nenhum'
-        ]);
-    });
-    
-    const csv = resumo.map(r => r.join(',')).join('\n');
-    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const dataAtual = formatarData().replace(/\//g, '-');
-    a.href = url;
-    a.download = `relatorio_aquacontrol_${dataAtual}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    mostrarToast('✅ Relatório exportado com sucesso!');
-}
-
-// ============================================================
-// VERIFICAR SALVAMENTO
-// ============================================================
-async function verificarSalvamento() {
-    console.log("🔍 VERIFICANDO SALVAMENTO...");
-    console.log("📊 Alunos na memória:", alunos.length);
-    console.log("📊 Turmas na memória:", horariosConfig.length);
-    
-    try {
-        const snapAlunos = await db.collection('alunos').get();
-        const alunosFirebase = snapAlunos.docs.length;
-        console.log("📊 Alunos no Firebase:", alunosFirebase);
-        
-        const doc = await db.collection('config').doc('turmas').get();
-        let turmasFirebase = 0;
-        if (doc.exists) {
-            const dados = doc.data();
-            turmasFirebase = dados.turmas ? dados.turmas.length : 0;
-        }
-        console.log("📊 Turmas no Firebase:", turmasFirebase);
-        
-        let msg = `📊 Alunos: ${alunos.length} (memória) vs ${alunosFirebase} (Firebase)`;
-        if (alunos.length === alunosFirebase) {
-            msg += ' ✅ OK';
-            mostrarToast(msg, 'sucesso');
-        } else {
-            msg += ' ⚠️ DIFERENÇA!';
-            mostrarToast(msg, 'erro');
-        }
-        
-        let msgTurmas = `📊 Turmas: ${horariosConfig.length} (memória) vs ${turmasFirebase} (Firebase)`;
-        if (horariosConfig.length === turmasFirebase) {
-            msgTurmas += ' ✅ OK';
-            mostrarToast(msgTurmas, 'sucesso');
-        } else {
-            msgTurmas += ' ⚠️ DIFERENÇA!';
-            mostrarToast(msgTurmas, 'erro');
-        }
-        
-        console.log("✅ Verificação concluída!");
-        
-    } catch (erro) {
-        console.error("❌ Erro ao verificar:", erro);
-        mostrarToast('❌ Erro ao verificar dados!', 'erro');
-    }
-}
