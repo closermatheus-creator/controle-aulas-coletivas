@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>AquaControl - Controle de Turmas</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Fonte Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* PAINEL LATERAL */
+        .painel-exp-hoje {
+            background: var(--bg-surface, #fff);
+            border: 1px solid var(--border, #e2e8f0);
+            border-radius: 14px;
+            padding: 16px;
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        .painel-exp-hoje h4 {
+            font-size: 1rem;
+            color: #b45309;
+            border-bottom: 2px solid #fde68a;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .painel-exp-count {
+            background: #b45309;
+            color: white;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            font-weight: bold;
+        }
+
+        /* Badge de status */
+        .badge-status-ativo { background: #dcfce7; color: #15803d; }
+        .badge-status-pausado { background: #fef3c7; color: #b45309; }
+        .badge-status-trancado { background: #fee2e2; color: #b91c1c; }
+
+        /* Botão criar turma */
+        .btn-create-turma {
+            background: #006994;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-create-turma:hover {
+            background: #004d6e;
+        }
+
+        /* Botão gerenciar modalidades */
+        .btn-manage-mod {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-manage-mod:hover {
+            background: #7c3aed;
+        }
+
+        /* Container para botões de ação */
+        .action-buttons-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        /* Checkbox group para dias */
+        .dias-checkbox-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .dias-checkbox-group label {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8rem;
+            background: #f1f5f9;
+            padding: 4px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        /* Botão Salvar Tudo - DESTAQUE */
+        .btn-save-all {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+            transition: all 0.3s ease;
+            animation: pulse-save 2s infinite;
+        }
+        .btn-save-all:hover {
+            background: #059669;
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+        }
+        .btn-save-all.salvando {
+            background: #f59e0b;
+            animation: none;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+        }
+        .btn-save-all.salvo {
+            background: #10b981;
+            animation: none;
+        }
+
+        @keyframes pulse-save {
+            0%, 100% { box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4); }
+            50% { box-shadow: 0 4px 24px rgba(16, 185, 129, 0.7); }
+        }
+
+        /* Indicador de salvamento automático */
+        .auto-save-indicator {
+            font-size: 0.75rem;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: #f1f5f9;
+            border-radius: 20px;
+        }
+        .auto-save-indicator .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .auto-save-indicator .status-dot.saving {
+            background: #f59e0b;
+            animation: blink 1s infinite;
+        }
+        .auto-save-indicator .status-dot.saved {
+            background: #10b981;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Botão Histórico */
+        .btn-historico-exp {
+            background: #e0e7ff;
+            color: #3730a3;
+            border-color: #c7d2fe;
+        }
+        .btn-historico-exp:hover {
+            background: #c7d2fe;
+        }
+
+        /* Botão Exportar CSV */
+        .btn-export-csv {
+            background: #10b981;
+            color: white;
+            border-color: #34d399;
+        }
+        .btn-export-csv:hover {
+            background: #059669;
+        }
+
+        /* Botão Relatório */
+        .btn-relatorio {
+            background: #8b5cf6;
+            color: white;
+            border-color: #a78bfa;
+        }
+        .btn-relatorio:hover {
+            background: #7c3aed;
+        }
+
+        /* Botão Verificar */
+        .btn-verificar {
+            background: #f59e0b;
+            color: white;
+            border-color: #fbbf24;
+        }
+        .btn-verificar:hover {
+            background: #d97706;
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <div class="login-logo">🌊</div>
+            <div class="login-brand">Aqua<span>Control</span></div>
+            <p>Digite a senha de acesso da recepção</p>
+            <input type="password" id="passwordInput" class="login-input" placeholder="••••••••" onkeypress="handleKeyPress(event)">
+            <button class="btn-login" onclick="checkPassword()">Entrar no Sistema</button>
+            <div id="loginError" class="login-error">⚠️ Senha incorreta!</div>
+        </div>
+    </div>
+
+    <!-- APP -->
+    <div id="appContainer" style="display:none;">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">🌊</div>
+                <div>
+                    <div class="logo-text">
+                        <span class="aqua">Aqua</span><span class="control">Control</span>
+                    </div>
+                    <div class="logo-sub">Gestão de Horários</div>
+                </div>
+            </div>
+            <div class="header-controls">
+                <button class="btn-theme-toggle" onclick="toggleTheme()" id="themeToggleBtn">
+                    <span id="themeIcon">🌙</span>
+                </button>
+                <button onclick="exportarCSV()" class="btn-csv">📥 Exportar CSV</button>
+                <span id="googleStatus" class="status">📡 Carregando...</span>
+                <button onclick="logout()" class="btn-logout">Sair</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div id="loadingBanner" class="loading-banner">🔄 Sincronizando com o Supabase...</div>
+
+            <!-- WIDGETS -->
+            <div class="summary-widgets" id="macroStatsWidget"></div>
+
+            <!-- FILTROS -->
+            <div class="filter-panel">
+                <div class="filter-row-top">
+                    <div class="filter-group flex-main">
+                        <div class="filter-label">🔍 Buscar Horário ou Aluno:</div>
+                        <input type="text" id="searchBar" class="search-input-field"
+                            placeholder="Nome de modalidade, horário ou aluno..."
+                            oninput="renderizarTudo()">
+                    </div>
+                </div>
+
+                <div class="filter-group row-spacing">
+                    <div class="filter-label">Dia da Semana:</div>
+                    <div class="filter-options" id="filterDias">
+                        <button class="btn-select active" onclick="filtrarDiaHub('TODOS', this)">Todos</button>
+                        <button class="btn-select btn-hoje-destaque" onclick="filtrarDiaHub('HOJE', this)">📅 Hoje</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Segunda', this)">Seg</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Terça', this)">Ter</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Quarta', this)">Qua</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Quinta', this)">Qui</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Sexta', this)">Sex</button>
+                        <button class="btn-select" onclick="filtrarDiaHub('Sábado', this)">Sáb</button>
+                    </div>
+                </div>
+
+                <div class="filter-group row-spacing">
+                    <div class="filter-label">Modalidade:</div>
+                    <div class="filter-options" id="filterModalities">
+                        <button class="btn-select active" onclick="filtrarModalidadeHub('TODAS', this)">Todas</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Adulto', this)">Adulto</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Hidroginástica', this)">Hidro</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 1', this)">Inf N1</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 2', this)">Inf N2</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 3', this)">Inf N3</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Baby', this)">Baby</button>
+                        <button class="btn-select" onclick="filtrarModalidadeHub('Personal Class', this)">Personal</button>
+                    </div>
+                </div>
+
+                <div class="filter-row-bottom">
+                    <div class="filter-group">
+                        <div class="filter-label">Turno:</div>
+                        <div class="filter-options" id="filterTurno">
+                            <button class="btn-select active" onclick="filtrarTurnoHub('TODOS', this)">Todos</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('manha', this)">🌅 Manhã</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('tarde', this)">☀️ Tarde</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('noite', this)">🌙 Noite</button>
+                            <button class="btn-select" onclick="filtrarTurnoHub('sabado', this)">📅 Sábado</button>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <div class="filter-label">Ocupação:</div>
+                        <div class="filter-options" id="filterOcupacao">
+                            <button class="btn-select active" onclick="filtrarOcupacaoHub('TODOS', this)">Todos</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('COM_ALUNOS', this)">Com Alunos</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('VENCIDOS', this)">🔴 Vencidos</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('COM_VAGAS', this)">Com Vagas</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('LOTADAS', this)">Lotadas</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('VAZIAS', this)">Vazias</button>
+                            <button class="btn-select" onclick="filtrarOcupacaoHub('COM_EXPERIMENTAIS', this)">🧪 Experimentais</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AÇÕES RÁPIDAS - LINHA 1 -->
+            <div class="action-tabs-row">
+                <button onclick="abrirSuperModal('alunos')" class="btn-action-tab btn-blue-highlight">👥 Buscar / Editar Alunos</button>
+                <button onclick="abrirSuperModal('vencidos')" class="btn-action-tab" style="background:#fef2f2;color:#b91c1c;border-color:#fca5a5;">⚠️ Alunos Vencidos</button>
+                <button onclick="abrirSuperModal('incompletos')" class="btn-action-tab">⚠️ Alunos Incompletos</button>
+                <button onclick="abrirSuperModal('experimentais_futuros')" class="btn-action-tab" style="background:#fef3c7;color:#b45309;border-color:#fde68a;">📅 Experimentais Futuras</button>
+                <button onclick="abrirSuperModal('modalidades')" class="btn-action-tab" style="background:#e0f2fe;color:#006994;border-color:#bae6fd;">🏷️ Gerenciar Modalidades</button>
+                <button onclick="abrirSuperModal('historico_experimentais')" class="btn-action-tab btn-historico-exp">📊 Histórico de Experimentais</button>
+            </div>
+
+            <!-- AÇÕES RÁPIDAS - LINHA 2 -->
+            <div class="action-buttons-row">
+                <button onclick="abrirCriarTurma()" class="btn-create-turma">➕ Criar Nova Turma</button>
+                <button onclick="exportarCSV()" class="btn-action-tab btn-export-csv">📥 Exportar CSV Completo</button>
+                <button onclick="exportarRelatorioResumido()" class="btn-action-tab btn-relatorio">📊 Relatório Resumido</button>
+                <button onclick="verificarSalvamento()" class="btn-action-tab btn-verificar">🔍 Verificar Salvamento</button>
+                <button onclick="salvarTudo()" class="btn-save-all" id="btnSalvarTudo">💾 SALVAR TUDO</button>
+                <span class="auto-save-indicator" id="autoSaveIndicator">
+                    <span class="status-dot saved" id="autoSaveDot"></span>
+                    <span id="autoSaveText">Salvo automaticamente</span>
+                </span>
+            </div>
+
+            <!-- GRID + PAINEL LATERAL -->
+            <div class="dashboard-layout">
+                <div class="turmas-grid">
+                    <div class="cardsGrid" id="cardsGrid"></div>
+                </div>
+                <div class="painel-exp-hoje">
+                    <h4>🧪 Experimentais Hoje <span class="painel-exp-count" id="painelExpCount">0</span></h4>
+                    <div id="painelExpHoje">
+                        <div style="text-align:center;padding:20px;color:#94a3b8;font-size:0.9rem;">Carregando...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAB -->
+    <div class="fab-container" id="fabContainer">
+        <button class="fab-main" onclick="toggleFabMenu()">➕</button>
+        <div class="fab-menu" id="fabMenu">
+            <button class="fab-item" onclick="abrirFormularioSobreposto('cadastro')">📋 Matricular Aluno</button>
+            <button class="fab-item" onclick="abrirFormularioSobreposto('experimental')">🧪 Nova Experimental</button>
+        </div>
+    </div>
+
+    <!-- SUPER MODAL -->
+    <div id="globalSuperModal" class="super-modal" onclick="fecharSuperModal(event)">
+        <div class="super-modal-content" onclick="event.stopPropagation()">
+            <div class="super-modal-header">
+                <h3 id="superModalTitulo">📌 Carregando...</h3>
+                <button class="super-modal-close" onclick="fecharSuperModal()">✕</button>
+            </div>
+            <div class="super-modal-body" id="superModalCorpo"></div>
+        </div>
+    </div>
+
+    <!-- SUPABASE SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script>
+</body>
+</html>
