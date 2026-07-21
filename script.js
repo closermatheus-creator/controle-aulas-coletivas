@@ -2782,10 +2782,11 @@ window.onload = function() {
         carregarDados();
     }
     
-    setInterval(() => {
-        console.log("🔄 Auto-save executado em:", new Date().toLocaleTimeString());
-        salvarTudo();
-    }, 60000);
+    // Auto-save removido: cada edição já salva individualmente no Supabase
+    // no momento em que acontece (salvarAluno/salvarTurmas são chamados
+    // diretamente nas funções de edição). O auto-save global de 60s estava
+    // resalvando TODOS os alunos e turmas repetidamente, mesmo sem mudanças,
+    // e foi a principal causa do consumo excessivo de egress no Supabase.
     
     setInterval(() => { 
         renderPainelExperimentaisHoje(); 
