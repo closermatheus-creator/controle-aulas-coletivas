@@ -3,13 +3,18 @@
 // ============================================================
 
 // ============================================================
-// CONFIGURAÇÃO DO SUPABASE
+// CONFIGURAÇÃO DO SUPABASE - NOVA CONTA
 // ============================================================
 const SUPABASE_URL = "https://zjvlnbjbybydvfgmjwre.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_l5YlceVXo3NYmS0I8wIpjw_f0OHd5VU";
 
-// CRIAR CLIENTE SUPABASE (USANDO A VARIÁVEL GLOBAL)
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// CRIAR CLIENTE SUPABASE
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+        persistSession: false,
+        autoRefreshToken: false
+    }
+});
 
 // ============================================================
 // LISTA DE MODALIDADES
@@ -2047,9 +2052,6 @@ async function renderHistoricoExperimentais() {
 // ============================================================
 // EDITAR STATUS DO EXPERIMENTAL NO HISTÓRICO
 // ============================================================
-// ============================================================
-// EDITAR STATUS DO EXPERIMENTAL NO HISTÓRICO
-// ============================================================
 async function editarStatusExperimental(id, novoStatus, origem) {
     if (!id) {
         mostrarToast('❌ ID não encontrado!', 'erro');
@@ -2058,7 +2060,6 @@ async function editarStatusExperimental(id, novoStatus, origem) {
     
     try {
         if (origem === 'historico') {
-            // Atualizar no histórico
             const { error } = await supabaseClient
                 .from('historico_experimentais')
                 .update({ resultado: novoStatus })
@@ -2068,7 +2069,6 @@ async function editarStatusExperimental(id, novoStatus, origem) {
             mostrarToast(`✅ Status alterado para ${novoStatus === 'compareceu' ? 'Compareceu' : 'Faltou'}!`);
             
         } else if (origem === 'experimental') {
-            // Atualizar no experimentais
             const exp = experimentais.find(e => e.id == id);
             if (exp) {
                 exp.status = novoStatus;
@@ -2101,7 +2101,6 @@ async function editarMatriculaExperimental(id, origem) {
     
     try {
         if (origem === 'historico') {
-            // Buscar o registro
             const { data, error } = await supabaseClient
                 .from('historico_experimentais')
                 .select('*')
@@ -2120,7 +2119,6 @@ async function editarMatriculaExperimental(id, origem) {
             mostrarToast(`✅ ${novoStatus ? 'Matrícula efetivada' : 'Matrícula removida'}!`);
             
         } else if (origem === 'experimental') {
-            // Efetivar matrícula do experimental
             const exp = experimentais.find(e => e.id == id);
             if (exp) {
                 await matricularExperimentalInSuper(exp.id);
@@ -2140,16 +2138,12 @@ async function editarMatriculaExperimental(id, origem) {
     }
 }
 
-// ============================================================
-// EDITAR MATRÍCULA DO EXPERIMENTAL NO HISTÓRICO
-// ============================================================
 async function editarMatriculaExperimental(id) {
     if (!id) {
         mostrarToast('❌ ID do experimental não encontrado!', 'erro');
         return;
     }
     
-    // Tentar encontrar no histórico
     try {
         const { data, error } = await supabaseClient
             .from('historico_experimentais')
@@ -2172,10 +2166,8 @@ async function editarMatriculaExperimental(id) {
         }
     } catch (e) {}
     
-    // Se não encontrou no histórico, tentar nos experimentais
     const exp = experimentais.find(e => e.id == id);
     if (exp) {
-        // Se o experimental existe, efetivar matrícula
         matricularExperimentalInSuper(exp.id);
         return;
     }
@@ -2711,8 +2703,6 @@ async function salvarTudo() {
         btn.classList.add('salvando');
     }
     
-    //mostrarToast('🔄 Salvando todas as informações...', 'info');
-    
     let sucesso = true;
     const turmasOk = await salvarTurmas();
     if (!turmasOk) sucesso = false;
@@ -2732,12 +2722,6 @@ async function salvarTudo() {
         btn.classList.remove('salvando');
         if (sucesso) btn.classList.add('salvo');
     }
-    
-    //if (sucesso) {
-      //  mostrarToast('✅ Todas as informações foram salvas com sucesso!', 'sucesso');
-    //} else {
-      //  mostrarToast('⚠️ Alguns dados podem não ter sido salvos. Verifique o console.', 'erro');
-    //}
 }
 
 function corrigirAlunosComCodigoInvalido() {
@@ -2782,11 +2766,10 @@ window.onload = function() {
         carregarDados();
     }
     
-    // Auto-save removido: cada edição já salva individualmente no Supabase
-    // no momento em que acontece (salvarAluno/salvarTurmas são chamados
-    // diretamente nas funções de edição). O auto-save global de 60s estava
-    // resalvando TODOS os alunos e turmas repetidamente, mesmo sem mudanças,
-    // e foi a principal causa do consumo excessivo de egress no Supabase.
+    setInterval(() => {
+        console.log("🔄 Auto-save executado em:", new Date().toLocaleTimeString());
+        salvarTudo();
+    }, 60000);
     
     setInterval(() => { 
         renderPainelExperimentaisHoje(); 
@@ -2803,14 +2786,12 @@ async function excluirExperimentalHistorico(id, origem) {
         return;
     }
     
-    // Confirmar exclusão
     if (!confirm('⚠️ Tem certeza que deseja excluir este registro do histórico?\n\nEsta ação NÃO pode ser desfeita!')) {
         return;
     }
     
     try {
         if (origem === 'historico') {
-            // Excluir do histórico
             const { error } = await supabaseClient
                 .from('historico_experimentais')
                 .delete()
@@ -2820,7 +2801,6 @@ async function excluirExperimentalHistorico(id, origem) {
             mostrarToast('✅ Registro excluído do histórico!');
             
         } else if (origem === 'experimental') {
-            // Excluir do experimentais
             const exp = experimentais.find(e => e.id == id);
             if (exp) {
                 await excluirExperimental(id);
@@ -2833,7 +2813,6 @@ async function excluirExperimentalHistorico(id, origem) {
             }
         }
         
-        // Re-renderizar
         renderHistoricoExperimentais();
         renderizarTudo();
         renderPainelExperimentaisHoje();
