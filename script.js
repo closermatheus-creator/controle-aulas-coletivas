@@ -1,6 +1,31 @@
 // ============================================================
-// AQUACONTROL v7.0 — SUPABASE VERSION (CORRIGIDO)
+// AQUACONTROL v7.1 — SUPABASE VERSION (CORRIGIDO)
 // ============================================================
+
+// ============================================================
+// VERSÃO DO SISTEMA - PARA CONTROLE DE CACHE
+// ============================================================
+const SISTEMA_VERSAO = "7.1.20260124";
+
+function verificarVersao() {
+    const versaoSalva = localStorage.getItem('aqua_versao');
+    if (versaoSalva !== SISTEMA_VERSAO) {
+        console.log(`🔄 Atualizando versão: ${versaoSalva || 'N/A'} → ${SISTEMA_VERSAO}`);
+        localStorage.setItem('aqua_versao', SISTEMA_VERSAO);
+        localStorage.removeItem('aqua_authenticated');
+        return true;
+    }
+    return false;
+}
+
+if (verificarVersao()) {
+    console.log('🔄 Nova versão detectada. Recarregando...');
+    setTimeout(() => {
+        if (confirm('🔄 Nova versão do sistema disponível. Deseja recarregar agora?')) {
+            location.reload(true);
+        }
+    }, 500);
+}
 
 // ============================================================
 // CONFIGURAÇÃO DO SUPABASE - NOVA CONTA
@@ -8,7 +33,6 @@
 const SUPABASE_URL = "https://zjvlnbjbybydvfgmjwre.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_l5YlceVXo3NYmS0I8wIpjw_f0OHd5VU";
 
-// CRIAR CLIENTE SUPABASE
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
         persistSession: false,
@@ -116,7 +140,7 @@ let horariosConfig = [
     { id: 81, modalidade: "Personal Class", dias: ["Segunda","Quarta","Sexta"], horario: "14:30-15:30", capacidade: 3, turno: "tarde" }
 ];
 
-// Corrigir turno baseado no horário (17h em diante = noite)
+// Corrigir turno baseado no horário
 horariosConfig = horariosConfig.map(h => {
     const horaInicio = parseInt(h.horario.split('-')[0].split(':')[0]);
     if (horaInicio >= 17 && h.turno !== 'sabado') {
@@ -146,6 +170,7 @@ const MASTER_PASSWORD = "aqua123";
 function checkPassword() {
     if (document.getElementById("passwordInput").value === MASTER_PASSWORD) {
         localStorage.setItem("aqua_authenticated", "true");
+        localStorage.setItem("aqua_versao", SISTEMA_VERSAO);
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("appContainer").style.display = "block";
         carregarDados();
@@ -164,7 +189,7 @@ function logout() {
 }
 
 // ============================================================
-// FUNÇÕES DE BANCO DE DADOS (SUPABASE)
+// FUNÇÕES DE BANCO DE DADOS (SUPABASE) - CORRIGIDAS
 // ============================================================
 
 async function carregarAlunos() {
@@ -175,8 +200,17 @@ async function carregarAlunos() {
             .order('codigo', { ascending: true });
         
         if (error) throw error;
-        alunos = data || [];
-        studentIdCounter = alunos.length > 0 ? Math.max(...alunos.map(a => a.codigo || 0), 1000) : 1000;
+        
+        // CORREÇÃO: Filtrar apenas alunos com ID válido
+        alunos = (data || []).filter(a => a.id != null && a.id !== undefined);
+        
+        if (alunos.length > 0) {
+            const maxCodigo = Math.max(...alunos.map(a => Number(a.codigo) || 0));
+            studentIdCounter = Math.max(maxCodigo + 1, 1000);
+        }
+        
+        corrigirDadosInconsistentes();
+        
         console.log("✅ Alunos carregados:", alunos.length);
         return alunos;
     } catch (erro) {
@@ -188,6 +222,21 @@ async function carregarAlunos() {
 
 async function salvarAluno(aluno) {
     try {
+        // CORREÇÃO: Validar dados antes de salvar
+        if (!aluno.nome || !aluno.telefone) {
+            throw new Error('Nome e telefone são obrigatórios');
+        }
+        
+        if (aluno.codigo) {
+            aluno.codigo = parseInt(aluno.codigo);
+        }
+        
+        ['seg','ter','qua','qui','sex','sab'].forEach(dia => {
+            if (aluno[dia]) {
+                aluno[dia] = parseInt(aluno[dia]);
+            }
+        });
+        
         if (aluno.id) {
             const { error } = await supabaseClient
                 .from('alunos')
@@ -204,7 +253,7 @@ async function salvarAluno(aluno) {
                 aluno.id = data[0].id;
             }
         }
-        console.log("✅ Aluno salvo:", aluno.nome);
+        console.log("✅ Aluno salvo:", aluno.nome, "ID:", aluno.id);
         return aluno;
     } catch (erro) {
         console.error("❌ Erro ao salvar aluno:", erro);
@@ -214,6 +263,7 @@ async function salvarAluno(aluno) {
 
 async function excluirAluno(id) {
     try {
+        if (!id) throw new Error('ID inválido');
         const { error } = await supabaseClient
             .from('alunos')
             .delete()
@@ -235,7 +285,7 @@ async function carregarExperimentais() {
             .order('id', { ascending: true });
         
         if (error) throw error;
-        experimentais = data || [];
+        experimentais = (data || []).filter(e => e.id != null);
         expIdCounter = experimentais.length > 0 ? Math.max(...experimentais.map(e => e.id || 0), 1000) : 1000;
         console.log("✅ Experimentais carregados:", experimentais.length);
         return experimentais;
@@ -389,6 +439,34 @@ async function carregarDados() {
 }
 
 // ============================================================
+// CORREÇÃO: VALIDAR E CORRIGIR DADOS INCONSISTENTES
+// ============================================================
+function corrigirDadosInconsistentes() {
+    let corrigidos = 0;
+    
+    alunos.forEach(aluno => {
+        if (isNaN(aluno.codigo) || aluno.codigo === null || aluno.codigo === undefined || aluno.codigo === '') {
+            aluno.codigo = studentIdCounter++;
+            corrigidos++;
+            console.log(`🔧 Corrigido código de ${aluno.nome} para ${aluno.codigo}`);
+            salvarAluno(aluno);
+        }
+        
+        ['seg','ter','qua','qui','sex','sab'].forEach(dia => {
+            if (aluno[dia] && isNaN(aluno[dia])) {
+                aluno[dia] = '';
+                corrigidos++;
+                salvarAluno(aluno);
+            }
+        });
+    });
+    
+    if (corrigidos > 0) {
+        console.log(`✅ Corrigidos ${corrigidos} dados inconsistentes`);
+    }
+}
+
+// ============================================================
 // FUNÇÕES DO SISTEMA
 // ============================================================
 
@@ -528,7 +606,6 @@ function atualizarDropdownsModalidade() {
         select.innerHTML = modalidadesDisponiveis.map(m => `<option value="${m}" ${valorAtual === m ? 'selected' : ''}>${m}</option>`).join('');
     });
 }
-
 // ============================================================
 // RENDERIZAÇÃO DOS CARDS
 // ============================================================
@@ -648,12 +725,12 @@ function getAlunosPorHorarioDia(horarioId, diaFiltro) {
             return diasAtivos.some(dia => {
                 if (!horario.dias.includes(dia)) return false;
                 const campo = diasMap[dia];
-                return aluno[campo] == horarioId;
+                return Number(aluno[campo]) === Number(horarioId);
             });
         } else {
             for (const dia of horario.dias) {
                 const campo = diasMap[dia];
-                if (aluno[campo] == horarioId) {
+                if (Number(aluno[campo]) === Number(horarioId)) {
                     return true;
                 }
             }
@@ -738,7 +815,6 @@ function filtrarDiaHub(dia, btn) {
     }
     renderizarTudo();
 }
-
 // ============================================================
 // EDIÇÃO DE TURMA
 // ============================================================
@@ -857,7 +933,7 @@ function excluirTurmaPermanente(hId) {
     if (!turma) return;
     
     const alunosMatriculados = alunos.filter(a => {
-        return turma.dias.some(dia => a[diasMap[dia]] == hId);
+        return turma.dias.some(dia => Number(a[diasMap[dia]]) === Number(hId));
     });
     
     let msg = `⚠️ EXCLUIR TURMA PERMANENTEMENTE?\n\n📌 ${turma.modalidade}\n⏰ ${turma.horario}\n📅 Dias: ${turma.dias.join(', ')}\n\n`;
@@ -872,7 +948,7 @@ function excluirTurmaPermanente(hId) {
     alunos.forEach(a => {
         turma.dias.forEach(dia => {
             const campo = diasMap[dia];
-            if (a[campo] == hId) a[campo] = '';
+            if (Number(a[campo]) === Number(hId)) a[campo] = '';
         });
         salvarAluno(a);
     });
@@ -1033,8 +1109,8 @@ function abrirModalHorario(horarioId) {
                         const dateClean = limparData(a.vencimento);
                         const statusAtual = a.status || 'ATIVO';
                         const obsHtml = a.observacao ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;font-size:0.82rem;color:#78350f;margin-top:5px;">📝 ${a.observacao}</div>` : '';
-                        const diasDoAluno = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(d => d.substring(0,3)).join(', ');
-                        const botoesExcluir = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(dia => `<button onclick="excluirAlunoDaTurma('${a.id}', ${horarioId}, '${dia}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 8px;border-radius:6px;font-size:0.7rem;cursor:pointer;" title="Remover da ${dia}">🗑️ ${dia.substring(0,3)}</button>`).join('');
+                        const diasDoAluno = horario.dias.filter(dia => Number(a[diasMap[dia]]) === Number(horarioId)).map(d => d.substring(0,3)).join(', ');
+                        const botoesExcluir = horario.dias.filter(dia => Number(a[diasMap[dia]]) === Number(horarioId)).map(dia => `<button onclick="excluirAlunoDaTurma(${a.id}, ${horarioId}, '${dia}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 8px;border-radius:6px;font-size:0.7rem;cursor:pointer;" title="Remover da ${dia}">🗑️ ${dia.substring(0,3)}</button>`).join('');
                         return `
                             <div style="margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -1046,10 +1122,10 @@ function abrirModalHorario(horarioId) {
                                 <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px;">
                                     ${botoesExcluir}
                                     <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WhatsApp</a>
-                                    <button onclick="abrirEdicaoCompletaInline('${a.id}',${horarioId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">✏️ Editar</button>
-                                    <button onclick="abrirModalObs('${a.id}',${horarioId})" style="background:#fef9c3;color:#854d0e;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">📝 Obs</button>
-                                    <button onclick="alternarStatusAluno('${a.id}',${horarioId})" style="background:#f1f5f9;color:#334155;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🔄 Status</button>
-                                    <button onclick="excluirAlunoPermanente('${a.id}',${horarioId})" style="background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🗑️ Excluir</button>
+                                    <button onclick="abrirEdicaoCompletaInline(${a.id},${horarioId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">✏️ Editar</button>
+                                    <button onclick="abrirModalObs(${a.id},${horarioId})" style="background:#fef9c3;color:#854d0e;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">📝 Obs</button>
+                                    <button onclick="alternarStatusAluno(${a.id},${horarioId})" style="background:#f1f5f9;color:#334155;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🔄 Status</button>
+                                    <button onclick="excluirAlunoPermanente(${a.id},${horarioId})" style="background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🗑️ Excluir</button>
                                 </div>
                             </div>
                         `;
@@ -1101,11 +1177,11 @@ function toggleEditNomeTurma(hId) {
 // EXCLUIR ALUNO DA TURMA
 // ============================================================
 async function excluirAlunoDaTurma(id, horarioId, dia) {
-    const aluno = alunos.find(a => a.id == id);
+    const aluno = alunos.find(a => Number(a.id) === Number(id));
     if (!aluno) return;
     if (!confirm(`Remover ${aluno.nome} da turma de ${dia}?`)) return;
     const campo = diasMap[dia];
-    if (aluno[campo] == horarioId) aluno[campo] = '';
+    if (Number(aluno[campo]) === Number(horarioId)) aluno[campo] = '';
     await salvarAluno(aluno);
     renderizarTudo();
     abrirModalHorario(horarioId);
@@ -1116,7 +1192,7 @@ async function excluirAlunoDaTurma(id, horarioId, dia) {
 // EXCLUIR ALUNO PERMANENTEMENTE
 // ============================================================
 async function excluirAlunoPermanente(id, hId) {
-    const aluno = alunos.find(a => a.id == id);
+    const aluno = alunos.find(a => Number(a.id) === Number(id));
     if (!aluno) { mostrarToast('❌ Aluno não encontrado!', 'erro'); return; }
     const confirmado = confirm(`⚠️ EXCLUIR PERMANENTEMENTE?\n\n#${aluno.codigo} - ${aluno.nome}\n\nEsta ação NÃO pode ser desfeita!`);
     if (!confirmado) return;
@@ -1124,7 +1200,7 @@ async function excluirAlunoPermanente(id, hId) {
     if (confirmText !== "SIM") { alert("❌ Cancelado!"); return; }
     try {
         await excluirAluno(aluno.id);
-        const index = alunos.findIndex(a => a.id == id);
+        const index = alunos.findIndex(a => Number(a.id) === Number(id));
         if (index !== -1) alunos.splice(index, 1);
         renderizarTudo();
         renderPainelExperimentaisHoje();
@@ -1137,7 +1213,7 @@ async function excluirAlunoPermanente(id, hId) {
 // OBSERVAÇÕES
 // ============================================================
 function abrirModalObs(id, hId) {
-    const a = alunos.find(al => al.id == id);
+    const a = alunos.find(al => Number(al.id) === Number(id));
     if (!a) return;
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
@@ -1145,13 +1221,13 @@ function abrirModalObs(id, hId) {
     titulo.innerHTML = `📝 Observações — ${a.nome}`;
     corpo.innerHTML = `
         <div style="max-width:500px;"><textarea id="obsTexto" style="width:100%;min-height:120px;padding:12px;border-radius:8px;border:1px solid #cbd5e1;">${a.observacao || ''}</textarea>
-        <div class="form-actions-row" style="margin-top:12px;"><button class="btn-save-modal" onclick="salvarObservacao('${id}',${hId || 'null'})">💾 Salvar</button><button class="btn-discard-modal" onclick="${hId ? `abrirModalHorario(${hId})` : 'fecharSuperModal()'}">⬅️ Voltar</button></div></div>
+        <div class="form-actions-row" style="margin-top:12px;"><button class="btn-save-modal" onclick="salvarObservacao(${id},${hId || 'null'})">💾 Salvar</button><button class="btn-discard-modal" onclick="${hId ? `abrirModalHorario(${hId})` : 'fecharSuperModal()'}">⬅️ Voltar</button></div></div>
     `;
     modal.classList.add('active');
 }
 
 async function salvarObservacao(id, hId) {
-    const a = alunos.find(al => al.id == id);
+    const a = alunos.find(al => Number(al.id) === Number(id));
     if (!a) return;
     a.observacao = document.getElementById('obsTexto').value.trim();
     await salvarAluno(a);
@@ -1160,7 +1236,7 @@ async function salvarObservacao(id, hId) {
 }
 
 function alternarStatusAluno(id, hId) {
-    const a = alunos.find(al => al.id == id);
+    const a = alunos.find(al => Number(al.id) === Number(id));
     if (!a) return;
     const ciclo = ['ATIVO', 'PAUSADO', 'TRANCADO'];
     const atual = a.status || 'ATIVO';
@@ -1281,16 +1357,17 @@ function marcarPresencaExp(id, st, hId) {
 // EDIÇÃO COMPLETA DO ALUNO - CORRIGIDA
 // ============================================================
 function abrirEdicaoCompletaInline(id, hId) {
-    // 🔥 CORREÇÃO: Busca por ID (UUID) primeiro, depois por CÓDIGO (número)
-    let aluno = alunos.find(a => a.id == id);
-    
-    // Se não encontrou pelo ID, tenta buscar pelo código
-    if (!aluno) {
-        aluno = alunos.find(a => a.codigo == id);
+    // CORREÇÃO CRÍTICA: Buscar aluno por ID de forma segura
+    if (id == null || id === undefined) {
+        mostrarToast('❌ ID do aluno inválido!', 'erro');
+        return;
     }
     
+    // Busca por ID exato (não usa comparação frouxa)
+    const aluno = alunos.find(a => a.id !== null && a.id !== undefined && Number(a.id) === Number(id));
+    
     if (!aluno) {
-        mostrarToast('❌ Aluno não encontrado! Verifique o código digitado.', 'erro');
+        mostrarToast('❌ Aluno não encontrado! Tente recarregar a página.', 'erro');
         return;
     }
     
@@ -1330,7 +1407,7 @@ function abrirEdicaoCompletaInline(id, hId) {
                 <label style="font-size:0.8rem;font-weight:bold;display:block;margin-bottom:3px;">${dia}:</label>
                 <select id="editGrade${campo}" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
                     <option value="">[ Não treina ]</option>
-                    ${opcoesDoDia.map(hc => `<option value="${hc.id}" ${valorAtual == hc.id ? 'selected' : ''}>${hc.modalidade} (${hc.horario})</option>`).join('')}
+                    ${opcoesDoDia.map(hc => `<option value="${hc.id}" ${Number(valorAtual) === Number(hc.id) ? 'selected' : ''}>${hc.modalidade} (${hc.horario})</option>`).join('')}
                 </select>
             </div>
         `;
@@ -1342,7 +1419,10 @@ function abrirEdicaoCompletaInline(id, hId) {
         : `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal" style="background:#e2e8f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">⬅️ Cancelar</button>`;
     
     div.innerHTML = `
-        <h3 style="color:#006994;margin-bottom:15px;font-size:1.2rem;font-weight:bold;border-left:4px solid #006994;padding-left:8px;">✏️ Editar Matrícula: #${aluno.codigo} — ${aluno.nome}</h3>
+        <h3 style="color:#006994;margin-bottom:15px;font-size:1.2rem;font-weight:bold;border-left:4px solid #006994;padding-left:8px;">
+            ✏️ Editar Matrícula: #${aluno.codigo} — ${aluno.nome}
+            <span style="font-size:0.7rem;font-weight:normal;color:#64748b;margin-left:10px;">ID: ${aluno.id}</span>
+        </h3>
         
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px;">
             <div>
@@ -1383,7 +1463,7 @@ function abrirEdicaoCompletaInline(id, hId) {
         </div>
         
         <div style="display:flex;gap:12px;justify-content:flex-end;">
-            <button onclick="salvarEdicaoCompleta('${aluno.id}',${hId || 'null'})" class="btn-save-modal" style="background:#006994;color:white;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:bold;">💾 Salvar Alterações</button>
+            <button onclick="salvarEdicaoCompleta(${aluno.id},${hId || 'null'})" class="btn-save-modal" style="background:#006994;color:white;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:bold;">💾 Salvar Alterações</button>
             ${btnVoltar}
         </div>
     `;
@@ -1392,7 +1472,13 @@ function abrirEdicaoCompletaInline(id, hId) {
 }
 
 async function salvarEdicaoCompleta(id, hId) {
-    const aluno = alunos.find(a => a.id == id);
+    // CORREÇÃO: Buscar o aluno de forma segura
+    if (id == null || id === undefined) {
+        mostrarToast('❌ ID do aluno inválido!', 'erro');
+        return;
+    }
+    
+    const aluno = alunos.find(a => Number(a.id) === Number(id));
     if (!aluno) {
         mostrarToast('❌ Aluno não encontrado!', 'erro');
         return;
@@ -1409,7 +1495,7 @@ async function salvarEdicaoCompleta(id, hId) {
     if (!telefone) { mostrarToast('⚠️ Telefone é obrigatório!', 'erro'); return; }
     
     if (novoCodigo && novoCodigo !== aluno.codigo) {
-        const codigoExistente = alunos.find(a => a.codigo === novoCodigo && a.id !== aluno.id);
+        const codigoExistente = alunos.find(a => Number(a.codigo) === Number(novoCodigo) && Number(a.id) !== Number(aluno.id));
         if (codigoExistente) {
             mostrarToast(`⚠️ Código ${novoCodigo} já está em uso por ${codigoExistente.nome}!`, 'erro');
             return;
@@ -1423,14 +1509,20 @@ async function salvarEdicaoCompleta(id, hId) {
     aluno.modalidade = modalidade;
     aluno.status = statusAluno;
     
-    aluno.seg = document.getElementById('editGradeseg')?.value ? parseInt(document.getElementById('editGradeseg').value) : '';
-    aluno.ter = document.getElementById('editGradeter')?.value ? parseInt(document.getElementById('editGradeter').value) : '';
-    aluno.qua = document.getElementById('editGradequa')?.value ? parseInt(document.getElementById('editGradequa').value) : '';
-    aluno.qui = document.getElementById('editGradequi')?.value ? parseInt(document.getElementById('editGradequi').value) : '';
-    aluno.sex = document.getElementById('editGradesex')?.value ? parseInt(document.getElementById('editGradesex').value) : '';
-    aluno.sab = document.getElementById('editGradesab')?.value ? parseInt(document.getElementById('editGradesab').value) : '';
+    ['seg','ter','qua','qui','sex','sab'].forEach(campo => {
+        const select = document.getElementById(`editGrade${campo}`);
+        if (select) {
+            const valor = select.value;
+            aluno[campo] = valor ? parseInt(valor) : '';
+        }
+    });
     
-    await salvarAluno(aluno);
+    try {
+        await salvarAluno(aluno);
+    } catch (erro) {
+        mostrarToast(`❌ Erro ao salvar: ${erro.message}`, 'erro');
+        return;
+    }
     
     const divId = hId && hId !== 'null' ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
     const div = document.getElementById(divId);
@@ -1502,6 +1594,8 @@ function abrirSuperModal(tipo) {
         abrirHistoricoExperimentais();
     }
 }
+
+function fecharSuperModal(e) { if (e && e.target !== e.currentTarget) return; document.getElementById('globalSuperModal').classList.remove('active'); }
 
 // ============================================================
 // MODALIDADES
@@ -2056,9 +2150,6 @@ async function renderHistoricoExperimentais() {
     }).join('');
 }
 
-// ============================================================
-// EDITAR STATUS DO EXPERIMENTAL NO HISTÓRICO
-// ============================================================
 async function editarStatusExperimental(id, novoStatus, origem) {
     if (!id) {
         mostrarToast('❌ ID não encontrado!', 'erro');
@@ -2097,9 +2188,6 @@ async function editarStatusExperimental(id, novoStatus, origem) {
     }
 }
 
-// ============================================================
-// EDITAR MATRÍCULA DO EXPERIMENTAL NO HISTÓRICO
-// ============================================================
 async function editarMatriculaExperimental(id, origem) {
     if (!id) {
         mostrarToast('❌ ID não encontrado!', 'erro');
@@ -2215,6 +2303,49 @@ function exportarHistoricoExperimentais() {
     mostrarToast('✅ Histórico exportado!');
 }
 
+async function excluirExperimentalHistorico(id, origem) {
+    if (!id) {
+        mostrarToast('❌ ID não encontrado!', 'erro');
+        return;
+    }
+    
+    if (!confirm('⚠️ Tem certeza que deseja excluir este registro do histórico?\n\nEsta ação NÃO pode ser desfeita!')) {
+        return;
+    }
+    
+    try {
+        if (origem === 'historico') {
+            const { error } = await supabaseClient
+                .from('historico_experimentais')
+                .delete()
+                .eq('id', id);
+            
+            if (error) throw error;
+            mostrarToast('✅ Registro excluído do histórico!');
+            
+        } else if (origem === 'experimental') {
+            const exp = experimentais.find(e => e.id == id);
+            if (exp) {
+                await excluirExperimental(id);
+                const index = experimentais.findIndex(e => e.id == id);
+                if (index !== -1) experimentais.splice(index, 1);
+                mostrarToast('✅ Experimental excluído!');
+            } else {
+                mostrarToast('❌ Experimental não encontrado!', 'erro');
+                return;
+            }
+        }
+        
+        renderHistoricoExperimentais();
+        renderizarTudo();
+        renderPainelExperimentaisHoje();
+        
+    } catch (erro) {
+        console.error('❌ Erro ao excluir:', erro);
+        mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
+    }
+}
+
 // ============================================================
 // FUNÇÕES DE LISTAS (ALUNOS)
 // ============================================================
@@ -2255,9 +2386,9 @@ function renderStudentTableSuper() {
                 <td style="padding:8px;">${dParticipa.join(', ') || 'Nenhum'}</td>
                 <td style="padding:8px;display:flex;gap:6px;flex-wrap:wrap;">
                     <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed" style="padding:5px 8px;font-size:0.7rem;">💬 WA</a>
-                    <button onclick="abrirEdicaoCompletaInline('${a.id}',null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">✏️ Editar</button>
-                    <button onclick="abrirModalObs('${a.id}',null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">📝 Obs</button>
-                    <button onclick="excluirAlunoPermanente('${a.id}',null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">🗑️ Excluir</button>
+                    <button onclick="abrirEdicaoCompletaInline(${a.id},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">✏️ Editar</button>
+                    <button onclick="abrirModalObs(${a.id},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">📝 Obs</button>
+                    <button onclick="excluirAlunoPermanente(${a.id},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">🗑️ Excluir</button>
                 </td>
             </tr>
         `;
@@ -2279,7 +2410,7 @@ function renderVencidosSuper() {
         if (a.seg) dParticipa.push("Seg"); if (a.ter) dParticipa.push("Ter");
         if (a.qua) dParticipa.push("Qua"); if (a.qui) dParticipa.push("Qui");
         if (a.sex) dParticipa.push("Sex"); if (a.sab) dParticipa.push("Sáb");
-        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" style="color:#25d366;">💬 ${a.telefone}</a></td><td><span class="badge badge-vencido">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td><button onclick="abrirEdicaoCompletaInline('${a.id}',null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs('${a.id}',null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente('${a.id}',null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></tr>`;
+        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" style="color:#25d366;">💬 ${a.telefone}</a></td><td><span class="badge badge-vencido">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td><button onclick="abrirEdicaoCompletaInline(${a.id},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs(${a.id},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente(${a.id},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></tr>`;
     }).join('');
 }
 
@@ -2300,7 +2431,7 @@ function renderIncompletosSuper() {
 }
 
 function vincularIncompleto(id) {
-    const al = alunos.find(a => a.id == id);
+    const al = alunos.find(a => Number(a.id) === Number(id));
     if (!al) return;
     ['seg','ter','qua','qui','sex','sab'].forEach(campo => {
         const select = document.querySelector(`.inc-select-${al.id}-${campo}`);
@@ -2310,8 +2441,6 @@ function vincularIncompleto(id) {
     salvarAluno(al);
     abrirSuperModal('incompletos');
 }
-
-function fecharSuperModal(e) { if (e && e.target !== e.currentTarget) return; document.getElementById('globalSuperModal').classList.remove('active'); }
 
 // ============================================================
 // FAB + FORMULÁRIOS
@@ -2430,7 +2559,7 @@ function filtrarExpHorarios() {
     };
 }
 
-function salvarMatriculaFab() {
+async function salvarMatriculaFab() {
     const codigo = document.getElementById('fabCodigo').value;
     const nome = document.getElementById('fName').value.trim();
     const telefone = document.getElementById('fPhone').value.trim();
@@ -2454,7 +2583,7 @@ function salvarMatriculaFab() {
         return;
     }
     
-    const codigoExistente = alunos.find(a => a.codigo === codigoNumero);
+    const codigoExistente = alunos.find(a => Number(a.codigo) === Number(codigoNumero));
     if (codigoExistente) { 
         alert(`⚠️ Código ${codigoNumero} já está em uso por ${codigoExistente.nome}!`); 
         return; 
@@ -2477,14 +2606,19 @@ function salvarMatriculaFab() {
         observacao: ''
     };
     
-    console.log("Salvando aluno:", novoAluno);
+    console.log("📝 Salvando aluno:", novoAluno);
     
-    alunos.push(novoAluno);
-    salvarAluno(novoAluno);
-    renderizarTudo();
-    renderPainelExperimentaisHoje();
-    fecharSuperModal();
-    mostrarToast(`✅ ${nome} matriculado com sucesso!`);
+    try {
+        const alunoSalvo = await salvarAluno(novoAluno);
+        alunos.push(alunoSalvo);
+        renderizarTudo();
+        renderPainelExperimentaisHoje();
+        fecharSuperModal();
+        mostrarToast(`✅ ${nome} matriculado com sucesso! (Código: ${codigoNumero})`);
+    } catch (erro) {
+        alert(`❌ Erro ao salvar aluno: ${erro.message}`);
+        console.error('Erro no cadastro:', erro);
+    }
 }
 
 function salvarExpFab() {
@@ -2764,52 +2898,6 @@ function toggleTheme() {
 })();
 
 // ============================================================
-// EXCLUIR EXPERIMENTAL DO HISTÓRICO
-// ============================================================
-async function excluirExperimentalHistorico(id, origem) {
-    if (!id) {
-        mostrarToast('❌ ID não encontrado!', 'erro');
-        return;
-    }
-    
-    if (!confirm('⚠️ Tem certeza que deseja excluir este registro do histórico?\n\nEsta ação NÃO pode ser desfeita!')) {
-        return;
-    }
-    
-    try {
-        if (origem === 'historico') {
-            const { error } = await supabaseClient
-                .from('historico_experimentais')
-                .delete()
-                .eq('id', id);
-            
-            if (error) throw error;
-            mostrarToast('✅ Registro excluído do histórico!');
-            
-        } else if (origem === 'experimental') {
-            const exp = experimentais.find(e => e.id == id);
-            if (exp) {
-                await excluirExperimental(id);
-                const index = experimentais.findIndex(e => e.id == id);
-                if (index !== -1) experimentais.splice(index, 1);
-                mostrarToast('✅ Experimental excluído!');
-            } else {
-                mostrarToast('❌ Experimental não encontrado!', 'erro');
-                return;
-            }
-        }
-        
-        renderHistoricoExperimentais();
-        renderizarTudo();
-        renderPainelExperimentaisHoje();
-        
-    } catch (erro) {
-        console.error('❌ Erro ao excluir:', erro);
-        mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
-    }
-}
-
-// ============================================================
 // INICIALIZAÇÃO
 // ============================================================
 window.onload = function() {
@@ -2829,3 +2917,7 @@ window.onload = function() {
         renderizarTudo(); 
     }, 30000);
 };
+
+console.log(`🏊 AQUACONTROL v${SISTEMA_VERSAO} - Carregado com sucesso!`);
+console.log(`📌 Data: ${new Date().toLocaleString()}`);
+console.log(`🔗 Supabase: ${SUPABASE_URL}`);
