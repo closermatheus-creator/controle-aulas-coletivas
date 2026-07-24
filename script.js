@@ -1,5 +1,5 @@
 // ============================================================
-// AQUACONTROL v7.0 — SUPABASE VERSION
+// AQUACONTROL v7.0 — SUPABASE VERSION (CORRIGIDO)
 // ============================================================
 
 // ============================================================
@@ -1034,7 +1034,7 @@ function abrirModalHorario(horarioId) {
                         const statusAtual = a.status || 'ATIVO';
                         const obsHtml = a.observacao ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;font-size:0.82rem;color:#78350f;margin-top:5px;">📝 ${a.observacao}</div>` : '';
                         const diasDoAluno = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(d => d.substring(0,3)).join(', ');
-                        const botoesExcluir = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(dia => `<button onclick="excluirAlunoDaTurma(${a.id}, ${horarioId}, '${dia}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 8px;border-radius:6px;font-size:0.7rem;cursor:pointer;" title="Remover da ${dia}">🗑️ ${dia.substring(0,3)}</button>`).join('');
+                        const botoesExcluir = horario.dias.filter(dia => a[diasMap[dia]] == horarioId).map(dia => `<button onclick="excluirAlunoDaTurma('${a.id}', ${horarioId}, '${dia}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 8px;border-radius:6px;font-size:0.7rem;cursor:pointer;" title="Remover da ${dia}">🗑️ ${dia.substring(0,3)}</button>`).join('');
                         return `
                             <div style="margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -1046,10 +1046,10 @@ function abrirModalHorario(horarioId) {
                                 <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px;">
                                     ${botoesExcluir}
                                     <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WhatsApp</a>
-                                    <button onclick="abrirEdicaoCompletaInline(${a.id},${horarioId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">✏️ Editar</button>
-                                    <button onclick="abrirModalObs(${a.id},${horarioId})" style="background:#fef9c3;color:#854d0e;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">📝 Obs</button>
-                                    <button onclick="alternarStatusAluno(${a.id},${horarioId})" style="background:#f1f5f9;color:#334155;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🔄 Status</button>
-                                    <button onclick="excluirAlunoPermanente(${a.id},${horarioId})" style="background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🗑️ Excluir</button>
+                                    <button onclick="abrirEdicaoCompletaInline('${a.id}',${horarioId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">✏️ Editar</button>
+                                    <button onclick="abrirModalObs('${a.id}',${horarioId})" style="background:#fef9c3;color:#854d0e;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">📝 Obs</button>
+                                    <button onclick="alternarStatusAluno('${a.id}',${horarioId})" style="background:#f1f5f9;color:#334155;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🔄 Status</button>
+                                    <button onclick="excluirAlunoPermanente('${a.id}',${horarioId})" style="background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🗑️ Excluir</button>
                                 </div>
                             </div>
                         `;
@@ -1145,7 +1145,7 @@ function abrirModalObs(id, hId) {
     titulo.innerHTML = `📝 Observações — ${a.nome}`;
     corpo.innerHTML = `
         <div style="max-width:500px;"><textarea id="obsTexto" style="width:100%;min-height:120px;padding:12px;border-radius:8px;border:1px solid #cbd5e1;">${a.observacao || ''}</textarea>
-        <div class="form-actions-row" style="margin-top:12px;"><button class="btn-save-modal" onclick="salvarObservacao(${id},${hId || 'null'})">💾 Salvar</button><button class="btn-discard-modal" onclick="${hId ? `abrirModalHorario(${hId})` : 'fecharSuperModal()'}">⬅️ Voltar</button></div></div>
+        <div class="form-actions-row" style="margin-top:12px;"><button class="btn-save-modal" onclick="salvarObservacao('${id}',${hId || 'null'})">💾 Salvar</button><button class="btn-discard-modal" onclick="${hId ? `abrirModalHorario(${hId})` : 'fecharSuperModal()'}">⬅️ Voltar</button></div></div>
     `;
     modal.classList.add('active');
 }
@@ -1278,12 +1278,19 @@ function marcarPresencaExp(id, st, hId) {
 }
 
 // ============================================================
-// EDIÇÃO COMPLETA DO ALUNO
+// EDIÇÃO COMPLETA DO ALUNO - CORRIGIDA
 // ============================================================
 function abrirEdicaoCompletaInline(id, hId) {
-    const aluno = alunos.find(a => a.id == id);
+    // 🔥 CORREÇÃO: Busca por ID (UUID) primeiro, depois por CÓDIGO (número)
+    let aluno = alunos.find(a => a.id == id);
+    
+    // Se não encontrou pelo ID, tenta buscar pelo código
     if (!aluno) {
-        mostrarToast('❌ Aluno não encontrado!', 'erro');
+        aluno = alunos.find(a => a.codigo == id);
+    }
+    
+    if (!aluno) {
+        mostrarToast('❌ Aluno não encontrado! Verifique o código digitado.', 'erro');
         return;
     }
     
@@ -1376,7 +1383,7 @@ function abrirEdicaoCompletaInline(id, hId) {
         </div>
         
         <div style="display:flex;gap:12px;justify-content:flex-end;">
-            <button onclick="salvarEdicaoCompleta(${aluno.id},${hId || 'null'})" class="btn-save-modal" style="background:#006994;color:white;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:bold;">💾 Salvar Alterações</button>
+            <button onclick="salvarEdicaoCompleta('${aluno.id}',${hId || 'null'})" class="btn-save-modal" style="background:#006994;color:white;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:bold;">💾 Salvar Alterações</button>
             ${btnVoltar}
         </div>
     `;
@@ -2248,9 +2255,9 @@ function renderStudentTableSuper() {
                 <td style="padding:8px;">${dParticipa.join(', ') || 'Nenhum'}</td>
                 <td style="padding:8px;display:flex;gap:6px;flex-wrap:wrap;">
                     <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed" style="padding:5px 8px;font-size:0.7rem;">💬 WA</a>
-                    <button onclick="abrirEdicaoCompletaInline(${a.id},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">✏️ Editar</button>
-                    <button onclick="abrirModalObs(${a.id},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">📝 Obs</button>
-                    <button onclick="excluirAlunoPermanente(${a.id},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">🗑️ Excluir</button>
+                    <button onclick="abrirEdicaoCompletaInline('${a.id}',null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">✏️ Editar</button>
+                    <button onclick="abrirModalObs('${a.id}',null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">📝 Obs</button>
+                    <button onclick="excluirAlunoPermanente('${a.id}',null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">🗑️ Excluir</button>
                 </td>
             </tr>
         `;
@@ -2272,7 +2279,7 @@ function renderVencidosSuper() {
         if (a.seg) dParticipa.push("Seg"); if (a.ter) dParticipa.push("Ter");
         if (a.qua) dParticipa.push("Qua"); if (a.qui) dParticipa.push("Qui");
         if (a.sex) dParticipa.push("Sex"); if (a.sab) dParticipa.push("Sáb");
-        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" style="color:#25d366;">💬 ${a.telefone}</a></td><td><span class="badge badge-vencido">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td><button onclick="abrirEdicaoCompletaInline(${a.id},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs(${a.id},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente(${a.id},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></tr>`;
+        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" style="color:#25d366;">💬 ${a.telefone}</a></td><td><span class="badge badge-vencido">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td><button onclick="abrirEdicaoCompletaInline('${a.id}',null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs('${a.id}',null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente('${a.id}',null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></tr>`;
     }).join('');
 }
 
@@ -2757,27 +2764,6 @@ function toggleTheme() {
 })();
 
 // ============================================================
-// INICIALIZAÇÃO
-// ============================================================
-window.onload = function() {
-    if (localStorage.getItem("aqua_authenticated") === "true") {
-        document.getElementById("loginScreen").style.display = "none";
-        document.getElementById("appContainer").style.display = "block";
-        carregarDados();
-    }
-    
-    setInterval(() => {
-        console.log("🔄 Auto-save executado em:", new Date().toLocaleTimeString());
-        salvarTudo();
-    }, 60000);
-    
-    setInterval(() => { 
-        renderPainelExperimentaisHoje(); 
-        renderizarTudo(); 
-    }, 30000);
-};
-
-// ============================================================
 // EXCLUIR EXPERIMENTAL DO HISTÓRICO
 // ============================================================
 async function excluirExperimentalHistorico(id, origem) {
@@ -2822,3 +2808,24 @@ async function excluirExperimentalHistorico(id, origem) {
         mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
     }
 }
+
+// ============================================================
+// INICIALIZAÇÃO
+// ============================================================
+window.onload = function() {
+    if (localStorage.getItem("aqua_authenticated") === "true") {
+        document.getElementById("loginScreen").style.display = "none";
+        document.getElementById("appContainer").style.display = "block";
+        carregarDados();
+    }
+    
+    setInterval(() => {
+        console.log("🔄 Auto-save executado em:", new Date().toLocaleTimeString());
+        salvarTudo();
+    }, 60000);
+    
+    setInterval(() => { 
+        renderPainelExperimentaisHoje(); 
+        renderizarTudo(); 
+    }, 30000);
+};
