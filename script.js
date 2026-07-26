@@ -298,25 +298,42 @@ async function carregarExperimentais() {
 
 async function salvarExperimental(exp) {
     try {
+        // Garantir que o objeto tem todos os campos necessários
+        const expParaSalvar = {
+            id: exp.id || expIdCounter++,
+            nome: exp.nome || '',
+            telefone: exp.telefone || '',
+            dataAgendada: exp.dataAgendada || formatarDataISO(),
+            horario_id: exp.horario_id || null,
+            dia: exp.dia || '',
+            status: exp.status || 'agendado',
+            modalidade: exp.modalidade || ''
+        };
+        
         if (exp.id) {
+            // UPDATE
             const { error } = await supabaseClient
                 .from('experimentais')
-                .update(exp)
+                .update(expParaSalvar)
                 .eq('id', exp.id);
             if (error) throw error;
+            console.log("✅ Experimental atualizado:", exp.nome);
         } else {
+            // INSERT - usar id do próprio objeto
             const { data, error } = await supabaseClient
                 .from('experimentais')
-                .insert([exp])
+                .insert([expParaSalvar])
                 .select();
             if (error) throw error;
             if (data && data.length > 0) {
                 exp.id = data[0].id;
             }
+            console.log("✅ Experimental criado:", exp.nome);
         }
         return exp;
     } catch (erro) {
         console.error("❌ Erro ao salvar experimental:", erro);
+        mostrarToast('❌ Erro ao salvar experimental: ' + erro.message, 'erro');
         throw erro;
     }
 }
@@ -2532,26 +2549,76 @@ function salvarExpFab() {
     const telefone = document.getElementById('fExpP').value.trim();
     const data = document.getElementById('fExpData').value;
     const valor = document.getElementById('fExpH').value;
-    if (!nome || !telefone || !valor) { alert('⚠️ Preencha todos os campos!'); return; }
-    if (!data) { alert('⚠️ Selecione a data!'); return; }
+    
+    if (!nome || !telefone || !valor) { 
+        alert('⚠️ Preencha todos os campos!'); 
+        return; 
+    }
+    if (!data) { 
+        alert('⚠️ Selecione a data!'); 
+        return; 
+    }
+    
     const [hId, dia] = valor.split('_');
     const modalidade = document.getElementById('fExpMod').value;
+    
+    // Incrementar o contador corretamente
+    expIdCounter = Math.max(expIdCounter, ...experimentais.map(e => e.id || 0), 0) + 1;
+    
     const novoExp = { 
-        id: ++expIdCounter, 
-        nome, 
-        telefone, 
+        id: expIdCounter,
+        nome: nome, 
+        telefone: telefone, 
         dataAgendada: data, 
         horario_id: parseInt(hId), 
-        dia, 
+        dia: dia, 
         status: 'agendado', 
-        modalidade 
+        modalidade: modalidade 
     };
+    
+    // Adicionar ao array local
     experimentais.push(novoExp);
-    salvarExperimental(novoExp);
-    renderizarTudo();
-    renderPainelExperimentaisHoje();
-    fecharSuperModal();
-    mostrarToast(`✅ Experimental agendada para ${formatarDataBR(data)}!`);
+    
+    // Salvar no Supabase
+    salvarExperimental(novoExp)
+        .then(() => {
+            renderizarTudo();
+            renderPainelExperimentaisHoje();
+            fecharSuperModal();
+            mostrarToast(`✅ Experimental agendada para ${formatarDataBR(data)}!`);
+        })
+        .catch((erro) => {
+            // Se falhou, remover do array local
+            const index = experimentais.findIndex(e => e.id === novoExp.id);
+            if (index !== -1) experimentais.splice(index, 1);
+            mostrarToast('❌ Erro ao salvar experimental!', 'erro');
+        });
+}
+
+async function verificarExperimentais() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('experimentais')
+            .select('*')
+            .order('dataAgendada', { ascending: false })
+            .limit(10);
+        
+        if (error) throw error;
+        
+        console.log("📊 Últimos 10 experimentais no Supabase:", data);
+        console.log("📊 Experimentais na memória:", experimentais.length);
+        
+        if (data && data.length > 0) {
+            mostrarToast(`✅ ${data.length} experimentais encontrados no banco`, 'sucesso');
+        } else {
+            mostrarToast('⚠️ Nenhum experimental encontrado no banco', 'erro');
+        }
+        return data;
+    } catch (erro) {
+        console.error("❌ Erro ao verificar experimentais:", erro);
+        mostrarToast('❌ Erro ao verificar experimentais', 'erro');
+        return [];
+    }
 }
 
 function matricularExperimentalInSuper(id) {
