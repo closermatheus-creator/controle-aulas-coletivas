@@ -298,17 +298,20 @@ async function carregarExperimentais() {
 
 async function salvarExperimental(exp) {
     try {
-        // Garantir que o objeto tem todos os campos necessários
+        // Limpar e formatar os dados para o Supabase
         const expParaSalvar = {
             id: exp.id || expIdCounter++,
             nome: exp.nome || '',
             telefone: exp.telefone || '',
-            dataAgendada: exp.dataAgendada || formatarDataISO(),
+            dataagendada: exp.dataAgendada || formatarDataISO(), // ← atenção: nome minúsculo!
             horario_id: exp.horario_id || null,
             dia: exp.dia || '',
             status: exp.status || 'agendado',
-            modalidade: exp.modalidade || ''
+            modalidade: exp.modalidade || '',
+            created_at: new Date().toISOString()
         };
+        
+        console.log("📤 Salvando experimental:", expParaSalvar);
         
         if (exp.id) {
             // UPDATE
@@ -316,15 +319,25 @@ async function salvarExperimental(exp) {
                 .from('experimentais')
                 .update(expParaSalvar)
                 .eq('id', exp.id);
-            if (error) throw error;
+            if (error) {
+                console.error("❌ Erro UPDATE:", error);
+                throw error;
+            }
             console.log("✅ Experimental atualizado:", exp.nome);
         } else {
-            // INSERT - usar id do próprio objeto
+            // INSERT - remover id se não existir (deixar o banco gerar)
+            const { id, ...insertData } = expParaSalvar;
+            
             const { data, error } = await supabaseClient
                 .from('experimentais')
-                .insert([expParaSalvar])
+                .insert([insertData])
                 .select();
-            if (error) throw error;
+            
+            if (error) {
+                console.error("❌ Erro INSERT:", error);
+                throw error;
+            }
+            
             if (data && data.length > 0) {
                 exp.id = data[0].id;
             }
@@ -333,7 +346,8 @@ async function salvarExperimental(exp) {
         return exp;
     } catch (erro) {
         console.error("❌ Erro ao salvar experimental:", erro);
-        mostrarToast('❌ Erro ao salvar experimental: ' + erro.message, 'erro');
+        console.error("📋 Dados que causaram erro:", exp);
+        mostrarToast('❌ Erro ao salvar experimental: ' + (erro.message || 'Erro desconhecido'), 'erro');
         throw erro;
     }
 }
@@ -2562,19 +2576,21 @@ function salvarExpFab() {
     const [hId, dia] = valor.split('_');
     const modalidade = document.getElementById('fExpMod').value;
     
-    // Incrementar o contador corretamente
-    expIdCounter = Math.max(expIdCounter, ...experimentais.map(e => e.id || 0), 0) + 1;
+    // Gerar ID único
+    const novoId = Math.max(0, ...experimentais.map(e => e.id || 0)) + 1;
     
     const novoExp = { 
-        id: expIdCounter,
+        id: novoId,
         nome: nome, 
         telefone: telefone, 
-        dataAgendada: data, 
+        dataAgendada: data,  // ← manter dataAgendada (camelCase)
         horario_id: parseInt(hId), 
         dia: dia, 
         status: 'agendado', 
-        modalidade: modalidade 
+        modalidade: modalidade || ''
     };
+    
+    console.log("📝 Criando novo experimental:", novoExp);
     
     // Adicionar ao array local
     experimentais.push(novoExp);
@@ -2591,8 +2607,45 @@ function salvarExpFab() {
             // Se falhou, remover do array local
             const index = experimentais.findIndex(e => e.id === novoExp.id);
             if (index !== -1) experimentais.splice(index, 1);
-            mostrarToast('❌ Erro ao salvar experimental!', 'erro');
+            console.error("❌ Falha ao salvar experimental:", erro);
         });
+}
+
+async function diagnosticarExperimentais() {
+    console.log("🔍 DIAGNÓSTICO DE EXPERIMENTAIS");
+    console.log("----------------------------------------");
+    console.log("📊 Na memória:", experimentais.length);
+    console.log("📊 Último ID:", expIdCounter);
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('experimentais')
+            .select('*')
+            .limit(5);
+        
+        if (error) {
+            console.error("❌ Erro na consulta:", error);
+            return;
+        }
+        
+        console.log("📊 No Supabase:", data ? data.length : 0);
+        if (data && data.length > 0) {
+            console.log("📋 Exemplo:", data[0]);
+        }
+        
+        // Verificar estrutura
+        const { data: columns, error: colError } = await supabaseClient
+            .from('experimentais')
+            .select('*')
+            .limit(1);
+        
+        if (columns && columns.length > 0) {
+            console.log("📋 Campos disponíveis:", Object.keys(columns[0]));
+        }
+        
+    } catch (erro) {
+        console.error("❌ Erro no diagnóstico:", erro);
+    }
 }
 
 async function verificarExperimentais() {
