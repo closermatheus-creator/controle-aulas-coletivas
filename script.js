@@ -5,7 +5,7 @@
 // ============================================================
 // VERSÃO DO SISTEMA
 // ============================================================
-const SISTEMA_VERSAO = "7.1.20260126";
+const SISTEMA_VERSAO = "7.1.20260127";
 
 function verificarVersao() {
     const versaoSalva = localStorage.getItem('aqua_versao');
@@ -266,51 +266,17 @@ async function excluirAluno(id) {
 }
 
 // ============================================================
-// FUNÇÕES DE EXPERIMENTAIS - PADRONIZADAS
+// FUNÇÕES DE EXPERIMENTAIS - TABELA DEDICADA
 // ============================================================
-
-/**
- * Converte um objeto do banco (dataagendada) para o formato do código (dataAgendada)
- */
-function experimentalFromDB(dbExp) {
-    if (!dbExp) return null;
-    return {
-        id: dbExp.id,
-        nome: dbExp.nome || '',
-        telefone: dbExp.telefone || '',
-        dataAgendada: dbExp.dataagendada || '',
-        horario_id: dbExp.horario_id || null,
-        dia: dbExp.dia || '',
-        status: dbExp.status || 'agendado',
-        modalidade: dbExp.modalidade || '',
-        created_at: dbExp.created_at || new Date().toISOString()
-    };
-}
-
-/**
- * Converte um objeto do código (dataAgendada) para o formato do banco (dataagendada)
- */
-function experimentalToDB(exp) {
-    if (!exp) return null;
-    return {
-        nome: exp.nome || '',
-        telefone: exp.telefone || '',
-        dataagendada: exp.dataAgendada || '',
-        horario_id: exp.horario_id || null,
-        dia: exp.dia || '',
-        status: exp.status || 'agendado',
-        modalidade: exp.modalidade || '',
-        created_at: new Date().toISOString()
-    };
-}
 
 async function carregarExperimentais() {
     try {
-        console.log("🔄 Carregando experimentais...");
+        console.log("🔄 Carregando experimentais futuros...");
         
         const { data, error } = await supabaseClient
-            .from('experimentais')
+            .from('experimentais_futuros')
             .select('*')
+            .order('data_agendada', { ascending: true })
             .order('id', { ascending: false });
         
         if (error) {
@@ -318,15 +284,24 @@ async function carregarExperimentais() {
             throw error;
         }
         
-        // Converter do formato do banco para o formato do código
-        experimentais = (data || []).map(experimentalFromDB).filter(e => e !== null);
+        // Converter nomes dos campos para o formato usado no código
+        experimentais = (data || []).map(exp => ({
+            id: exp.id,
+            nome: exp.nome || '',
+            telefone: exp.telefone || '',
+            dataAgendada: exp.data_agendada || '',
+            horario_id: exp.horario_id || null,
+            dia: exp.dia_semana || '',
+            status: exp.status || 'agendado',
+            modalidade: exp.modalidade || ''
+        }));
         
         console.log("✅ Experimentais carregados:", experimentais.length);
         console.log("📋 Agendados:", experimentais.filter(e => e.status === 'agendado').length);
         
         return experimentais;
     } catch (erro) {
-        console.error("❌ Erro ao carregar experimentais:", erro);
+        console.error("❌ Erro ao carregar:", erro);
         experimentais = [];
         return [];
     }
@@ -342,23 +317,33 @@ async function salvarExperimental(exp) {
         if (!exp.dataAgendada) throw new Error('Data é obrigatória');
         if (!exp.horario_id) throw new Error('Horário é obrigatório');
         
-        // Converter para o formato do banco
-        const expParaSalvar = experimentalToDB(exp);
+        // Preparar dados para a nova tabela
+        const expParaSalvar = {
+            nome: exp.nome,
+            telefone: exp.telefone,
+            data_agendada: exp.dataAgendada,
+            horario_id: exp.horario_id,
+            dia_semana: exp.dia || '',
+            status: exp.status || 'agendado',
+            modalidade: exp.modalidade || ''
+            // NÃO ENVIAR ID - o banco gera automaticamente!
+        };
+        
         console.log("📤 Dados para enviar:", expParaSalvar);
         
         let resultado;
         
         if (exp.id) {
-            // UPDATE - se tiver ID, atualiza
+            // UPDATE
             resultado = await supabaseClient
-                .from('experimentais')
+                .from('experimentais_futuros')
                 .update(expParaSalvar)
                 .eq('id', exp.id)
                 .select();
         } else {
-            // INSERT - sem ID, o banco gera
+            // INSERT - SEM ID!
             resultado = await supabaseClient
-                .from('experimentais')
+                .from('experimentais_futuros')
                 .insert([expParaSalvar])
                 .select();
         }
@@ -373,7 +358,16 @@ async function salvarExperimental(exp) {
         if (resultado.data && resultado.data.length > 0) {
             const saved = resultado.data[0];
             // Converter de volta para o formato do código
-            return experimentalFromDB(saved);
+            return {
+                id: saved.id,
+                nome: saved.nome,
+                telefone: saved.telefone,
+                dataAgendada: saved.data_agendada || exp.dataAgendada,
+                horario_id: saved.horario_id,
+                dia: saved.dia_semana || '',
+                status: saved.status || 'agendado',
+                modalidade: saved.modalidade || ''
+            };
         }
         
         return exp;
@@ -386,10 +380,13 @@ async function salvarExperimental(exp) {
 
 async function excluirExperimental(id) {
     try {
+        if (!id) throw new Error('ID inválido');
+        
         const { error } = await supabaseClient
-            .from('experimentais')
+            .from('experimentais_futuros')
             .delete()
             .eq('id', id);
+        
         if (error) throw error;
         console.log("✅ Experimental excluído:", id);
         return true;
@@ -2428,7 +2425,7 @@ function filtrarExpHorarios() {
 }
 
 // ============================================================
-// SALVAR MATRÍCULA E EXPERIMENTAL - FUNÇÕES PRINCIPAIS
+// SALVAR MATRÍCULA E EXPERIMENTAL
 // ============================================================
 async function salvarMatriculaFab() {
     const codigo = document.getElementById('fabCodigo').value;
@@ -2503,7 +2500,7 @@ function salvarExpFab() {
     const [hId, dia] = valor.split('_');
     const modalidade = document.getElementById('fExpMod').value;
     
-    // SEM ID - O Supabase gera automaticamente
+    // SEM ID - o banco gera automaticamente
     const novoExp = { 
         nome: nome, 
         telefone: telefone, 
@@ -2516,19 +2513,16 @@ function salvarExpFab() {
     
     console.log("📝 Criando novo experimental (SEM ID):", novoExp);
     
-    mostrarToast('⏳ Salvando experimental...', 'sucesso');
+    mostrarToast('⏳ Salvando...', 'sucesso');
     
     salvarExperimental(novoExp)
         .then((expSalvo) => {
             console.log("✅ Experimental salvo:", expSalvo);
-            // Adicionar ao array local
             experimentais.push(expSalvo);
             renderizarTudo();
             renderPainelExperimentaisHoje();
             fecharSuperModal();
             mostrarToast(`✅ Experimental agendada para ${formatarDataBR(data)}!`, 'sucesso');
-            
-            // Atualizar lista de futuros se estiver aberta
             if (document.getElementById('experimentaisFuturosBody')) {
                 renderExperimentaisFuturos();
             }
