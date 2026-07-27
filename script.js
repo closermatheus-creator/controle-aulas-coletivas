@@ -1,11 +1,11 @@
 // ============================================================
-// AQUACONTROL v7.1 — SUPABASE VERSION (CORRIGIDO)
+// AQUACONTROL v7.1 — SUPABASE VERSION (CORRIGIDO FINAL)
 // ============================================================
 
 // ============================================================
 // VERSÃO DO SISTEMA - PARA CONTROLE DE CACHE
 // ============================================================
-const SISTEMA_VERSAO = "7.1.20260124";
+const SISTEMA_VERSAO = "7.1.20260126";
 
 function verificarVersao() {
     const versaoSalva = localStorage.getItem('aqua_versao');
@@ -28,7 +28,7 @@ if (verificarVersao()) {
 }
 
 // ============================================================
-// CONFIGURAÇÃO DO SUPABASE - NOVA CONTA
+// CONFIGURAÇÃO DO SUPABASE
 // ============================================================
 const SUPABASE_URL = "https://zjvlnbjbybydvfgmjwre.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_l5YlceVXo3NYmS0I8wIpjw_f0OHd5VU";
@@ -140,7 +140,6 @@ let horariosConfig = [
     { id: 81, modalidade: "Personal Class", dias: ["Segunda","Quarta","Sexta"], horario: "14:30-15:30", capacidade: 3, turno: "tarde" }
 ];
 
-// Corrigir turno baseado no horário
 horariosConfig = horariosConfig.map(h => {
     const horaInicio = parseInt(h.horario.split('-')[0].split(':')[0]);
     if (horaInicio >= 17 && h.turno !== 'sabado') {
@@ -189,7 +188,7 @@ function logout() {
 }
 
 // ============================================================
-// FUNÇÕES DE BANCO DE DADOS (SUPABASE) - CORRIGIDAS
+// FUNÇÕES DE BANCO DE DADOS (SUPABASE)
 // ============================================================
 
 async function carregarAlunos() {
@@ -200,17 +199,11 @@ async function carregarAlunos() {
             .order('codigo', { ascending: true });
         
         if (error) throw error;
-        
-        // CORREÇÃO: Filtrar apenas alunos com ID válido
-        alunos = (data || []).filter(a => a.id != null && a.id !== undefined);
-        
+        alunos = (data || []).filter(a => a.id != null);
         if (alunos.length > 0) {
             const maxCodigo = Math.max(...alunos.map(a => Number(a.codigo) || 0));
             studentIdCounter = Math.max(maxCodigo + 1, 1000);
         }
-        
-        corrigirDadosInconsistentes();
-        
         console.log("✅ Alunos carregados:", alunos.length);
         return alunos;
     } catch (erro) {
@@ -222,21 +215,17 @@ async function carregarAlunos() {
 
 async function salvarAluno(aluno) {
     try {
-        // CORREÇÃO: Validar dados antes de salvar
         if (!aluno.nome || !aluno.telefone) {
             throw new Error('Nome e telefone são obrigatórios');
         }
-        
         if (aluno.codigo) {
             aluno.codigo = parseInt(aluno.codigo);
         }
-        
         ['seg','ter','qua','qui','sex','sab'].forEach(dia => {
             if (aluno[dia]) {
                 aluno[dia] = parseInt(aluno[dia]);
             }
         });
-        
         if (aluno.id) {
             const { error } = await supabaseClient
                 .from('alunos')
@@ -253,7 +242,7 @@ async function salvarAluno(aluno) {
                 aluno.id = data[0].id;
             }
         }
-        console.log("✅ Aluno salvo:", aluno.nome, "ID:", aluno.id);
+        console.log("✅ Aluno salvo:", aluno.nome);
         return aluno;
     } catch (erro) {
         console.error("❌ Erro ao salvar aluno:", erro);
@@ -277,24 +266,52 @@ async function excluirAluno(id) {
     }
 }
 
+// ============================================================
+// FUNÇÕES DE EXPERIMENTAIS - CORRIGIDAS DEFINITIVAMENTE
+// ============================================================
+
 async function carregarExperimentais() {
     try {
+        console.log("🔄 Carregando experimentais do Supabase...");
+        
         const { data, error } = await supabaseClient
             .from('experimentais')
             .select('*')
-            .order('id', { ascending: true });
+            .order('id', { ascending: false });
         
-        if (error) throw error;
+        if (error) {
+            console.error("❌ Erro ao carregar experimentais:", error);
+            throw error;
+        }
         
-        // CORREÇÃO: Mapear dataagendada → dataAgendada
-        experimentais = (data || []).filter(e => e.id != null).map(exp => ({
-            ...exp,
-            dataAgendada: exp.dataagendada || exp.dataAgendada || ''  // ← MAPEAR CORRETAMENTE
+        console.log("📊 Dados brutos do Supabase:", data);
+        console.log("📊 Quantidade no banco:", data ? data.length : 0);
+        
+        // MAPEAMENTO CRÍTICO: dataagendada -> dataAgendada
+        experimentais = (data || []).map(exp => ({
+            id: exp.id,
+            nome: exp.nome || '',
+            telefone: exp.telefone || '',
+            dataAgendada: exp.dataagendada || '',  // ← CAMPO CORRETO DO BANCO
+            horario_id: exp.horario_id || null,
+            dia: exp.dia || '',
+            status: exp.status || 'agendado',
+            modalidade: exp.modalidade || '',
+            created_at: exp.created_at || new Date().toISOString()
         }));
         
-        expIdCounter = experimentais.length > 0 ? Math.max(...experimentais.map(e => e.id || 0), 1000) : 1000;
+        // Atualizar contador
+        if (experimentais.length > 0) {
+            const maxId = Math.max(...experimentais.map(e => e.id || 0));
+            expIdCounter = Math.max(maxId, 1000);
+        } else {
+            expIdCounter = 1000;
+        }
+        
         console.log("✅ Experimentais carregados:", experimentais.length);
-        console.log("📋 Primeiro experimental:", experimentais[0]);
+        console.log("📋 Agendados:", experimentais.filter(e => e.status === 'agendado').length);
+        console.log("📋 Último ID:", expIdCounter);
+        
         return experimentais;
     } catch (erro) {
         console.error("❌ Erro ao carregar experimentais:", erro);
@@ -305,55 +322,63 @@ async function carregarExperimentais() {
 
 async function salvarExperimental(exp) {
     try {
-        // Limpar e formatar os dados para o Supabase
+        console.log("📤 Salvando experimental:", exp);
+        
+        // VALIDAR DADOS
+        if (!exp.nome) throw new Error('Nome é obrigatório');
+        if (!exp.telefone) throw new Error('Telefone é obrigatório');
+        if (!exp.dataAgendada) throw new Error('Data é obrigatória');
+        if (!exp.horario_id) throw new Error('Horário é obrigatório');
+        
+        // Preparar dados para o Supabase (usando o nome correto do campo)
         const expParaSalvar = {
-            id: exp.id || expIdCounter++,
-            nome: exp.nome || '',
-            telefone: exp.telefone || '',
-            dataagendada: exp.dataAgendada || formatarDataISO(), // ← atenção: nome minúsculo!
-            horario_id: exp.horario_id || null,
+            nome: exp.nome,
+            telefone: exp.telefone,
+            dataagendada: exp.dataAgendada,  // ← CAMPO CORRETO: dataagendada (minúsculo)
+            horario_id: exp.horario_id,
             dia: exp.dia || '',
             status: exp.status || 'agendado',
             modalidade: exp.modalidade || '',
             created_at: new Date().toISOString()
         };
         
-        console.log("📤 Salvando experimental:", expParaSalvar);
+        console.log("📤 Dados para enviar ao Supabase:", expParaSalvar);
+        
+        let resultado;
         
         if (exp.id) {
             // UPDATE
-            const { error } = await supabaseClient
+            resultado = await supabaseClient
                 .from('experimentais')
                 .update(expParaSalvar)
-                .eq('id', exp.id);
-            if (error) {
-                console.error("❌ Erro UPDATE:", error);
-                throw error;
-            }
-            console.log("✅ Experimental atualizado:", exp.nome);
-        } else {
-            // INSERT - remover id se não existir (deixar o banco gerar)
-            const { id, ...insertData } = expParaSalvar;
-            
-            const { data, error } = await supabaseClient
-                .from('experimentais')
-                .insert([insertData])
+                .eq('id', exp.id)
                 .select();
-            
-            if (error) {
-                console.error("❌ Erro INSERT:", error);
-                throw error;
-            }
-            
-            if (data && data.length > 0) {
-                exp.id = data[0].id;
-            }
-            console.log("✅ Experimental criado:", exp.nome);
+        } else {
+            // INSERT
+            resultado = await supabaseClient
+                .from('experimentais')
+                .insert([expParaSalvar])
+                .select();
         }
+        
+        if (resultado.error) {
+            console.error("❌ Erro do Supabase:", resultado.error);
+            throw resultado.error;
+        }
+        
+        console.log("✅ Resposta do Supabase:", resultado.data);
+        
+        if (resultado.data && resultado.data.length > 0) {
+            const saved = resultado.data[0];
+            exp.id = saved.id;
+            exp.dataAgendada = saved.dataagendada || exp.dataAgendada;
+            console.log("✅ Experimental salvo com ID:", exp.id);
+        }
+        
         return exp;
     } catch (erro) {
         console.error("❌ Erro ao salvar experimental:", erro);
-        console.error("📋 Dados que causaram erro:", exp);
+        console.error("❌ Objeto que causou erro:", exp);
         mostrarToast('❌ Erro ao salvar experimental: ' + (erro.message || 'Erro desconhecido'), 'erro');
         throw erro;
     }
@@ -366,6 +391,7 @@ async function excluirExperimental(id) {
             .delete()
             .eq('id', id);
         if (error) throw error;
+        console.log("✅ Experimental excluído:", id);
         return true;
     } catch (erro) {
         console.error("❌ Erro ao excluir experimental:", erro);
@@ -393,7 +419,6 @@ async function carregarHistoricoExperimental() {
             .from('historico_experimentais')
             .select('*')
             .order('timestamp', { ascending: false });
-        
         if (error) throw error;
         console.log("✅ Histórico carregado:", data ? data.length : 0);
         return data || [];
@@ -410,7 +435,6 @@ async function carregarTurmas() {
             .select('valor')
             .eq('chave', 'turmas')
             .single();
-        
         if (error) {
             await supabaseClient
                 .from('config')
@@ -418,7 +442,6 @@ async function carregarTurmas() {
             console.log("✅ Configuração de turmas criada");
             return horariosConfig;
         }
-        
         if (data && data.valor) {
             const turmas = typeof data.valor === 'string' ? JSON.parse(data.valor) : data.valor;
             if (turmas && turmas.length > 0) {
@@ -442,7 +465,6 @@ async function salvarTurmas() {
                 ultima_atualizacao: new Date().toISOString()
             })
             .eq('chave', 'turmas');
-        
         if (error) throw error;
         console.log("✅ Turmas salvas:", horariosConfig.length);
         return true;
@@ -464,7 +486,6 @@ async function carregarDados() {
         await carregarTurmas();
         await carregarAlunos();
         await carregarExperimentais();
-        
         if (statusEl) { statusEl.innerText = '✅ Online'; statusEl.classList.add('online'); }
     } catch (erro) {
         console.error("Erro ao carregar dados:", erro);
@@ -473,34 +494,6 @@ async function carregarDados() {
         document.getElementById('loadingBanner').style.display = 'none';
         renderizarTudo();
         renderPainelExperimentaisHoje();
-    }
-}
-
-// ============================================================
-// CORREÇÃO: VALIDAR E CORRIGIR DADOS INCONSISTENTES
-// ============================================================
-function corrigirDadosInconsistentes() {
-    let corrigidos = 0;
-    
-    alunos.forEach(aluno => {
-        if (isNaN(aluno.codigo) || aluno.codigo === null || aluno.codigo === undefined || aluno.codigo === '') {
-            aluno.codigo = studentIdCounter++;
-            corrigidos++;
-            console.log(`🔧 Corrigido código de ${aluno.nome} para ${aluno.codigo}`);
-            salvarAluno(aluno);
-        }
-        
-        ['seg','ter','qua','qui','sex','sab'].forEach(dia => {
-            if (aluno[dia] && isNaN(aluno[dia])) {
-                aluno[dia] = '';
-                corrigidos++;
-                salvarAluno(aluno);
-            }
-        });
-    });
-    
-    if (corrigidos > 0) {
-        console.log(`✅ Corrigidos ${corrigidos} dados inconsistentes`);
     }
 }
 
@@ -575,7 +568,6 @@ function contarAlunosUnicos() {
 
 function contarMatriculasPorTurno() {
     let manha = 0, tarde = 0, noite = 0, sabado = 0;
-    
     alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO').forEach(a => {
         ['seg','ter','qua','qui','sex','sab'].forEach(d => {
             const hId = a[d];
@@ -590,29 +582,23 @@ function contarMatriculasPorTurno() {
             }
         });
     });
-    
     return { manha, tarde, noite, sabado };
 }
 
 function atualizarWidgets() {
     const totalAlunos = contarAlunosUnicos();
-    
     let vencidos = 0, emDia = 0;
     alunos.forEach(a => {
         if (a.status === 'TRANCADO' || a.status === 'PAUSADO') return;
         if (verificarVencimento(a.vencimento).vencido) vencidos++;
         else emDia++;
     });
-
     const matriculas = contarMatriculasPorTurno();
     const totalMatriculas = matriculas.manha + matriculas.tarde + matriculas.noite + matriculas.sabado;
-    
     const capTotal = horariosConfig.reduce((s, h) => s + h.capacidade, 0);
     const pctOcupacao = capTotal > 0 ? Math.round((totalMatriculas / capTotal) * 100) : 0;
-
     const widget = document.getElementById('macroStatsWidget');
     if (!widget) return;
-
     widget.innerHTML = `
         <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl">🎯 Total Alunos</div><div class="sub">Alunos únicos ativos</div></div>
         <div class="widget vencidos-border"><div class="val" style="color:#ef4444;">${vencidos}</div><div class="lbl">⚠️ Vencidos</div><div class="sub">Planos Atrasados</div></div>
@@ -644,6 +630,7 @@ function atualizarDropdownsModalidade() {
         select.innerHTML = modalidadesDisponiveis.map(m => `<option value="${m}" ${valorAtual === m ? 'selected' : ''}>${m}</option>`).join('');
     });
 }
+
 // ============================================================
 // RENDERIZAÇÃO DOS CARDS
 // ============================================================
@@ -780,7 +767,6 @@ function getAlunosPorHorarioDia(horarioId, diaFiltro) {
 function getOcupacaoHorarioDia(horarioId, diaFiltro) {
     const alunosCount = getAlunosPorHorarioDia(horarioId, diaFiltro).filter(alunoContaOcupacao).length;
     const hojeStr = formatarDataISO();
-    
     let expCount = 0;
     if (diaFiltro && diaFiltro.length > 0) {
         const diasFiltroArray = Array.isArray(diaFiltro) ? diaFiltro : [diaFiltro];
@@ -798,7 +784,6 @@ function getOcupacaoHorarioDia(horarioId, diaFiltro) {
             return true;
         }).length;
     }
-    
     return alunosCount + expCount;
 }
 
@@ -853,26 +838,23 @@ function filtrarDiaHub(dia, btn) {
     }
     renderizarTudo();
 }
+
 // ============================================================
 // EDIÇÃO DE TURMA
 // ============================================================
 function abrirEdicaoTurma(hId) {
     const h = horariosConfig.find(x => x.id === hId);
     if (!h) return;
-    
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    
     titulo.innerHTML = `✏️ Editar Turma: ${h.modalidade}`;
-    
     const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const diasCheckboxHtml = diasSemana.map(dia => `
         <label style="display:inline-flex;align-items:center;gap:6px;margin-right:10px;margin-bottom:8px;background:#f1f5f9;padding:6px 14px;border-radius:30px;cursor:pointer;">
             <input type="checkbox" value="${dia}" ${h.dias.includes(dia) ? 'checked' : ''}> ${dia}
         </label>
     `).join('');
-    
     corpo.innerHTML = `
         <div style="max-width:550px;margin:0 auto;">
             <div style="margin-bottom:15px;">
@@ -881,23 +863,19 @@ function abrirEdicaoTurma(hId) {
                     ${modalidadesDisponiveis.map(m => `<option value="${m}" ${h.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}
                 </select>
             </div>
-            
             <div style="margin-bottom:15px;">
                 <label style="font-weight:bold;display:block;margin-bottom:5px;">⏰ HORÁRIO:</label>
                 <input type="text" id="editTurmaHorario" class="search-input-field" value="${h.horario}" style="width:100%;padding:10px;font-size:1rem;" placeholder="08:00-09:00">
                 <small style="color:#64748b;">Formato: HH:MM-HH:MM</small>
             </div>
-            
             <div style="margin-bottom:15px;">
                 <label style="font-weight:bold;display:block;margin-bottom:8px;">📅 Dias da Semana:</label>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;">${diasCheckboxHtml}</div>
             </div>
-            
             <div style="margin-bottom:15px;">
                 <label style="font-weight:bold;display:block;margin-bottom:5px;">👥 Capacidade (vagas):</label>
                 <input type="number" id="editTurmaCapacidade" class="search-input-field" value="${h.capacidade}" min="1" max="100" style="width:100%;padding:10px;">
             </div>
-            
             <div style="margin-bottom:20px;">
                 <label style="font-weight:bold;display:block;margin-bottom:5px;">🌙 Turno:</label>
                 <select id="editTurmaTurno" class="form-select-field" style="width:100%;padding:10px;">
@@ -907,11 +885,9 @@ function abrirEdicaoTurma(hId) {
                     <option value="sabado" ${h.turno === 'sabado' ? 'selected' : ''}>📅 Sábado</option>
                 </select>
             </div>
-            
             <div style="margin-bottom:20px;padding:12px;background:#fff3e0;border-radius:8px;color:#b45309;font-size:0.85rem;border-left:3px solid #f59e0b;">
                 ⚠️ <strong>Atenção:</strong> Alterar horário ou dias pode afetar a matrícula dos alunos!
             </div>
-            
             <div class="form-actions-row" style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;">
                 <button onclick="excluirTurmaPermanente(${h.id})" style="background:#fee2e2;color:#b91c1c;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;">🗑️ Excluir Turma</button>
                 <div style="display:flex;gap:8px;">
@@ -921,26 +897,22 @@ function abrirEdicaoTurma(hId) {
             </div>
         </div>
     `;
-    
     modal.classList.add('active');
 }
 
 function salvarEdicaoCompletaTurma(hId) {
     const h = horariosConfig.find(x => x.id === hId);
     if (!h) return;
-    
     const novaModalidade = document.getElementById('editTurmaModalidade').value;
     const novoHorario = document.getElementById('editTurmaHorario').value.trim();
     const novaCapacidade = parseInt(document.getElementById('editTurmaCapacidade').value);
     let novoTurno = document.getElementById('editTurmaTurno').value;
-    
     const novosDias = [];
     document.querySelectorAll('#globalSuperModal input[type="checkbox"]').forEach(cb => {
         if (cb.checked && ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'].includes(cb.value)) {
             novosDias.push(cb.value);
         }
     });
-    
     if (!novoHorario) { alert('⚠️ Digite o horário!'); return; }
     if (!novoHorario.match(/^\d{2}:\d{2}-\d{2}:\d{2}$/)) {
         alert('⚠️ Formato inválido! Use HH:MM-HH:MM');
@@ -948,18 +920,15 @@ function salvarEdicaoCompletaTurma(hId) {
     }
     if (novosDias.length === 0) { alert('⚠️ Selecione pelo menos um dia!'); return; }
     if (!novaCapacidade || novaCapacidade < 1) { alert('⚠️ Capacidade inválida!'); return; }
-    
     const horaInicio = parseInt(novoHorario.split('-')[0].split(':')[0]);
     if (horaInicio >= 17 && novoTurno !== 'sabado') novoTurno = 'noite';
     else if (horaInicio >= 12 && horaInicio < 17) novoTurno = 'tarde';
     else if (horaInicio >= 6 && horaInicio < 12) novoTurno = 'manha';
-    
     h.modalidade = novaModalidade;
     h.horario = novoHorario;
     h.dias = novosDias;
     h.capacidade = novaCapacidade;
     h.turno = novoTurno;
-    
     salvarTurmas();
     renderizarTudo();
     fecharSuperModal();
@@ -969,20 +938,16 @@ function salvarEdicaoCompletaTurma(hId) {
 function excluirTurmaPermanente(hId) {
     const turma = horariosConfig.find(h => h.id === hId);
     if (!turma) return;
-    
     const alunosMatriculados = alunos.filter(a => {
         return turma.dias.some(dia => Number(a[diasMap[dia]]) === Number(hId));
     });
-    
     let msg = `⚠️ EXCLUIR TURMA PERMANENTEMENTE?\n\n📌 ${turma.modalidade}\n⏰ ${turma.horario}\n📅 Dias: ${turma.dias.join(', ')}\n\n`;
     if (alunosMatriculados.length > 0) {
         msg += `🔴 ATENÇÃO: ${alunosMatriculados.length} aluno(s) estão matriculados!\n\n`;
     }
     msg += `Digite "SIM" para confirmar.`;
-    
     const confirmText = prompt(msg);
     if (confirmText !== "SIM") { alert("❌ Cancelado!"); return; }
-    
     alunos.forEach(a => {
         turma.dias.forEach(dia => {
             const campo = diasMap[dia];
@@ -990,10 +955,8 @@ function excluirTurmaPermanente(hId) {
         });
         salvarAluno(a);
     });
-    
     const index = horariosConfig.findIndex(h => h.id === hId);
     if (index !== -1) horariosConfig.splice(index, 1);
-    
     salvarTurmas();
     renderizarTudo();
     fecharSuperModal();
@@ -1007,7 +970,6 @@ function abrirCriarTurma() {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    
     titulo.innerHTML = '➕ Criar Nova Turma';
     corpo.innerHTML = `
         <div style="max-width:500px;margin:0 auto;">
@@ -1018,12 +980,10 @@ function abrirCriarTurma() {
                 </select>
                 <button onclick="abrirCriarModalidade()" style="margin-top:5px;background:#e0f2fe;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">➕ Criar nova modalidade</button>
             </div>
-            
             <div style="margin-bottom:15px;">
                 <label style="font-weight:bold;display:block;margin-bottom:5px;">Horário (ex: 08:00-09:00):</label>
                 <input type="text" id="novoHorario" class="search-input-field" placeholder="08:00-09:00" style="width:100%;">
             </div>
-            
             <div style="margin-bottom:15px;">
                 <label style="font-weight:bold;display:block;margin-bottom:5px;">Dias da Semana:</label>
                 <div class="dias-checkbox-group">
@@ -1035,12 +995,10 @@ function abrirCriarTurma() {
                     <label><input type="checkbox" value="Sábado"> Sábado</label>
                 </div>
             </div>
-            
             <div style="margin-bottom:15px;">
                 <label style="font-weight:bold;display:block;margin-bottom:5px;">Capacidade (vagas):</label>
                 <input type="number" id="novaCapacidade" class="search-input-field" value="10" min="1" max="100" style="width:100%;">
             </div>
-            
             <div style="margin-bottom:15px;">
                 <label style="font-weight:bold;display:block;margin-bottom:5px;">Turno:</label>
                 <select id="novoTurno" class="form-select-field" style="width:100%;">
@@ -1050,14 +1008,12 @@ function abrirCriarTurma() {
                     <option value="sabado">📅 Sábado</option>
                 </select>
             </div>
-            
             <div class="form-actions-row" style="margin-top:20px;">
                 <button class="btn-save-modal" onclick="salvarNovaTurma()">💾 Criar Turma</button>
                 <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
             </div>
         </div>
     `;
-    
     const horarioInput = document.getElementById('novoHorario');
     const turnoSelect = document.getElementById('novoTurno');
     if (horarioInput && turnoSelect) {
@@ -1068,7 +1024,6 @@ function abrirCriarTurma() {
             else if (hora >= 6) turnoSelect.value = 'manha';
         });
     }
-    
     modal.classList.add('active');
 }
 
@@ -1077,12 +1032,10 @@ function salvarNovaTurma() {
     const horario = document.getElementById('novoHorario').value.trim();
     const capacidade = parseInt(document.getElementById('novaCapacidade').value);
     const turno = document.getElementById('novoTurno').value;
-    
     const diasSelecionados = [];
     document.querySelectorAll('.dias-checkbox-group input[type="checkbox"]:checked').forEach(cb => {
         diasSelecionados.push(cb.value);
     });
-    
     if (!horario) { alert('⚠️ Digite o horário!'); return; }
     if (!horario.match(/^\d{2}:\d{2}-\d{2}:\d{2}$/)) { 
         alert('⚠️ Formato inválido! Use HH:MM-HH:MM'); 
@@ -1090,9 +1043,7 @@ function salvarNovaTurma() {
     }
     if (diasSelecionados.length === 0) { alert('⚠️ Selecione pelo menos um dia!'); return; }
     if (!capacidade || capacidade < 1) { alert('⚠️ Capacidade inválida!'); return; }
-    
     const novoId = Math.max(...horariosConfig.map(h => h.id), 0) + 1;
-    
     const novaTurma = {
         id: novoId,
         modalidade: modalidade,
@@ -1101,7 +1052,6 @@ function salvarNovaTurma() {
         capacidade: capacidade,
         turno: turno
     };
-    
     horariosConfig.push(novaTurma);
     salvarTurmas();
     renderizarTudo();
@@ -1392,52 +1342,122 @@ function marcarPresencaExp(id, st, hId) {
 }
 
 // ============================================================
-// EDIÇÃO COMPLETA DO ALUNO - CORRIGIDA
+// EDIÇÃO COMPLETA DO ALUNO
 // ============================================================
 function abrirEdicaoCompletaInline(id, hId) {
-    // Busca primeiro pelo ID (Supabase)
     let aluno = alunos.find(a => a.id == id);
-    
-    // Se não encontrou, tenta buscar pelo código (sistema externo)
     if (!aluno && !isNaN(id)) {
         aluno = alunos.find(a => a.codigo == parseInt(id));
     }
-    
     if (!aluno) {
         mostrarToast('❌ Aluno não encontrado! ID/Código: ' + id, 'erro');
         return;
     }
-    
     const divId = hId ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
     let div = document.getElementById(divId);
-    
-    // ====== RESTANTE DA FUNÇÃO PERMANECE IGUAL ======
-    // (todo o conteúdo depois da linha 1174 permanece IDÊNTICO)
+    if (!div) {
+        const corpo = document.getElementById('superModalCorpo');
+        if (corpo) {
+            const newDiv = document.createElement('div');
+            newDiv.id = divId;
+            newDiv.style.display = 'none';
+            newDiv.style.background = '#f8fafc';
+            newDiv.style.padding = '22px';
+            newDiv.style.borderRadius = '12px';
+            newDiv.style.marginBottom = '25px';
+            newDiv.style.border = '2px dashed #006994';
+            corpo.insertBefore(newDiv, corpo.firstChild);
+            div = newDiv;
+        }
+    }
+    if (!div) {
+        mostrarToast('❌ Erro ao abrir edição!', 'erro');
+        return;
+    }
+    div.style.display = 'block';
+    const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const selectGradeHtml = diasSemana.map(dia => {
+        const campo = diasMap[dia];
+        const valorAtual = aluno[campo] || '';
+        const opcoesDoDia = horariosConfig.filter(hc => hc.dias.includes(dia));
+        return `
+            <div style="margin-bottom:10px;">
+                <label style="font-size:0.8rem;font-weight:bold;display:block;margin-bottom:3px;">${dia}:</label>
+                <select id="editGrade${campo}" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+                    <option value="">[ Não treina ]</option>
+                    ${opcoesDoDia.map(hc => `<option value="${hc.id}" ${valorAtual == hc.id ? 'selected' : ''}>${hc.modalidade} (${hc.horario})</option>`).join('')}
+                </select>
+            </div>
+        `;
+    }).join('');
+    const statusAtual = aluno.status || 'ATIVO';
+    const btnVoltar = hId 
+        ? `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal" style="background:#e2e8f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">⬅️ Voltar para a Turma</button>`
+        : `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal" style="background:#e2e8f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">⬅️ Cancelar</button>`;
+    div.innerHTML = `
+        <h3 style="color:#006994;margin-bottom:15px;font-size:1.2rem;font-weight:bold;border-left:4px solid #006994;padding-left:8px;">✏️ Editar Matrícula: #${aluno.codigo} — ${aluno.nome}</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px;">
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Código:</label>
+                <input type="number" id="editFullCodigo" class="search-input-field" value="${aluno.codigo}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Nome:</label>
+                <input type="text" id="editFullN" class="search-input-field" value="${aluno.nome}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Telefone:</label>
+                <input type="text" id="editFullP" class="search-input-field" value="${aluno.telefone}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Vencimento:</label>
+                <input type="text" id="editFullV" class="search-input-field" value="${aluno.vencimento || ''}" placeholder="DD/MM" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Modalidade:</label>
+                <select id="editFullMod" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+                    ${modalidadesDisponiveis.map(m => `<option value="${m}" ${aluno.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Status:</label>
+                <select id="editFullStatus" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+                    <option value="ATIVO" ${statusAtual === 'ATIVO' ? 'selected' : ''}>🟢 ATIVO</option>
+                    <option value="PAUSADO" ${statusAtual === 'PAUSADO' ? 'selected' : ''}>⏸ PAUSADO</option>
+                    <option value="TRANCADO" ${statusAtual === 'TRANCADO' ? 'selected' : ''}>🔒 TRANCADO</option>
+                </select>
+            </div>
+        </div>
+        <div style="background:#edf2f7;padding:15px;border-radius:8px;margin-bottom:15px;">
+            <span style="font-weight:bold;font-size:0.9rem;color:#1e293b;display:block;margin-bottom:10px;">🗓️ Grade Semanal (Turmas que o aluno participa):</span>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">${selectGradeHtml}</div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button onclick="salvarEdicaoCompleta(${aluno.id},${hId || 'null'})" class="btn-save-modal" style="background:#006994;color:white;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:bold;">💾 Salvar Alterações</button>
+            ${btnVoltar}
+        </div>
+    `;
+    div.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 async function salvarEdicaoCompleta(id, hId) {
-    // CORREÇÃO: Buscar o aluno de forma segura
     if (id == null || id === undefined) {
         mostrarToast('❌ ID do aluno inválido!', 'erro');
         return;
     }
-    
     const aluno = alunos.find(a => Number(a.id) === Number(id));
     if (!aluno) {
         mostrarToast('❌ Aluno não encontrado!', 'erro');
         return;
     }
-    
     const novoCodigo = parseInt(document.getElementById('editFullCodigo')?.value);
     const nome = document.getElementById('editFullN')?.value.trim();
     const telefone = document.getElementById('editFullP')?.value.trim();
     const vencimento = document.getElementById('editFullV')?.value.trim();
     const modalidade = document.getElementById('editFullMod')?.value || aluno.modalidade;
     const statusAluno = document.getElementById('editFullStatus')?.value || aluno.status || 'ATIVO';
-    
     if (!nome) { mostrarToast('⚠️ Nome é obrigatório!', 'erro'); return; }
     if (!telefone) { mostrarToast('⚠️ Telefone é obrigatório!', 'erro'); return; }
-    
     if (novoCodigo && novoCodigo !== aluno.codigo) {
         const codigoExistente = alunos.find(a => Number(a.codigo) === Number(novoCodigo) && Number(a.id) !== Number(aluno.id));
         if (codigoExistente) {
@@ -1446,13 +1466,11 @@ async function salvarEdicaoCompleta(id, hId) {
         }
         aluno.codigo = novoCodigo;
     }
-    
     aluno.nome = nome;
     aluno.telefone = telefone;
     aluno.vencimento = vencimento;
     aluno.modalidade = modalidade;
     aluno.status = statusAluno;
-    
     ['seg','ter','qua','qui','sex','sab'].forEach(campo => {
         const select = document.getElementById(`editGrade${campo}`);
         if (select) {
@@ -1460,27 +1478,22 @@ async function salvarEdicaoCompleta(id, hId) {
             aluno[campo] = valor ? parseInt(valor) : '';
         }
     });
-    
     try {
         await salvarAluno(aluno);
     } catch (erro) {
         mostrarToast(`❌ Erro ao salvar: ${erro.message}`, 'erro');
         return;
     }
-    
     const divId = hId && hId !== 'null' ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
     const div = document.getElementById(divId);
     if (div) div.style.display = 'none';
-    
     renderizarTudo();
     renderPainelExperimentaisHoje();
-    
     if (hId && hId !== 'null') {
         abrirModalHorario(parseInt(hId));
     } else {
         renderStudentTableSuper();
     }
-    
     mostrarToast(`✅ ${aluno.nome} atualizado com sucesso!`);
 }
 
@@ -1548,7 +1561,6 @@ function abrirCriarModalidade() {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    
     titulo.innerHTML = '➕ Criar Nova Modalidade';
     corpo.innerHTML = `
         <div style="max-width:400px;margin:0 auto;">
@@ -1578,7 +1590,6 @@ function salvarNovaModalidade() {
         alert(`⚠️ A modalidade "${novaModalidade}" já existe!`);
         return;
     }
-    
     modalidadesDisponiveis.push(novaModalidade);
     modalidadesDisponiveis.sort();
     atualizarDropdownsModalidade();
@@ -1617,7 +1628,6 @@ function abrirEditarModalidade(modalidadeAntiga) {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    
     titulo.innerHTML = `✏️ Editar Modalidade: ${modalidadeAntiga}`;
     corpo.innerHTML = `
         <div style="max-width:400px;margin:0 auto;">
@@ -1639,35 +1649,29 @@ function abrirEditarModalidade(modalidadeAntiga) {
 
 function salvarEdicaoModalidade(modalidadeAntiga) {
     const novoNome = document.getElementById('editModalidadeNome').value.trim();
-    
     if (!novoNome) {
         alert('⚠️ Digite o novo nome da modalidade!');
         return;
     }
-    
     if (modalidadesDisponiveis.includes(novoNome) && novoNome !== modalidadeAntiga) {
         alert(`⚠️ A modalidade "${novoNome}" já existe!`);
         return;
     }
-    
     const index = modalidadesDisponiveis.indexOf(modalidadeAntiga);
     if (index !== -1) {
         modalidadesDisponiveis[index] = novoNome;
     }
-    
     horariosConfig.forEach(turma => {
         if (turma.modalidade === modalidadeAntiga) {
             turma.modalidade = novoNome;
         }
     });
-    
     alunos.forEach(aluno => {
         if (aluno.modalidade === modalidadeAntiga) {
             aluno.modalidade = novoNome;
             salvarAluno(aluno);
         }
     });
-    
     salvarTurmas();
     atualizarDropdownsModalidade();
     fecharSuperModal();
@@ -1677,19 +1681,17 @@ function salvarEdicaoModalidade(modalidadeAntiga) {
 }
 
 // ============================================================
-// FUNÇÕES DE EXPERIMENTAIS
+// FUNÇÕES DE EXPERIMENTAIS - CORRIGIDAS DEFINITIVAMENTE
 // ============================================================
 function renderExperimentaisFuturos() {
     const body = document.getElementById('experimentaisFuturosBody');
     if (!body) return;
-    
     const hoje = formatarDataISO();
     const busca = document.getElementById('buscarExpFuturo')?.value.toLowerCase() || '';
     
     console.log("📅 Renderizando experimentais futuros...");
     console.log("📊 Total de experimentais:", experimentais.length);
     
-    // Filtrar apenas agendados com data futura ou hoje
     let futuros = experimentais.filter(e => {
         if (e.status !== 'agendado') return false;
         if (!e.dataAgendada) return false;
@@ -1698,15 +1700,10 @@ function renderExperimentaisFuturos() {
     
     console.log("📊 Experimentais futuros (bruto):", futuros.length);
     
-    // Ordenar por data
     futuros.sort((a, b) => a.dataAgendada.localeCompare(b.dataAgendada));
     
-    // Filtrar por busca se houver
     if (busca) {
-        futuros = futuros.filter(e => 
-            e.nome.toLowerCase().includes(busca) || 
-            e.telefone.includes(busca)
-        );
+        futuros = futuros.filter(e => e.nome.toLowerCase().includes(busca) || e.telefone.includes(busca));
     }
     
     console.log("📊 Experimentais futuros (filtrado):", futuros.length);
@@ -1740,11 +1737,9 @@ function renderExperimentaisFuturos() {
 function abrirEdicaoExperimental(expId) {
     const exp = experimentais.find(e => e.id === expId);
     if (!exp) return;
-    
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    
     titulo.innerHTML = '✏️ Editar Aula Experimental';
     corpo.innerHTML = `
         <div style="max-width:500px;margin:0 auto;">
@@ -1773,7 +1768,6 @@ function abrirEdicaoExperimental(expId) {
             </div>
         </div>
     `;
-    
     setTimeout(() => {
         const modalidadeSelect = document.getElementById('editExpModalidade');
         if (modalidadeSelect && exp.modalidade) {
@@ -1794,7 +1788,6 @@ function abrirEdicaoExperimental(expId) {
             }, 100);
         }
     }, 50);
-    
     modal.classList.add('active');
 }
 
@@ -1830,26 +1823,21 @@ function carregarHorariosExpEdicao() {
 function salvarEdicaoExperimental(expId) {
     const exp = experimentais.find(e => e.id === expId);
     if (!exp) return;
-    
     const novoNome = document.getElementById('editExpNome').value.trim();
     const novoTelefone = document.getElementById('editExpTelefone').value.trim();
     const novaData = document.getElementById('editExpData').value;
     const valorHorario = document.getElementById('editExpHorario').value;
-    
     if (!novoNome || !novoTelefone) { alert('⚠️ Nome e telefone são obrigatórios!'); return; }
     if (!novaData) { alert('⚠️ Selecione a data!'); return; }
     if (!valorHorario) { alert('⚠️ Selecione o horário!'); return; }
-    
     const [hId, dia] = valorHorario.split('_');
     const modalidade = document.getElementById('editExpModalidade').value;
-    
     exp.nome = novoNome;
     exp.telefone = novoTelefone;
     exp.dataAgendada = novaData;
     exp.horario_id = parseInt(hId);
     exp.dia = dia;
     exp.modalidade = modalidade;
-    
     salvarExperimental(exp);
     fecharSuperModal();
     renderExperimentaisFuturos();
@@ -1880,9 +1868,7 @@ function abrirHistoricoExperimentais() {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    
     titulo.innerHTML = '📋 Histórico de Aulas Experimentais';
-    
     corpo.innerHTML = `
         <div style="margin-bottom:20px;">
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:15px;">
@@ -1933,7 +1919,6 @@ function abrirHistoricoExperimentais() {
             Carregando...
         </div>
     `;
-    
     modal.classList.add('active');
     renderHistoricoExperimentais();
 }
@@ -1953,28 +1938,22 @@ function filtrarStatusHistoricoExp(status, btn) {
 async function renderHistoricoExperimentais() {
     const body = document.getElementById('historicoExperimentaisBody');
     if (!body) return;
-    
     const periodoDias = parseInt(document.getElementById('filtroPeriodoHistorico')?.value || '30');
     const busca = document.getElementById('buscarHistoricoExp')?.value.toLowerCase() || '';
-    
     const hoje = new Date();
     let dataLimite = null;
     if (periodoDias > 0) {
         dataLimite = new Date(hoje);
         dataLimite.setDate(dataLimite.getDate() - periodoDias);
     }
-    
     const historicoExp = await carregarHistoricoExperimental();
-    
     const hojeStr = formatarDataISO();
     const experimentaisPassados = experimentais.filter(e => {
         if (e.status === 'agendado') return false;
         if (e.dataAgendada && e.dataAgendada < hojeStr) return true;
         return e.status !== 'agendado';
     });
-    
     let todos = [];
-    
     historicoExp.forEach(item => {
         let dataItem = item.data || item.dataAgendada || '';
         if (item.timestamp) {
@@ -1993,7 +1972,6 @@ async function renderHistoricoExperimentais() {
             origem: 'historico'
         });
     });
-    
     experimentaisPassados.forEach(e => {
         const horario = horariosConfig.find(h => h.id === e.horario_id);
         todos.push({
@@ -2008,7 +1986,6 @@ async function renderHistoricoExperimentais() {
             origem: 'experimental'
         });
     });
-    
     if (dataLimite) {
         todos = todos.filter(item => {
             if (!item.data) return false;
@@ -2027,14 +2004,12 @@ async function renderHistoricoExperimentais() {
             return dataItem >= dataLimite && dataItem <= hoje;
         });
     }
-    
     if (busca) {
         todos = todos.filter(item => 
             (item.nome || '').toLowerCase().includes(busca) || 
             (item.telefone || '').includes(busca)
         );
     }
-    
     if (filtroStatusHistoricoExp === 'compareceu') {
         todos = todos.filter(item => item.resultado === 'compareceu');
     } else if (filtroStatusHistoricoExp === 'nao_compareceu') {
@@ -2042,18 +2017,15 @@ async function renderHistoricoExperimentais() {
     } else if (filtroStatusHistoricoExp === 'matriculados') {
         todos = todos.filter(item => item.matriculado === true);
     }
-    
     todos.sort((a, b) => {
         if (a.timestamp && b.timestamp) return b.timestamp.localeCompare(a.timestamp);
         return (b.data || '').localeCompare(a.data || '');
     });
-    
     const total = todos.length;
     const compareceram = todos.filter(t => t.resultado === 'compareceu').length;
     const faltaram = todos.filter(t => t.resultado === 'nao_compareceu').length;
     const matriculados = todos.filter(t => t.matriculado === true).length;
     const taxaConversao = total > 0 ? Math.round((matriculados / total) * 100) : 0;
-    
     const resumo = document.getElementById('historicoResumo');
     if (resumo) {
         resumo.innerHTML = `
@@ -2064,16 +2036,13 @@ async function renderHistoricoExperimentais() {
             <span>🎯 Taxa de Conversão: <strong style="color:#006994;">${taxaConversao}%</strong></span>
         `;
     }
-    
     if (todos.length === 0) {
         body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">📭 Nenhuma aula experimental encontrada neste período</td></tr>';
         return;
     }
-    
     body.innerHTML = todos.map(item => {
         let statusHtml = '';
         const resultado = item.resultado || '';
-        
         if (resultado === 'compareceu') {
             statusHtml = '<span style="background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:20px;font-size:0.75rem;">✅ Compareceu</span>';
         } else if (resultado === 'nao_compareceu') {
@@ -2081,16 +2050,13 @@ async function renderHistoricoExperimentais() {
         } else {
             statusHtml = '<span style="background:#fef3c7;color:#b45309;padding:4px 10px;border-radius:20px;font-size:0.75rem;">📅 Agendado</span>';
         }
-        
         if (item.matriculado) {
             statusHtml += ' <span style="background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:20px;font-size:0.75rem;">📋 Matriculado</span>';
         }
-        
         const dataFormatada = item.data && item.data.includes('-') ? formatarDataBR(item.data) : (item.data || '—');
         const telefone = item.telefone || '';
         const id = item.id || '';
         const origem = item.origem || 'historico';
-        
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:12px;">${dataFormatada}</td>
@@ -2115,17 +2081,14 @@ async function editarStatusExperimental(id, novoStatus, origem) {
         mostrarToast('❌ ID não encontrado!', 'erro');
         return;
     }
-    
     try {
         if (origem === 'historico') {
             const { error } = await supabaseClient
                 .from('historico_experimentais')
                 .update({ resultado: novoStatus })
                 .eq('id', id);
-            
             if (error) throw error;
             mostrarToast(`✅ Status alterado para ${novoStatus === 'compareceu' ? 'Compareceu' : 'Faltou'}!`);
-            
         } else if (origem === 'experimental') {
             const exp = experimentais.find(e => e.id == id);
             if (exp) {
@@ -2137,11 +2100,9 @@ async function editarStatusExperimental(id, novoStatus, origem) {
                 return;
             }
         }
-        
         renderHistoricoExperimentais();
         renderizarTudo();
         renderPainelExperimentaisHoje();
-        
     } catch (erro) {
         console.error('❌ Erro ao editar status:', erro);
         mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
@@ -2153,7 +2114,6 @@ async function editarMatriculaExperimental(id, origem) {
         mostrarToast('❌ ID não encontrado!', 'erro');
         return;
     }
-    
     try {
         if (origem === 'historico') {
             const { data, error } = await supabaseClient
@@ -2161,18 +2121,14 @@ async function editarMatriculaExperimental(id, origem) {
                 .select('*')
                 .eq('id', id)
                 .single();
-            
             if (error) throw error;
-            
             const novoStatus = data.matriculado ? false : true;
             const { error: updateError } = await supabaseClient
                 .from('historico_experimentais')
                 .update({ matriculado: novoStatus })
                 .eq('id', id);
-            
             if (updateError) throw updateError;
             mostrarToast(`✅ ${novoStatus ? 'Matrícula efetivada' : 'Matrícula removida'}!`);
-            
         } else if (origem === 'experimental') {
             const exp = experimentais.find(e => e.id == id);
             if (exp) {
@@ -2183,10 +2139,8 @@ async function editarMatriculaExperimental(id, origem) {
                 return;
             }
         }
-        
         renderHistoricoExperimentais();
         renderizarTudo();
-        
     } catch (erro) {
         console.error('❌ Erro ao editar matrícula:', erro);
         mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
@@ -2198,21 +2152,18 @@ async function editarMatriculaExperimental(id) {
         mostrarToast('❌ ID do experimental não encontrado!', 'erro');
         return;
     }
-    
     try {
         const { data, error } = await supabaseClient
             .from('historico_experimentais')
             .select('*')
             .eq('id', id)
             .single();
-        
         if (!error && data) {
             const novoStatus = data.matriculado ? false : true;
             const { error: updateError } = await supabaseClient
                 .from('historico_experimentais')
                 .update({ matriculado: novoStatus })
                 .eq('id', id);
-            
             if (!updateError) {
                 mostrarToast(`✅ ${novoStatus ? 'Matrícula efetivada' : 'Matrícula removida'}!`);
                 renderHistoricoExperimentais();
@@ -2220,24 +2171,20 @@ async function editarMatriculaExperimental(id) {
             }
         }
     } catch (e) {}
-    
     const exp = experimentais.find(e => e.id == id);
     if (exp) {
         matricularExperimentalInSuper(exp.id);
         return;
     }
-    
     mostrarToast('❌ Experimental não encontrado!', 'erro');
 }
 
 function exportarHistoricoExperimentais() {
     const body = document.getElementById('historicoExperimentaisBody');
     if (!body) return;
-    
     const rows = [];
     const cabecalho = ['Data', 'Horário', 'Nome', 'Telefone', 'Status', 'Matriculado'];
     rows.push(cabecalho);
-    
     document.querySelectorAll('#historicoExperimentaisBody tr').forEach(tr => {
         const cells = tr.querySelectorAll('td');
         if (cells.length >= 5) {
@@ -2250,7 +2197,6 @@ function exportarHistoricoExperimentais() {
             rows.push([data, horario, nome, telefone, status, matriculado]);
         }
     });
-    
     const csv = rows.map(row => row.join(',')).join('\n');
     const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -2268,21 +2214,17 @@ async function excluirExperimentalHistorico(id, origem) {
         mostrarToast('❌ ID não encontrado!', 'erro');
         return;
     }
-    
     if (!confirm('⚠️ Tem certeza que deseja excluir este registro do histórico?\n\nEsta ação NÃO pode ser desfeita!')) {
         return;
     }
-    
     try {
         if (origem === 'historico') {
             const { error } = await supabaseClient
                 .from('historico_experimentais')
                 .delete()
                 .eq('id', id);
-            
             if (error) throw error;
             mostrarToast('✅ Registro excluído do histórico!');
-            
         } else if (origem === 'experimental') {
             const exp = experimentais.find(e => e.id == id);
             if (exp) {
@@ -2295,11 +2237,9 @@ async function excluirExperimentalHistorico(id, origem) {
                 return;
             }
         }
-        
         renderHistoricoExperimentais();
         renderizarTudo();
         renderPainelExperimentaisHoje();
-        
     } catch (erro) {
         console.error('❌ Erro ao excluir:', erro);
         mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
@@ -2519,36 +2459,34 @@ function filtrarExpHorarios() {
     };
 }
 
+// ============================================================
+// SALVAR MATRÍCULA E EXPERIMENTAL - CORRIGIDOS
+// ============================================================
 async function salvarMatriculaFab() {
     const codigo = document.getElementById('fabCodigo').value;
     const nome = document.getElementById('fName').value.trim();
     const telefone = document.getElementById('fPhone').value.trim();
     const modalidade = document.getElementById('fMod').value;
     const vencimento = document.getElementById('fVenc').value;
-    
     const seg = document.getElementById('cadGradeseg')?.value ? parseInt(document.getElementById('cadGradeseg').value) : '';
     const ter = document.getElementById('cadGradeter')?.value ? parseInt(document.getElementById('cadGradeter').value) : '';
     const qua = document.getElementById('cadGradequa')?.value ? parseInt(document.getElementById('cadGradequa').value) : '';
     const qui = document.getElementById('cadGradequi')?.value ? parseInt(document.getElementById('cadGradequi').value) : '';
     const sex = document.getElementById('cadGradesex')?.value ? parseInt(document.getElementById('cadGradesex').value) : '';
     const sab = document.getElementById('cadGradesab')?.value ? parseInt(document.getElementById('cadGradesab').value) : '';
-    
     if (!codigo) { alert('⚠️ Digite o código do aluno!'); return; }
     if (!nome) { alert('⚠️ Digite o nome do aluno!'); return; }
     if (!telefone) { alert('⚠️ Digite o telefone do aluno!'); return; }
-    
     const codigoNumero = parseInt(codigo);
     if (isNaN(codigoNumero)) {
         alert('⚠️ Código inválido! Digite apenas números.');
         return;
     }
-    
     const codigoExistente = alunos.find(a => Number(a.codigo) === Number(codigoNumero));
     if (codigoExistente) { 
         alert(`⚠️ Código ${codigoNumero} já está em uso por ${codigoExistente.nome}!`); 
         return; 
     }
-    
     const statusDef = (!seg && !ter && !qua && !qui && !sex && !sab) ? 'PENDENTE' : 'ATIVO';
     const novoAluno = { 
         codigo: codigoNumero,
@@ -2565,9 +2503,7 @@ async function salvarMatriculaFab() {
         status: statusDef,
         observacao: ''
     };
-    
     console.log("📝 Salvando aluno:", novoAluno);
-    
     try {
         const alunoSalvo = await salvarAluno(novoAluno);
         alunos.push(alunoSalvo);
@@ -2606,7 +2542,7 @@ function salvarExpFab() {
         id: novoId,
         nome: nome, 
         telefone: telefone, 
-        dataAgendada: data,  // ← manter camelCase para o código
+        dataAgendada: data,
         horario_id: parseInt(hId), 
         dia: dia, 
         status: 'agendado', 
@@ -2615,18 +2551,20 @@ function salvarExpFab() {
     
     console.log("📝 Criando novo experimental:", novoExp);
     
-    // Adicionar ao array local
+    // Adicionar ao array local primeiro (feedback imediato)
     experimentais.push(novoExp);
     
     // Salvar no Supabase
     salvarExperimental(novoExp)
         .then((expSalvo) => {
-            console.log("✅ Experimental salvo:", expSalvo);
-            // Atualizar o item no array com o ID retornado
-            const index = experimentais.findIndex(e => e.id === novoExp.id);
+            console.log("✅ Experimental salvo com sucesso:", expSalvo);
+            
+            // Atualizar o array com os dados retornados do banco
+            const index = experimentais.findIndex(e => e.id === expSalvo.id);
             if (index !== -1) {
                 experimentais[index] = { ...experimentais[index], id: expSalvo.id };
             }
+            
             renderizarTudo();
             renderPainelExperimentaisHoje();
             fecharSuperModal();
@@ -2639,69 +2577,6 @@ function salvarExpFab() {
             console.error("❌ Falha ao salvar experimental:", erro);
             mostrarToast('❌ Erro ao salvar experimental!', 'erro');
         });
-}
-
-async function diagnosticarExperimentais() {
-    console.log("🔍 DIAGNÓSTICO DE EXPERIMENTAIS");
-    console.log("----------------------------------------");
-    console.log("📊 Na memória:", experimentais.length);
-    console.log("📊 Último ID:", expIdCounter);
-    
-    try {
-        const { data, error } = await supabaseClient
-            .from('experimentais')
-            .select('*')
-            .limit(5);
-        
-        if (error) {
-            console.error("❌ Erro na consulta:", error);
-            return;
-        }
-        
-        console.log("📊 No Supabase:", data ? data.length : 0);
-        if (data && data.length > 0) {
-            console.log("📋 Exemplo:", data[0]);
-        }
-        
-        // Verificar estrutura
-        const { data: columns, error: colError } = await supabaseClient
-            .from('experimentais')
-            .select('*')
-            .limit(1);
-        
-        if (columns && columns.length > 0) {
-            console.log("📋 Campos disponíveis:", Object.keys(columns[0]));
-        }
-        
-    } catch (erro) {
-        console.error("❌ Erro no diagnóstico:", erro);
-    }
-}
-
-async function verificarExperimentais() {
-    try {
-        const { data, error } = await supabaseClient
-            .from('experimentais')
-            .select('*')
-            .order('dataAgendada', { ascending: false })
-            .limit(10);
-        
-        if (error) throw error;
-        
-        console.log("📊 Últimos 10 experimentais no Supabase:", data);
-        console.log("📊 Experimentais na memória:", experimentais.length);
-        
-        if (data && data.length > 0) {
-            mostrarToast(`✅ ${data.length} experimentais encontrados no banco`, 'sucesso');
-        } else {
-            mostrarToast('⚠️ Nenhum experimental encontrado no banco', 'erro');
-        }
-        return data;
-    } catch (erro) {
-        console.error("❌ Erro ao verificar experimentais:", erro);
-        mostrarToast('❌ Erro ao verificar experimentais', 'erro');
-        return [];
-    }
 }
 
 function matricularExperimentalInSuper(id) {
@@ -2740,11 +2615,9 @@ function exportarCSV() {
         'Sábado',
         'Observação'
     ];
-    
     const rows = alunos.map(a => {
         const dias = ['seg','ter','qua','qui','sex','sab'];
         const diasNomes = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-        
         let diasInfo = dias.map((campo, idx) => {
             const hId = a[campo];
             if (hId) {
@@ -2753,7 +2626,6 @@ function exportarCSV() {
             }
             return '';
         });
-        
         return [
             a.codigo || '',
             a.nome || '',
@@ -2770,7 +2642,6 @@ function exportarCSV() {
             (a.observacao || '').replace(/,/g, ';')
         ];
     });
-    
     const csv = [header, ...rows].map(r => r.join(',')).join('\n');
     const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -2788,7 +2659,6 @@ function exportarRelatorioResumido() {
     const matriculas = contarMatriculasPorTurno();
     const vencidos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO' && verificarVencimento(a.vencimento).vencido).length;
     const emDia = totalAlunos - vencidos;
-    
     const resumo = [
         ['RELATÓRIO AQUACONTROL'],
         ['Data:', formatarData()],
@@ -2806,7 +2676,6 @@ function exportarRelatorioResumido() {
         ['ALUNOS DETALHADOS'],
         ['Código', 'Nome', 'Telefone', 'Modalidade', 'Vencimento', 'Status', 'Dias']
     ];
-    
     alunos.forEach(a => {
         const dias = ['seg','ter','qua','qui','sex','sab'];
         const diasNomes = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -2817,7 +2686,6 @@ function exportarRelatorioResumido() {
             }
             return '';
         }).filter(d => d).join(' | ');
-        
         resumo.push([
             a.codigo || '',
             a.nome || '',
@@ -2828,7 +2696,6 @@ function exportarRelatorioResumido() {
             diasParticipa || 'Nenhum'
         ]);
     });
-    
     const csv = resumo.map(r => r.join(',')).join('\n');
     const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -2845,28 +2712,23 @@ async function verificarSalvamento() {
     console.log("🔍 VERIFICANDO SALVAMENTO...");
     console.log("📊 Alunos na memória:", alunos.length);
     console.log("📊 Turmas na memória:", horariosConfig.length);
-    
     try {
         const { data: alunosDB, error: errAlunos, count } = await supabaseClient
             .from('alunos')
             .select('*', { count: 'exact', head: true });
-        
         const alunosFirebase = errAlunos ? 0 : count;
         console.log("📊 Alunos no Supabase:", alunosFirebase);
-        
         const { data: configDB, error: errConfig } = await supabaseClient
             .from('config')
             .select('valor')
             .eq('chave', 'turmas')
             .single();
-        
         let turmasFirebase = 0;
         if (configDB && configDB.valor) {
             const turmas = typeof configDB.valor === 'string' ? JSON.parse(configDB.valor) : configDB.valor;
             turmasFirebase = turmas.length;
         }
         console.log("📊 Turmas no Supabase:", turmasFirebase);
-        
         let msg = `📊 Alunos: ${alunos.length} (memória) vs ${alunosFirebase} (Supabase)`;
         if (alunos.length === alunosFirebase) {
             msg += ' ✅ OK';
@@ -2875,7 +2737,6 @@ async function verificarSalvamento() {
             msg += ' ⚠️ DIFERENÇA!';
             mostrarToast(msg, 'erro');
         }
-        
         let msgTurmas = `📊 Turmas: ${horariosConfig.length} (memória) vs ${turmasFirebase} (Supabase)`;
         if (horariosConfig.length === turmasFirebase) {
             msgTurmas += ' ✅ OK';
@@ -2884,9 +2745,7 @@ async function verificarSalvamento() {
             msgTurmas += ' ⚠️ DIFERENÇA!';
             mostrarToast(msgTurmas, 'erro');
         }
-        
         console.log("✅ Verificação concluída!");
-        
     } catch (erro) {
         console.error("❌ Erro ao verificar:", erro);
         mostrarToast('❌ Erro ao verificar dados!', 'erro');
@@ -2899,11 +2758,9 @@ async function salvarTudo() {
         btn.textContent = '⏳ Salvando...';
         btn.classList.add('salvando');
     }
-    
     let sucesso = true;
     const turmasOk = await salvarTurmas();
     if (!turmasOk) sucesso = false;
-    
     try {
         for (const aluno of alunos) {
             await salvarAluno(aluno);
@@ -2913,7 +2770,6 @@ async function salvarTudo() {
         console.error("❌ Erro ao salvar alunos:", erro);
         sucesso = false;
     }
-    
     if (btn) {
         btn.textContent = '💾 SALVAR TUDO';
         btn.classList.remove('salvando');
@@ -2923,7 +2779,6 @@ async function salvarTudo() {
 
 function corrigirAlunosComCodigoInvalido() {
     let corrigidos = 0;
-    
     alunos.forEach(aluno => {
         if (isNaN(aluno.codigo) || aluno.codigo === null || aluno.codigo === undefined || aluno.codigo === '') {
             const novoCodigo = 2000 + corrigidos;
@@ -2933,7 +2788,6 @@ function corrigirAlunosComCodigoInvalido() {
             salvarAluno(aluno);
         }
     });
-    
     if (corrigidos > 0) {
         mostrarToast(`✅ Corrigidos ${corrigidos} alunos com código inválido!`);
         renderizarTudo();
@@ -2962,12 +2816,10 @@ window.onload = function() {
         document.getElementById("appContainer").style.display = "block";
         carregarDados();
     }
-    
     setInterval(() => {
         console.log("🔄 Auto-save executado em:", new Date().toLocaleTimeString());
         salvarTudo();
     }, 60000);
-    
     setInterval(() => { 
         renderPainelExperimentaisHoje(); 
         renderizarTudo(); 
