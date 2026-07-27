@@ -285,9 +285,16 @@ async function carregarExperimentais() {
             .order('id', { ascending: true });
         
         if (error) throw error;
-        experimentais = (data || []).filter(e => e.id != null);
+        
+        // CORREÇÃO: Mapear dataagendada → dataAgendada
+        experimentais = (data || []).filter(e => e.id != null).map(exp => ({
+            ...exp,
+            dataAgendada: exp.dataagendada || exp.dataAgendada || ''  // ← MAPEAR CORRETAMENTE
+        }));
+        
         expIdCounter = experimentais.length > 0 ? Math.max(...experimentais.map(e => e.id || 0), 1000) : 1000;
         console.log("✅ Experimentais carregados:", experimentais.length);
+        console.log("📋 Primeiro experimental:", experimentais[0]);
         return experimentais;
     } catch (erro) {
         console.error("❌ Erro ao carregar experimentais:", erro);
@@ -1675,20 +1682,34 @@ function salvarEdicaoModalidade(modalidadeAntiga) {
 function renderExperimentaisFuturos() {
     const body = document.getElementById('experimentaisFuturosBody');
     if (!body) return;
+    
     const hoje = formatarDataISO();
     const busca = document.getElementById('buscarExpFuturo')?.value.toLowerCase() || '';
     
+    console.log("📅 Renderizando experimentais futuros...");
+    console.log("📊 Total de experimentais:", experimentais.length);
+    
+    // Filtrar apenas agendados com data futura ou hoje
     let futuros = experimentais.filter(e => {
         if (e.status !== 'agendado') return false;
         if (!e.dataAgendada) return false;
         return e.dataAgendada >= hoje;
     });
     
+    console.log("📊 Experimentais futuros (bruto):", futuros.length);
+    
+    // Ordenar por data
     futuros.sort((a, b) => a.dataAgendada.localeCompare(b.dataAgendada));
     
+    // Filtrar por busca se houver
     if (busca) {
-        futuros = futuros.filter(e => e.nome.toLowerCase().includes(busca) || e.telefone.includes(busca));
+        futuros = futuros.filter(e => 
+            e.nome.toLowerCase().includes(busca) || 
+            e.telefone.includes(busca)
+        );
     }
+    
+    console.log("📊 Experimentais futuros (filtrado):", futuros.length);
     
     if (futuros.length === 0) {
         body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">📭 Nenhuma aula experimental futura agendada</td></tr>';
@@ -1697,13 +1718,15 @@ function renderExperimentaisFuturos() {
     
     body.innerHTML = futuros.map(exp => {
         const horario = horariosConfig.find(h => h.id === exp.horario_id);
+        const dataFormatada = exp.dataAgendada ? formatarDataBR(exp.dataAgendada) : '—';
+        
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:12px;"><strong>${formatarDataBR(exp.dataAgendada)}</strong></td>
+                <td style="padding:12px;"><strong>${dataFormatada}</strong></td>
                 <td style="padding:12px;">${horario ? horario.horario : '??'} - ${exp.dia || ''}</td>
                 <td style="padding:12px;"><strong>${exp.nome}</strong></td>
                 <td style="padding:12px;">${exp.telefone}</td>
-                <td style="padding:12px;"><span style="background:#fef3c7;color:#b45309;padding:4px 8px;border-radius:20px;">📅 Agendado</span></td>
+                <td style="padding:12px;"><span style="background:#fef3c7;color:#b45309;padding:4px 8px;border-radius:20px;font-size:0.75rem;">📅 Agendado</span></td>
                 <td style="padding:12px;display:flex;gap:6px;flex-wrap:wrap;">
                     <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 10px;border-radius:6px;text-decoration:none;font-size:0.75rem;">💬 WhatsApp</a>
                     <button onclick="abrirEdicaoExperimental(${exp.id})" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">✏️ Editar</button>
@@ -2583,7 +2606,7 @@ function salvarExpFab() {
         id: novoId,
         nome: nome, 
         telefone: telefone, 
-        dataAgendada: data,  // ← manter dataAgendada (camelCase)
+        dataAgendada: data,  // ← manter camelCase para o código
         horario_id: parseInt(hId), 
         dia: dia, 
         status: 'agendado', 
@@ -2597,7 +2620,13 @@ function salvarExpFab() {
     
     // Salvar no Supabase
     salvarExperimental(novoExp)
-        .then(() => {
+        .then((expSalvo) => {
+            console.log("✅ Experimental salvo:", expSalvo);
+            // Atualizar o item no array com o ID retornado
+            const index = experimentais.findIndex(e => e.id === novoExp.id);
+            if (index !== -1) {
+                experimentais[index] = { ...experimentais[index], id: expSalvo.id };
+            }
             renderizarTudo();
             renderPainelExperimentaisHoje();
             fecharSuperModal();
@@ -2608,6 +2637,7 @@ function salvarExpFab() {
             const index = experimentais.findIndex(e => e.id === novoExp.id);
             if (index !== -1) experimentais.splice(index, 1);
             console.error("❌ Falha ao salvar experimental:", erro);
+            mostrarToast('❌ Erro ao salvar experimental!', 'erro');
         });
 }
 
