@@ -214,37 +214,71 @@ async function carregarAlunos() {
 
 async function salvarAluno(aluno) {
     try {
-        if (!aluno.nome || !aluno.telefone) {
-            throw new Error('Nome e telefone são obrigatórios');
+        console.log("📤 Salvando aluno:", aluno);
+        
+        // VALIDAR DADOS OBRIGATÓRIOS
+        if (!aluno.nome) throw new Error('Nome é obrigatório');
+        if (!aluno.telefone) throw new Error('Telefone é obrigatório');
+        if (!aluno.codigo || isNaN(aluno.codigo)) {
+            throw new Error('Código inválido ou não informado');
         }
-        if (aluno.codigo) {
-            aluno.codigo = parseInt(aluno.codigo);
-        }
+        
+        // GARANTIR QUE O CÓDIGO É NÚMERO
+        aluno.codigo = parseInt(aluno.codigo);
+        
+        // GARANTIR QUE OS DIAS SÃO NÚMEROS OU NULL
         ['seg','ter','qua','qui','sex','sab'].forEach(dia => {
             if (aluno[dia]) {
                 aluno[dia] = parseInt(aluno[dia]);
+            } else {
+                aluno[dia] = null;
             }
         });
+        
+        let resultado;
+        
         if (aluno.id) {
-            const { error } = await supabaseClient
+            // UPDATE - TEM ID
+            console.log("📤 Atualizando aluno (com ID):", aluno);
+            
+            resultado = await supabaseClient
                 .from('alunos')
                 .update(aluno)
-                .eq('id', aluno.id);
-            if (error) throw error;
-        } else {
-            const { data, error } = await supabaseClient
-                .from('alunos')
-                .insert([aluno])
+                .eq('id', aluno.id)
                 .select();
-            if (error) throw error;
-            if (data && data.length > 0) {
-                aluno.id = data[0].id;
+        } else {
+            // INSERT - REMOVER O ID!
+            const { id, ...alunoParaSalvar } = aluno;
+            
+            console.log("📤 Inserindo aluno (SEM ID):", alunoParaSalvar);
+            
+            resultado = await supabaseClient
+                .from('alunos')
+                .insert([alunoParaSalvar])
+                .select();
+        }
+        
+        if (resultado.error) {
+            console.error("❌ Erro do Supabase:", resultado.error);
+            console.error("❌ Detalhes:", resultado.error.details);
+            console.error("❌ Mensagem:", resultado.error.message);
+            throw resultado.error;
+        }
+        
+        console.log("✅ Resposta:", resultado.data);
+        
+        if (resultado.data && resultado.data.length > 0) {
+            const saved = resultado.data[0];
+            if (!aluno.id) {
+                aluno.id = saved.id;
+                console.log("✅ Aluno inserido com ID:", aluno.id);
             }
         }
-        console.log("✅ Aluno salvo:", aluno.nome);
+        
         return aluno;
     } catch (erro) {
         console.error("❌ Erro ao salvar aluno:", erro);
+        console.error("❌ Dados que causaram erro:", aluno);
         throw erro;
     }
 }
@@ -2433,32 +2467,44 @@ async function salvarMatriculaFab() {
     const telefone = document.getElementById('fPhone').value.trim();
     const modalidade = document.getElementById('fMod').value;
     const vencimento = document.getElementById('fVenc').value;
-    const seg = document.getElementById('cadGradeseg')?.value ? parseInt(document.getElementById('cadGradeseg').value) : '';
-    const ter = document.getElementById('cadGradeter')?.value ? parseInt(document.getElementById('cadGradeter').value) : '';
-    const qua = document.getElementById('cadGradequa')?.value ? parseInt(document.getElementById('cadGradequa').value) : '';
-    const qui = document.getElementById('cadGradequi')?.value ? parseInt(document.getElementById('cadGradequi').value) : '';
-    const sex = document.getElementById('cadGradesex')?.value ? parseInt(document.getElementById('cadGradesex').value) : '';
-    const sab = document.getElementById('cadGradesab')?.value ? parseInt(document.getElementById('cadGradesab').value) : '';
+    
+    // VALIDAR
     if (!codigo) { alert('⚠️ Digite o código do aluno!'); return; }
     if (!nome) { alert('⚠️ Digite o nome do aluno!'); return; }
     if (!telefone) { alert('⚠️ Digite o telefone do aluno!'); return; }
+    
     const codigoNumero = parseInt(codigo);
     if (isNaN(codigoNumero)) {
         alert('⚠️ Código inválido! Digite apenas números.');
         return;
     }
+    
+    // VERIFICAR SE CÓDIGO JÁ EXISTE
     const codigoExistente = alunos.find(a => Number(a.codigo) === Number(codigoNumero));
     if (codigoExistente) { 
         alert(`⚠️ Código ${codigoNumero} já está em uso por ${codigoExistente.nome}!`); 
         return; 
     }
-    const statusDef = (!seg && !ter && !qua && !qui && !sex && !sab) ? 'PENDENTE' : 'ATIVO';
+    
+    // PEGAR OS DIAS
+    const seg = document.getElementById('cadGradeseg')?.value ? parseInt(document.getElementById('cadGradeseg').value) : null;
+    const ter = document.getElementById('cadGradeter')?.value ? parseInt(document.getElementById('cadGradeter').value) : null;
+    const qua = document.getElementById('cadGradequa')?.value ? parseInt(document.getElementById('cadGradequa').value) : null;
+    const qui = document.getElementById('cadGradequi')?.value ? parseInt(document.getElementById('cadGradequi').value) : null;
+    const sex = document.getElementById('cadGradesex')?.value ? parseInt(document.getElementById('cadGradesex').value) : null;
+    const sab = document.getElementById('cadGradesab')?.value ? parseInt(document.getElementById('cadGradesab').value) : null;
+    
+    // DETERMINAR STATUS
+    const temDias = [seg, ter, qua, qui, sex, sab].some(d => d !== null && d !== undefined && d !== '');
+    const statusDef = temDias ? 'ATIVO' : 'PENDENTE';
+    
+    // CRIAR OBJETO - SEM ID!
     const novoAluno = { 
         codigo: codigoNumero,
         nome: nome,
         telefone: telefone,
-        vencimento: vencimento,
-        modalidade: modalidade,
+        vencimento: vencimento || null,
+        modalidade: modalidade || '',
         seg: seg,
         ter: ter,
         qua: qua,
@@ -2467,8 +2513,11 @@ async function salvarMatriculaFab() {
         sab: sab,
         status: statusDef,
         observacao: ''
+        // NÃO TEM ID - O BANCO VAI GERAR!
     };
-    console.log("📝 Salvando aluno:", novoAluno);
+    
+    console.log("📝 Salvando novo aluno (SEM ID):", novoAluno);
+    
     try {
         const alunoSalvo = await salvarAluno(novoAluno);
         alunos.push(alunoSalvo);
@@ -2477,8 +2526,8 @@ async function salvarMatriculaFab() {
         fecharSuperModal();
         mostrarToast(`✅ ${nome} matriculado com sucesso! (Código: ${codigoNumero})`);
     } catch (erro) {
-        alert(`❌ Erro ao salvar aluno: ${erro.message}`);
-        console.error('Erro no cadastro:', erro);
+        console.error('❌ Erro no cadastro:', erro);
+        alert(`❌ Erro ao salvar aluno: ${erro.message || 'Erro desconhecido'}`);
     }
 }
 
