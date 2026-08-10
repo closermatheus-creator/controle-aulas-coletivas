@@ -11,7 +11,7 @@ const SISTEMA_VERSAO = "7.2.20260127";
 // CONFIGURAÇÃO DO SUPABASE (NOVA)
 // ============================================================
 const SUPABASE_URL = "https://tibkrjcwtcinedijfuvt.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable__kiaNy9c-My-wHiD8zI2eg_guEYcFnb";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpYmtyamN3dGNpbmVkaWpmdXZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMDMwNzIsImV4cCI6MjA5ODY3OTA3Mn0.Rp4YlmeR0oWDPm7mWS3RyCHlq43W9twRz0vXk4S-M7E";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
