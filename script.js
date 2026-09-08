@@ -8,22 +8,6 @@
 const SISTEMA_VERSAO = "7.2.20260127";
 
 // ============================================================
-// ÍCONES (Lucide) — renderiza automaticamente sempre que o DOM muda,
-// sem precisar chamar manualmente em cada função de render.
-// ============================================================
-if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-    const iconObserver = new MutationObserver(() => {
-        clearTimeout(window.__iconRenderTimer);
-        window.__iconRenderTimer = setTimeout(() => lucide.createIcons(), 30);
-    });
-    document.addEventListener('DOMContentLoaded', () => {
-        iconObserver.observe(document.body, { childList: true, subtree: true });
-        lucide.createIcons();
-    });
-}
-
-// ============================================================
 // CONFIGURAÇÃO DO SUPABASE (NOVA)
 // ============================================================
 const SUPABASE_URL = "https://tibkrjcwtcinedijfuvt.supabase.co";
@@ -35,37 +19,6 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         autoRefreshToken: false
     }
 });
-
-// ============================================================
-// REALTIME — avisa o navegador quando algo muda no Supabase
-// (ex: a IA do WhatsApp cria uma experimental direto no banco)
-// Mais econômico em cota que ficar perguntando ao banco toda hora.
-// ============================================================
-function configurarRealtime() {
-    supabaseClient
-        .channel('aquacontrol-experimentais')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'experimentais_futuros' }, async (payload) => {
-            console.log('🔔 Nova experimental recebida via Realtime:', payload);
-            await carregarExperimentais(true);
-            renderizarTudo();
-            renderPainelExperimentaisHoje();
-            mostrarToast('<i data-lucide="bell" class="ic-sm"></i> Nova aula experimental agendada!');
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'experimentais_futuros' }, async (payload) => {
-            await carregarExperimentais(true);
-            renderizarTudo();
-            renderPainelExperimentaisHoje();
-        })
-        .subscribe();
-
-    supabaseClient
-        .channel('aquacontrol-reposicoes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'reposicoes' }, async (payload) => {
-            await carregarReposicoes(true);
-            renderizarTudo();
-        })
-        .subscribe();
-}
 
 // ============================================================
 // CONFIGURAÇÃO DE CACHE
@@ -110,7 +63,7 @@ function setCache(key, value, ttl = CACHE_CONFIG.TTL_ALUNOS) {
 }
 
 function clearCache() {
-    const keys = ['cache_alunos', 'cache_experimentais', 'cache_turmas', 'cache_historico', 'cache_professores', 'cache_reposicoes', 'cache_modalidades'];
+    const keys = ['cache_alunos', 'cache_experimentais', 'cache_turmas', 'cache_historico'];
     keys.forEach(key => localStorage.removeItem(key));
 }
 
@@ -142,13 +95,12 @@ function updateDirtyIndicator() {
     const indicator = document.getElementById('dirtyIndicator');
     if (indicator) {
         if (hasDirty()) {
-            indicator.innerHTML = '● Alterações não salvas';
-            indicator.style.color = '#a37a3f';
+            indicator.textContent = '● Alterações não salvas';
+            indicator.style.color = '#f59e0b';
             indicator.style.display = 'inline';
         } else {
-            indicator.innerHTML = '<i data-lucide="check" class="ic-sm"></i> Todos salvos';
-            indicator.style.color = '#5f7360';
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            indicator.textContent = '✓ Todos salvos';
+            indicator.style.color = '#10b981';
             setTimeout(() => {
                 indicator.style.display = 'none';
             }, 3000);
@@ -168,112 +120,6 @@ let modalidadesDisponiveis = [
     "Natação Baby",
     "Personal Class"
 ];
-
-// ============================================================
-// LISTA DE PROFESSORES (persistida no Supabase, tabela config)
-// ============================================================
-let professoresDisponiveis = [];
-
-async function carregarProfessores(forceRefresh = false) {
-    if (!forceRefresh) {
-        const cached = getCache('cache_professores');
-        if (cached) {
-            professoresDisponiveis = cached;
-            console.log("✅ Professores carregados do CACHE:", professoresDisponiveis.length);
-            return professoresDisponiveis;
-        }
-    }
-    try {
-        const { data, error } = await supabaseClient
-            .from('config')
-            .select('valor')
-            .eq('chave', 'professores')
-            .single();
-
-        if (error) {
-            await supabaseClient
-                .from('config')
-                .insert([{ chave: 'professores', valor: JSON.stringify(professoresDisponiveis) }]);
-            setCache('cache_professores', professoresDisponiveis, CACHE_CONFIG.TTL_TURMAS);
-            return professoresDisponiveis;
-        }
-
-        if (data && data.valor) {
-            const lista = typeof data.valor === 'string' ? JSON.parse(data.valor) : data.valor;
-            professoresDisponiveis = Array.isArray(lista) ? lista : [];
-            setCache('cache_professores', professoresDisponiveis, CACHE_CONFIG.TTL_TURMAS);
-            console.log("✅ Professores carregados:", professoresDisponiveis.length);
-        }
-        return professoresDisponiveis;
-    } catch (erro) {
-        console.error("❌ Erro ao carregar professores:", erro);
-        const cached = getCache('cache_professores');
-        if (cached) { professoresDisponiveis = cached; }
-        return professoresDisponiveis;
-    }
-}
-
-async function salvarProfessores() {
-    try {
-        const { error } = await supabaseClient
-            .from('config')
-            .update({
-                valor: JSON.stringify(professoresDisponiveis),
-                ultima_atualizacao: new Date().toISOString()
-            })
-            .eq('chave', 'professores');
-        if (error) throw error;
-        setCache('cache_professores', professoresDisponiveis, CACHE_CONFIG.TTL_TURMAS);
-        console.log("✅ Professores salvos:", professoresDisponiveis.length);
-        return true;
-    } catch (erro) {
-        console.error("❌ Erro ao salvar professores:", erro);
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> Erro ao salvar professor. Tente novamente.', 'erro');
-        return false;
-    }
-}
-
-// Abre um prompt simples pra cadastrar professor novo a partir de qualquer select
-async function cadastrarNovoProfessorInline(selectEl, valorAnterior) {
-    const nome = prompt('Nome do novo professor:');
-    if (!nome || !nome.trim()) {
-        selectEl.value = valorAnterior; // cancelou — volta pro valor de antes
-        return;
-    }
-    const nomeLimpo = nome.trim();
-    if (professoresDisponiveis.includes(nomeLimpo)) {
-        alert(`O professor "${nomeLimpo}" já está cadastrado! Selecionando ele na lista.`);
-    } else {
-        professoresDisponiveis.push(nomeLimpo);
-        professoresDisponiveis.sort();
-        const ok = await salvarProfessores();
-        if (!ok) { selectEl.value = valorAnterior; return; }
-        mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Professor "${nomeLimpo}" cadastrado!`);
-    }
-    // Repopula todos os selects de professor visíveis; o que disparou a ação já fica com o nome novo selecionado
-    document.querySelectorAll('.professor-select-field').forEach(sel => {
-        const valorParaEsseSelect = sel === selectEl ? nomeLimpo : sel.value;
-        sel.innerHTML = renderOpcoesProfessor(valorParaEsseSelect);
-    });
-}
-
-function renderOpcoesProfessor(valorSelecionado) {
-    const semProfessor = `<option value="" ${!valorSelecionado ? 'selected' : ''}>— Sem professor definido —</option>`;
-    const opcoes = professoresDisponiveis.map(p => `<option value="${p}" ${valorSelecionado === p ? 'selected' : ''}>${p}</option>`).join('');
-    const criarNovo = `<option value="__novo__"><i data-lucide="plus" class="ic-sm"></i> Cadastrar novo professor...</option>`;
-    return semProfessor + opcoes + criarNovo;
-}
-
-// Handler chamado pelo onchange do select de professor — se escolher "cadastrar novo", abre o prompt
-function onProfessorSelectChange(selectEl) {
-    if (selectEl.value === '__novo__') {
-        // valor anterior = a opção que não é "__novo__" que estava marcada antes (fica em branco se não achar)
-        const valorAnterior = selectEl.dataset.valorAnterior || '';
-        cadastrarNovoProfessorInline(selectEl, valorAnterior);
-    } else {
-        selectEl.dataset.valorAnterior = selectEl.value;
-    }
-}
 
 // ============================================================
 // GRADE HORÁRIA
@@ -624,256 +470,6 @@ async function carregarExperimentais(forceRefresh = false) {
     }
 }
 
-// ============================================================
-// AULAS DE REPOSIÇÃO
-// ============================================================
-let reposicoes = [];
-
-async function carregarReposicoes(forceRefresh = false) {
-    if (!forceRefresh) {
-        const cached = getCache('cache_reposicoes');
-        if (cached) {
-            reposicoes = cached;
-            console.log("✅ Reposições carregadas do CACHE:", reposicoes.length);
-            return reposicoes;
-        }
-    }
-    try {
-        const { data, error } = await supabaseClient
-            .from('reposicoes')
-            .select('*')
-            .order('data', { ascending: true })
-            .limit(500);
-        if (error) throw error;
-
-        reposicoes = (data || []).map(r => ({
-            id: r.id,
-            alunoNome: r.aluno_nome || '',
-            alunoTelefone: r.aluno_telefone || '',
-            alunoCodigo: r.aluno_codigo || null,
-            horario_id: r.horario_id,
-            data: r.data,
-            criadoEm: r.criado_em || ''
-        }));
-        setCache('cache_reposicoes', reposicoes, CACHE_CONFIG.TTL_EXPERIMENTAIS);
-        console.log("✅ Reposições carregadas:", reposicoes.length);
-        return reposicoes;
-    } catch (erro) {
-        console.error("❌ Erro ao carregar reposições:", erro);
-        const cached = getCache('cache_reposicoes');
-        if (cached) { reposicoes = cached; }
-        else { reposicoes = []; }
-        return reposicoes;
-    }
-}
-
-async function salvarReposicaoNova(rep) {
-    try {
-        const { data, error } = await supabaseClient
-            .from('reposicoes')
-            .insert([{
-                aluno_nome: rep.alunoNome,
-                aluno_telefone: rep.alunoTelefone,
-                aluno_codigo: rep.alunoCodigo || null,
-                horario_id: rep.horario_id,
-                data: rep.data
-            }])
-            .select();
-        if (error) throw error;
-        if (data && data[0]) {
-            reposicoes.push({
-                id: data[0].id,
-                alunoNome: data[0].aluno_nome,
-                alunoTelefone: data[0].aluno_telefone,
-                alunoCodigo: data[0].aluno_codigo,
-                horario_id: data[0].horario_id,
-                data: data[0].data,
-                criadoEm: data[0].criado_em
-            });
-            setCache('cache_reposicoes', reposicoes, CACHE_CONFIG.TTL_EXPERIMENTAIS);
-        }
-        return true;
-    } catch (erro) {
-        console.error("❌ Erro ao salvar reposição:", erro);
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> Erro ao marcar reposição. Tente novamente.', 'erro');
-        return false;
-    }
-}
-
-async function excluirReposicao(id) {
-    try {
-        const { error } = await supabaseClient.from('reposicoes').delete().eq('id', id);
-        if (error) throw error;
-        reposicoes = reposicoes.filter(r => r.id !== id);
-        setCache('cache_reposicoes', reposicoes, CACHE_CONFIG.TTL_EXPERIMENTAIS);
-        renderizarTudo();
-        mostrarToast('<i data-lucide="check" class="ic-sm"></i> Reposição removida!');
-    } catch (erro) {
-        console.error("❌ Erro ao excluir reposição:", erro);
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> Erro ao remover reposição.', 'erro');
-    }
-}
-
-// Passo 1: buscar aluno já cadastrado pra confirmar antes de marcar a reposição
-function abrirMarcarReposicao() {
-    const modal = document.getElementById('globalSuperModal');
-    const titulo = document.getElementById('superModalTitulo');
-    const corpo = document.getElementById('superModalCorpo');
-    titulo.innerHTML = '<i data-lucide="refresh-cw" class="ic-sm"></i> Marcar Aula de Reposição';
-    corpo.innerHTML = `
-        <div style="max-width:500px;margin:0 auto;">
-            <div style="margin-bottom:15px;padding:12px;background:#f0e9dc;border-radius:8px;color:#7d5c30;font-size:0.85rem;">
-                <i data-lucide="lightbulb" class="ic-sm"></i> Busque o aluno pelo nome, código ou telefone. Você vai confirmar o nome antes de marcar a reposição.
-            </div>
-            <input type="text" id="reposicaoBuscaAluno" class="search-input-field" style="width:100%;padding:10px;margin-bottom:10px;" placeholder="Buscar por nome, código ou telefone..." oninput="renderResultadosBuscaReposicao()">
-            <div id="reposicaoResultadosBusca" style="max-height:300px;overflow-y:auto;"></div>
-        </div>
-    `;
-    modal.classList.add('active');
-}
-
-function renderResultadosBuscaReposicao() {
-    const termo = document.getElementById('reposicaoBuscaAluno')?.value.toLowerCase().trim() || '';
-    const container = document.getElementById('reposicaoResultadosBusca');
-    if (!container) return;
-    if (!termo) { container.innerHTML = ''; return; }
-    const encontrados = alunos.filter(a =>
-        String(a.nome || '').toLowerCase().includes(termo) ||
-        String(a.codigo || '').includes(termo) ||
-        String(a.telefone || '').includes(termo)
-    ).slice(0, 15);
-    if (encontrados.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:15px;color:#a49c8f;">Nenhum aluno encontrado.</div>';
-        return;
-    }
-    container.innerHTML = encontrados.map(a => `
-        <div onclick="confirmarAlunoReposicao(${a.codigo}, '${String(a.nome).replace(/'/g, "\\'")}', '${a.telefone}')"
-             style="padding:10px;border:1px solid #e4dfd6;border-radius:8px;margin-bottom:6px;cursor:pointer;">
-            <div style="font-weight:bold;">${a.nome}</div>
-            <div style="font-size:0.8rem;color:#6b645a;">Código: ${a.codigo} · <i data-lucide="phone" class="ic-sm"></i> ${a.telefone}</div>
-        </div>
-    `).join('');
-}
-
-// Passo 2: confirmar o aluno certo antes de prosseguir
-function confirmarAlunoReposicao(codigo, nome, telefone) {
-    if (!confirm(`Confirma que a reposição é para:\n\n${nome}\nCódigo: ${codigo}\nTelefone: ${telefone}\n\nEstá correto?`)) {
-        return;
-    }
-    abrirEscolherTurmaReposicao(codigo, nome, telefone);
-}
-
-// Passo 3: escolher turma e data da reposição
-function abrirEscolherTurmaReposicao(codigo, nome, telefone) {
-    const modal = document.getElementById('globalSuperModal');
-    const titulo = document.getElementById('superModalTitulo');
-    const corpo = document.getElementById('superModalCorpo');
-    titulo.innerHTML = `<i data-lucide="refresh-cw" class="ic-sm"></i> Reposição de ${nome}`;
-    const turmasOrdenadas = [...horariosConfig].sort((a,b) => a.modalidade.localeCompare(b.modalidade) || horarioParaMinutos(a.horario) - horarioParaMinutos(b.horario));
-    corpo.innerHTML = `
-        <div style="max-width:500px;margin:0 auto;">
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Turma da reposição:</label>
-                <select id="repTurmaId" class="form-select-field" style="width:100%;padding:10px;">
-                    ${turmasOrdenadas.map(h => `<option value="${h.id}">${h.modalidade} — ${h.horario} (${h.dias.join('/')})</option>`).join('')}
-                </select>
-            </div>
-            <div style="margin-bottom:20px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;">Data da reposição:</label>
-                <input type="date" id="repData" class="search-input-field" style="width:100%;padding:10px;" value="${formatarDataISO()}">
-            </div>
-            <div class="form-actions-row" style="display:flex;gap:10px;justify-content:flex-end;">
-                <button class="btn-save-modal" onclick="salvarReposicaoFinal(${codigo}, '${nome.replace(/'/g, "\\'")}', '${telefone}')" style="background:#96703c;"><i data-lucide="check" class="ic-sm"></i> Marcar Reposição</button>
-                <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
-            </div>
-        </div>
-    `;
-    modal.classList.add('active');
-}
-
-async function salvarReposicaoFinal(codigo, nome, telefone) {
-    const horarioId = parseInt(document.getElementById('repTurmaId').value);
-    const data = document.getElementById('repData').value;
-    if (!data) { alert('Escolha a data da reposição!'); return; }
-    const ok = await salvarReposicaoNova({
-        alunoNome: nome,
-        alunoTelefone: telefone,
-        alunoCodigo: codigo,
-        horario_id: horarioId,
-        data: data
-    });
-    if (ok) {
-        fecharSuperModal();
-        renderizarTudo();
-        mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Reposição de ${nome} marcada!`);
-    }
-}
-
-// ============================================================
-// PERSISTÊNCIA DE MODALIDADES (antes só vivia na memória — corrigido)
-// ============================================================
-async function carregarModalidades(forceRefresh = false) {
-    if (!forceRefresh) {
-        const cached = getCache('cache_modalidades');
-        if (cached && cached.length > 0) {
-            modalidadesDisponiveis = cached;
-            console.log("✅ Modalidades carregadas do CACHE:", modalidadesDisponiveis.length);
-            return modalidadesDisponiveis;
-        }
-    }
-    try {
-        const { data, error } = await supabaseClient
-            .from('config')
-            .select('valor')
-            .eq('chave', 'modalidades')
-            .single();
-
-        if (error) {
-            // Primeira vez — cria a config com a lista padrão que já está em memória
-            await supabaseClient
-                .from('config')
-                .insert([{ chave: 'modalidades', valor: JSON.stringify(modalidadesDisponiveis) }]);
-            setCache('cache_modalidades', modalidadesDisponiveis, CACHE_CONFIG.TTL_TURMAS);
-            return modalidadesDisponiveis;
-        }
-
-        if (data && data.valor) {
-            const lista = typeof data.valor === 'string' ? JSON.parse(data.valor) : data.valor;
-            if (Array.isArray(lista) && lista.length > 0) {
-                modalidadesDisponiveis = lista;
-                setCache('cache_modalidades', modalidadesDisponiveis, CACHE_CONFIG.TTL_TURMAS);
-                console.log("✅ Modalidades carregadas:", modalidadesDisponiveis.length);
-            }
-        }
-        return modalidadesDisponiveis;
-    } catch (erro) {
-        console.error("❌ Erro ao carregar modalidades:", erro);
-        const cached = getCache('cache_modalidades');
-        if (cached) { modalidadesDisponiveis = cached; }
-        return modalidadesDisponiveis;
-    }
-}
-
-async function salvarModalidades() {
-    try {
-        const { error } = await supabaseClient
-            .from('config')
-            .update({
-                valor: JSON.stringify(modalidadesDisponiveis),
-                ultima_atualizacao: new Date().toISOString()
-            })
-            .eq('chave', 'modalidades');
-        if (error) throw error;
-        setCache('cache_modalidades', modalidadesDisponiveis, CACHE_CONFIG.TTL_TURMAS);
-        console.log("✅ Modalidades salvas:", modalidadesDisponiveis.length);
-        return true;
-    } catch (erro) {
-        console.error("❌ Erro ao salvar modalidades:", erro);
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> Erro ao salvar modalidade. Tente novamente.', 'erro');
-        return false;
-    }
-}
-
 async function salvarExperimental(exp) {
     try {
         console.log("📤 Salvando experimental:", exp);
@@ -947,7 +543,7 @@ async function salvarExperimental(exp) {
         return exp;
     } catch (erro) {
         console.error("❌ Erro ao salvar:", erro);
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> Erro ao salvar: ' + (erro.message || 'Erro desconhecido'), 'erro');
+        mostrarToast('❌ Erro ao salvar: ' + (erro.message || 'Erro desconhecido'), 'erro');
         throw erro;
     }
 }
@@ -1118,7 +714,7 @@ function startAutoSave() {
 // ============================================================
 async function carregarDados() {
     const statusEl = document.getElementById('googleStatus');
-    if (statusEl) statusEl.innerHTML = '<i data-lucide="refresh-cw" class="ic-sm"></i> Sincronizando...';
+    if (statusEl) statusEl.innerText = '🔄 Sincronizando...';
     document.getElementById('loadingBanner').style.display = 'block';
 
     try {
@@ -1126,51 +722,44 @@ async function carregarDados() {
         await Promise.all([
             carregarTurmas(false),
             carregarAlunos(false),
-            carregarExperimentais(false),
-            carregarProfessores(false),
-            carregarReposicoes(false),
-            carregarModalidades(false)
+            carregarExperimentais(false)
         ]);
         
         if (statusEl) { 
-            statusEl.innerHTML = '<i data-lucide="check" class="ic-sm"></i> Online (Cache)'; 
+            statusEl.innerText = '✅ Online (Cache)'; 
             statusEl.classList.add('online'); 
         }
     } catch (erro) {
         console.error("Erro ao carregar dados:", erro);
-        if (statusEl) statusEl.innerHTML = '<i data-lucide="triangle-alert" class="ic-sm"></i> Modo Local';
+        if (statusEl) statusEl.innerText = '⚠️ Modo Local';
     } finally {
         document.getElementById('loadingBanner').style.display = 'none';
         renderizarTudo();
         renderPainelExperimentaisHoje();
         startAutoSave(); // Inicia auto-save após carregar
-        configurarRealtime(); // Passa a escutar mudanças em tempo real no Supabase
     }
 }
 
 // Função para forçar recarga do servidor
 async function recarregarDadosDoServidor() {
     const statusEl = document.getElementById('googleStatus');
-    if (statusEl) statusEl.innerHTML = '<i data-lucide="refresh-cw" class="ic-sm"></i> Forçando recarga...';
+    if (statusEl) statusEl.innerText = '🔄 Forçando recarga...';
     document.getElementById('loadingBanner').style.display = 'block';
 
     try {
         await Promise.all([
             carregarTurmas(true),
             carregarAlunos(true),
-            carregarExperimentais(true),
-            carregarProfessores(true),
-            carregarReposicoes(true),
-            carregarModalidades(true)
+            carregarExperimentais(true)
         ]);
         if (statusEl) { 
-            statusEl.innerHTML = '<i data-lucide="check" class="ic-sm"></i> Atualizado!'; 
+            statusEl.innerText = '✅ Atualizado!'; 
             statusEl.classList.add('online'); 
         }
-        mostrarToast('<i data-lucide="check" class="ic-sm"></i> Dados recarregados do servidor!', 'sucesso');
+        mostrarToast('✅ Dados recarregados do servidor!', 'sucesso');
     } catch (erro) {
         console.error("Erro ao recarregar:", erro);
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> Erro ao recarregar dados!', 'erro');
+        mostrarToast('❌ Erro ao recarregar dados!', 'erro');
     } finally {
         document.getElementById('loadingBanner').style.display = 'none';
         renderizarTudo();
@@ -1215,9 +804,9 @@ function verificarVencimento(dataVenc) {
     const hoje = new Date();
     const dataComp = new Date(hoje.getFullYear(), parseInt(partes[1])-1, parseInt(partes[0]));
     const diff = Math.ceil((dataComp - hoje) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return { vencido: true, texto: `<i data-lucide="triangle-alert" class="ic-sm"></i> Vencido` };
-    if (diff === 0) return { vencido: true, texto: `<i data-lucide="triangle-alert" class="ic-sm"></i> Vence hoje` };
-    return { vencido: false, texto: `<i data-lucide="circle" class="ic-sm"></i> ${partes[0]}/${partes[1]}` };
+    if (diff < 0) return { vencido: true, texto: `⚠️ Vencido` };
+    if (diff === 0) return { vencido: true, texto: `⚠️ Vence hoje` };
+    return { vencido: false, texto: `🟢 ${partes[0]}/${partes[1]}` };
 }
 
 function limparData(dataVenc) {
@@ -1230,9 +819,9 @@ function limparData(dataVenc) {
 }
 
 function badgeStatus(status) {
-    if (status === 'PAUSADO') return `<span style="background:#f2e8d8;color:#7d5c30;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:bold;"><i data-lucide="pause" class="ic-sm"></i> PAUSADO</span>`;
-    if (status === 'TRANCADO') return `<span style="background:#f3e3e0;color:#9a5142;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:bold;"><i data-lucide="lock" class="ic-sm"></i> TRANCADO</span>`;
-    return `<span style="background:#e8ede8;color:#4d604e;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:bold;"><i data-lucide="circle" class="ic-sm"></i> ATIVO</span>`;
+    if (status === 'PAUSADO') return `<span style="background:#fef3c7;color:#b45309;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:bold;">⏸ PAUSADO</span>`;
+    if (status === 'TRANCADO') return `<span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:bold;">🔒 TRANCADO</span>`;
+    return `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:bold;">🟢 ATIVO</span>`;
 }
 
 function alunoContaOcupacao(a) {
@@ -1281,25 +870,24 @@ function atualizarWidgets() {
     const widget = document.getElementById('macroStatsWidget');
     if (!widget) return;
     widget.innerHTML = `
-        <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl"><i data-lucide="target" class="ic-sm"></i> Total Alunos</div><div class="sub">Alunos únicos ativos</div></div>
-        <div class="widget vencidos-border"><div class="val" style="color:#9a5142;">${vencidos}</div><div class="lbl"><i data-lucide="triangle-alert" class="ic-sm"></i> Vencidos</div><div class="sub">Planos Atrasados</div></div>
-        <div class="widget emdia-border"><div class="val" style="color:#5f7360;">${emDia}</div><div class="lbl"><i data-lucide="check" class="ic-sm"></i> Em Dia</div><div class="sub">Planos Ativos</div></div>
-        <div class="widget"><div class="val">${matriculas.manha}</div><div class="lbl"><i data-lucide="sunrise" class="ic-sm"></i> Manhã</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${matriculas.tarde}</div><div class="lbl"><i data-lucide="sun" class="ic-sm"></i> Tarde</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${matriculas.noite}</div><div class="lbl"><i data-lucide="moon" class="ic-sm"></i> Noite</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${matriculas.sabado}</div><div class="lbl"><i data-lucide="calendar" class="ic-sm"></i> Sábados</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${pctOcupacao}%</div><div class="lbl"><i data-lucide="bar-chart-3" class="ic-sm"></i> Ocupação</div><div class="progress-mini"><div class="progress-mini-fill" style="width:${pctOcupacao}%"></div></div></div>
+        <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl">🎯 Total Alunos</div><div class="sub">Alunos únicos ativos</div></div>
+        <div class="widget vencidos-border"><div class="val" style="color:#ef4444;">${vencidos}</div><div class="lbl">⚠️ Vencidos</div><div class="sub">Planos Atrasados</div></div>
+        <div class="widget emdia-border"><div class="val" style="color:#10b981;">${emDia}</div><div class="lbl">✅ Em Dia</div><div class="sub">Planos Ativos</div></div>
+        <div class="widget"><div class="val">${matriculas.manha}</div><div class="lbl">🌅 Manhã</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${matriculas.tarde}</div><div class="lbl">☀️ Tarde</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${matriculas.noite}</div><div class="lbl">🌙 Noite</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${matriculas.sabado}</div><div class="lbl">📅 Sábados</div><div class="sub">Matrículas</div></div>
+        <div class="widget"><div class="val">${pctOcupacao}%</div><div class="lbl">📊 Ocupação</div><div class="progress-mini"><div class="progress-mini-fill" style="width:${pctOcupacao}%"></div></div></div>
     `;
 }
 
 function mostrarToast(msg, tipo = 'sucesso') {
     let t = document.getElementById('toastGlobal');
     if (!t) { t = document.createElement('div'); t.id = 'toastGlobal'; t.className = 'toast'; document.body.appendChild(t); }
-    t.innerHTML = msg;
+    t.textContent = msg;
     t.className = `toast ${tipo === 'erro' ? 'erro' : ''}`;
     setTimeout(() => t.classList.add('show'), 10);
     setTimeout(() => t.classList.remove('show'), 3000);
-    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // ============================================================
@@ -1344,11 +932,7 @@ function renderizarTudo() {
     if (query) {
         filtrados = filtrados.filter(h => {
             const matchHor = h.horario.includes(query) || h.modalidade.toLowerCase().includes(query);
-            const matchAl = getAlunosPorHorarioDia(h.id, null).some(a =>
-                String(a.nome).toLowerCase().includes(query) ||
-                String(a.codigo || '').includes(query) ||
-                String(a.telefone || '').toLowerCase().includes(query)
-            );
+            const matchAl = getAlunosPorHorarioDia(h.id, null).some(a => String(a.nome).toLowerCase().includes(query));
             return matchHor || matchAl;
         });
     }
@@ -1369,7 +953,7 @@ function renderizarTudo() {
     }
 
     if (filtrados.length === 0) {
-        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#a49c8f;font-weight:600;"><i data-lucide="search" class="ic-sm"></i> Nenhum horário atende aos filtros.</div>';
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#94a3b8;font-weight:600;">🔍 Nenhum horário atende aos filtros.</div>';
         return;
     }
 
@@ -1381,9 +965,8 @@ function renderizarTudo() {
         const diasRef = diasFiltro.length > 0 ? diasFiltro : null;
         const qtd = diasRef ? getOcupacaoHorarioDia(h.id, diasRef) : getOcupacaoHorarioDia(h.id, null);
         const pct = Math.min((qtd / h.capacidade) * 100, 100);
-        const corBarra = pct >= 100 ? '#9a5142' : (pct >= 70 ? '#a37a3f' : '#5f7360');
+        const corBarra = pct >= 100 ? '#ef4444' : (pct >= 70 ? '#f59e0b' : '#10b981');
         const expQtd = experimentais.filter(e => e.horario_id === h.id && e.status === 'agendado').length;
-        const repHoje = reposicoes.filter(r => r.horario_id === h.id && r.data === hojeStr);
 
         let cardStyle = `border-top: 4px solid ${corBarra};`;
         let badgeTempo = '';
@@ -1395,11 +978,11 @@ function renderizarTudo() {
             const diff = minInicio - minAtuais;
 
             if (minAtuais >= minInicio && minAtuais <= minFim) {
-                cardStyle = `border-top: 4px solid #a37a3f; opacity: 1;`;
-                badgeTempo = `<span style="background:#a37a3f;color:white;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:bold;margin-left:6px;"><i data-lucide="rocket" class="ic-sm"></i> EM ANDAMENTO</span>`;
+                cardStyle = `border-top: 4px solid #f59e0b; opacity: 1;`;
+                badgeTempo = `<span style="background:#f59e0b;color:white;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:bold;margin-left:6px;">🚀 EM ANDAMENTO</span>`;
             } else if (diff > 0 && diff <= 120) {
-                cardStyle = `border-top: 4px solid #96703c; opacity: 1;`;
-                badgeTempo = `<span style="background:#96703c;color:white;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:bold;margin-left:6px;"><i data-lucide="clock" class="ic-sm"></i> PRÓX. 2H</span>`;
+                cardStyle = `border-top: 4px solid #0284c7; opacity: 1;`;
+                badgeTempo = `<span style="background:#0284c7;color:white;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:bold;margin-left:6px;">⏱️ PRÓX. 2H</span>`;
             }
         }
 
@@ -1410,17 +993,13 @@ function renderizarTudo() {
                 <div class="card-header">
                     <h3><span>${h.modalidade}</span><span class="horario">${h.horario}</span>${badgeTempo}</h3>
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div class="dias"><i data-lucide="calendar" class="ic-sm"></i> ${diasExibir.join(' • ')}</div>
-                        <button onclick="event.stopPropagation(); abrirEdicaoTurma(${h.id})" style="background:none;border:1px solid #e4dfd6;border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer;"><i data-lucide="pencil" class="ic-sm"></i> Editar Turma</button>
+                        <div class="dias">📅 ${diasExibir.join(' • ')}</div>
+                        <button onclick="event.stopPropagation(); abrirEdicaoTurma(${h.id})" style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer;">✏️ Editar Turma</button>
                     </div>
                 </div>
-                ${h.professor ? `<div style="font-size:0.78rem;color:#6b645a;margin-top:2px;"><i data-lucide="user-round" class="ic-sm"></i> ${h.professor}</div>` : ''}
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:0.9rem;font-weight:700;color:#3a3630;">
-                    <span><i data-lucide="users" class="ic-sm"></i> Alunos: ${qtd}/${h.capacidade}</span>
-                    <div style="display:flex;gap:4px;">
-                        ${expQtd > 0 ? `<span style="background:#7d5c30;color:white;padding:2px 6px;border-radius:4px;font-size:0.75rem;"><i data-lucide="flask-conical" class="ic-sm"></i> ${expQtd} exp</span>` : ''}
-                        ${repHoje.length > 0 ? `<span title="${repHoje.map(r=>r.alunoNome).join(', ')}" style="background:#3a3630;color:white;padding:2px 6px;border-radius:4px;font-size:0.75rem;"><i data-lucide="refresh-cw" class="ic-sm"></i> ${repHoje.length} rep</span>` : ''}
-                    </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:0.9rem;font-weight:700;color:#475569;">
+                    <span>👥 Alunos: ${qtd}/${h.capacidade}</span>
+                    ${expQtd > 0 ? `<span style="background:#b45309;color:white;padding:2px 6px;border-radius:4px;font-size:0.75rem;">🧪 ${expQtd} exp</span>` : ''}
                 </div>
                 <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${corBarra};"></div></div>
             </div>
@@ -1475,9 +1054,7 @@ function getOcupacaoHorarioDia(horarioId, diaFiltro) {
             return true;
         }).length;
     }
-    // Reposições contam na ocupação apenas no dia em que estão marcadas (data específica, não recorrente)
-    const repCount = (reposicoes || []).filter(r => r.horario_id === horarioId && r.data === hojeStr).length;
-    return alunosCount + expCount + repCount;
+    return alunosCount + expCount;
 }
 
 function gerarCardsDisponibilidade(horario, diasFiltro) {
@@ -1486,13 +1063,13 @@ function gerarCardsDisponibilidade(horario, diasFiltro) {
         const ocupacao = getOcupacaoHorarioDia(horario.id, [dia]);
         const capacidade = horario.capacidade;
         const pct = (ocupacao / capacidade) * 100;
-        let cor = '#5f7360', bg = '#e8ede8';
-        if (pct >= 100) { cor = '#9a5142'; bg = '#f3e3e0'; }
-        else if (pct >= 70) { cor = '#a37a3f'; bg = '#f2e8d8'; }
+        let cor = '#10b981', bg = '#dcfce7';
+        if (pct >= 100) { cor = '#ef4444'; bg = '#fee2e2'; }
+        else if (pct >= 70) { cor = '#f59e0b'; bg = '#fef3c7'; }
         const diaAbrev = dia.substring(0,3).toUpperCase();
-        return `<span style="background:${bg};color:${cor};padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:bold;">${diaAbrev}: ${ocupacao}/${capacidade}</span>`;
+        return `<span style="background:${bg};color:${cor};padding:6px 12px;border-radius:20px;font-size:0.8rem;font-weight:bold;">${diaAbrev}: ${ocupacao}/${capacidade}</span>`;
     }).join('');
-    return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;padding:10px;background:#fffefc;border-radius:12px;">${cards}</div>`;
+    return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;padding:10px;background:#f8fafc;border-radius:12px;">${cards}</div>`;
 }
 
 // ============================================================
@@ -1541,57 +1118,51 @@ function abrirEdicaoTurma(hId) {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    titulo.innerHTML = `<i data-lucide="pencil" class="ic-sm"></i> Editar Turma: ${h.modalidade}`;
+    titulo.innerHTML = `✏️ Editar Turma: ${h.modalidade}`;
     const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const diasCheckboxHtml = diasSemana.map(dia => `
-        <label style="display:inline-flex;align-items:center;gap:6px;margin-right:10px;margin-bottom:8px;background:#f6f4f0;padding:6px 14px;border-radius:8px;cursor:pointer;">
+        <label style="display:inline-flex;align-items:center;gap:6px;margin-right:10px;margin-bottom:8px;background:#f1f5f9;padding:6px 14px;border-radius:30px;cursor:pointer;">
             <input type="checkbox" value="${dia}" ${h.dias.includes(dia) ? 'checked' : ''}> ${dia}
         </label>
     `).join('');
     corpo.innerHTML = `
         <div style="max-width:550px;margin:0 auto;">
             <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;"><i data-lucide="waves" class="ic-sm"></i> Modalidade:</label>
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">🏊 Modalidade:</label>
                 <select id="editTurmaModalidade" class="form-select-field modalidade-select" style="width:100%;padding:10px;">
                     ${modalidadesDisponiveis.map(m => `<option value="${m}" ${h.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}
                 </select>
             </div>
             <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;"><i data-lucide="clock" class="ic-sm"></i> HORÁRIO:</label>
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">⏰ HORÁRIO:</label>
                 <input type="text" id="editTurmaHorario" class="search-input-field" value="${h.horario}" style="width:100%;padding:10px;font-size:1rem;" placeholder="08:00-09:00">
-                <small style="color:#6b645a;">Formato: HH:MM-HH:MM</small>
+                <small style="color:#64748b;">Formato: HH:MM-HH:MM</small>
             </div>
             <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:8px;"><i data-lucide="calendar" class="ic-sm"></i> Dias da Semana:</label>
+                <label style="font-weight:bold;display:block;margin-bottom:8px;">📅 Dias da Semana:</label>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;">${diasCheckboxHtml}</div>
             </div>
             <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;"><i data-lucide="users" class="ic-sm"></i> Capacidade (vagas):</label>
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">👥 Capacidade (vagas):</label>
                 <input type="number" id="editTurmaCapacidade" class="search-input-field" value="${h.capacidade}" min="1" max="100" style="width:100%;padding:10px;">
             </div>
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;"><i data-lucide="user-round" class="ic-sm"></i> Professor responsável:</label>
-                <select id="editTurmaProfessor" class="form-select-field professor-select-field" onchange="onProfessorSelectChange(this)" style="width:100%;padding:10px;">
-                    ${renderOpcoesProfessor(h.professor || '')}
-                </select>
-            </div>
             <div style="margin-bottom:20px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;"><i data-lucide="moon" class="ic-sm"></i> Turno:</label>
+                <label style="font-weight:bold;display:block;margin-bottom:5px;">🌙 Turno:</label>
                 <select id="editTurmaTurno" class="form-select-field" style="width:100%;padding:10px;">
-                    <option value="manha" ${h.turno === 'manha' ? 'selected' : ''}><i data-lucide="sunrise" class="ic-sm"></i> Manhã</option>
-                    <option value="tarde" ${h.turno === 'tarde' ? 'selected' : ''}><i data-lucide="sun" class="ic-sm"></i> Tarde</option>
-                    <option value="noite" ${h.turno === 'noite' ? 'selected' : ''}><i data-lucide="moon" class="ic-sm"></i> Noite</option>
-                    <option value="sabado" ${h.turno === 'sabado' ? 'selected' : ''}><i data-lucide="calendar" class="ic-sm"></i> Sábado</option>
+                    <option value="manha" ${h.turno === 'manha' ? 'selected' : ''}>🌅 Manhã</option>
+                    <option value="tarde" ${h.turno === 'tarde' ? 'selected' : ''}>☀️ Tarde</option>
+                    <option value="noite" ${h.turno === 'noite' ? 'selected' : ''}>🌙 Noite</option>
+                    <option value="sabado" ${h.turno === 'sabado' ? 'selected' : ''}>📅 Sábado</option>
                 </select>
             </div>
-            <div style="margin-bottom:20px;padding:12px;background:#f7f3ea;border-radius:8px;color:#7d5c30;font-size:0.85rem;border-left:3px solid #a37a3f;">
-                <i data-lucide="triangle-alert" class="ic-sm"></i> <strong>Atenção:</strong> Alterar horário ou dias pode afetar a matrícula dos alunos!
+            <div style="margin-bottom:20px;padding:12px;background:#fff3e0;border-radius:8px;color:#b45309;font-size:0.85rem;border-left:3px solid #f59e0b;">
+                ⚠️ <strong>Atenção:</strong> Alterar horário ou dias pode afetar a matrícula dos alunos!
             </div>
             <div class="form-actions-row" style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;">
-                <button onclick="excluirTurmaPermanente(${h.id})" style="background:#f3e3e0;color:#9a5142;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;"><i data-lucide="trash-2" class="ic-sm"></i> Excluir Turma</button>
+                <button onclick="excluirTurmaPermanente(${h.id})" style="background:#fee2e2;color:#b91c1c;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;">🗑️ Excluir Turma</button>
                 <div style="display:flex;gap:8px;">
-                    <button class="btn-save-modal" onclick="salvarEdicaoCompletaTurma(${h.id})" style="background:#96703c;color:white;padding:10px 24px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;"><i data-lucide="save" class="ic-sm"></i> Salvar</button>
-                    <button class="btn-discard-modal" onclick="fecharSuperModal()" style="background:#e4dfd6;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;">Cancelar</button>
+                    <button class="btn-save-modal" onclick="salvarEdicaoCompletaTurma(${h.id})" style="background:#006994;color:white;padding:10px 24px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;">💾 Salvar</button>
+                    <button class="btn-discard-modal" onclick="fecharSuperModal()" style="background:#e2e8f0;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;">Cancelar</button>
                 </div>
             </div>
         </div>
@@ -1612,28 +1183,26 @@ function salvarEdicaoCompletaTurma(hId) {
             novosDias.push(cb.value);
         }
     });
-    if (!novoHorario) { alert('Digite o horário!'); return; }
+    if (!novoHorario) { alert('⚠️ Digite o horário!'); return; }
     if (!novoHorario.match(/^\d{2}:\d{2}-\d{2}:\d{2}$/)) {
-        alert('Formato inválido! Use HH:MM-HH:MM');
+        alert('⚠️ Formato inválido! Use HH:MM-HH:MM');
         return;
     }
-    if (novosDias.length === 0) { alert('Selecione pelo menos um dia!'); return; }
-    if (!novaCapacidade || novaCapacidade < 1) { alert('Capacidade inválida!'); return; }
+    if (novosDias.length === 0) { alert('⚠️ Selecione pelo menos um dia!'); return; }
+    if (!novaCapacidade || novaCapacidade < 1) { alert('⚠️ Capacidade inválida!'); return; }
     const horaInicio = parseInt(novoHorario.split('-')[0].split(':')[0]);
     if (horaInicio >= 17 && novoTurno !== 'sabado') novoTurno = 'noite';
     else if (horaInicio >= 12 && horaInicio < 17) novoTurno = 'tarde';
     else if (horaInicio >= 6 && horaInicio < 12) novoTurno = 'manha';
-    const novoProfessorSel = document.getElementById('editTurmaProfessor').value;
     h.modalidade = novaModalidade;
     h.horario = novoHorario;
     h.dias = novosDias;
     h.capacidade = novaCapacidade;
     h.turno = novoTurno;
-    h.professor = (novoProfessorSel && novoProfessorSel !== '__novo__') ? novoProfessorSel : (h.professor || '');
     salvarTurmas();
     renderizarTudo();
     fecharSuperModal();
-    mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Turma "${novaModalidade}" (${novoHorario}) atualizada!`);
+    mostrarToast(`✅ Turma "${novaModalidade}" (${novoHorario}) atualizada!`);
 }
 
 function excluirTurmaPermanente(hId) {
@@ -1642,13 +1211,13 @@ function excluirTurmaPermanente(hId) {
     const alunosMatriculados = alunos.filter(a => {
         return turma.dias.some(dia => Number(a[diasMap[dia]]) === Number(hId));
     });
-    let msg = `EXCLUIR TURMA PERMANENTEMENTE?\n\n${turma.modalidade}\n${turma.horario}\nDias: ${turma.dias.join(', ')}\n\n`;
+    let msg = `⚠️ EXCLUIR TURMA PERMANENTEMENTE?\n\n📌 ${turma.modalidade}\n⏰ ${turma.horario}\n📅 Dias: ${turma.dias.join(', ')}\n\n`;
     if (alunosMatriculados.length > 0) {
-        msg += `ATENÇÃO: ${alunosMatriculados.length} aluno(s) estão matriculados!\n\n`;
+        msg += `🔴 ATENÇÃO: ${alunosMatriculados.length} aluno(s) estão matriculados!\n\n`;
     }
     msg += `Digite "SIM" para confirmar.`;
     const confirmText = prompt(msg);
-    if (confirmText !== "SIM") { alert("Cancelado!"); return; }
+    if (confirmText !== "SIM") { alert("❌ Cancelado!"); return; }
     alunos.forEach(a => {
         turma.dias.forEach(dia => {
             const campo = diasMap[dia];
@@ -1661,7 +1230,7 @@ function excluirTurmaPermanente(hId) {
     salvarTurmas();
     renderizarTudo();
     fecharSuperModal();
-    mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Turma "${turma.modalidade}" excluída!`);
+    mostrarToast(`✅ Turma "${turma.modalidade}" excluída!`);
 }
 
 // ============================================================
@@ -1671,7 +1240,7 @@ function abrirCriarTurma() {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    titulo.innerHTML = '<i data-lucide="plus" class="ic-sm"></i> Criar Nova Turma';
+    titulo.innerHTML = '➕ Criar Nova Turma';
     corpo.innerHTML = `
         <div style="max-width:500px;margin:0 auto;">
             <div style="margin-bottom:15px;">
@@ -1679,7 +1248,7 @@ function abrirCriarTurma() {
                 <select id="novaModalidade" class="form-select-field modalidade-select" style="width:100%;">
                     ${modalidadesDisponiveis.map(m => `<option value="${m}">${m}</option>`).join('')}
                 </select>
-                <button onclick="abrirCriarModalidade()" style="margin-top:5px;background:#f0e9dc;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;"><i data-lucide="plus" class="ic-sm"></i> Criar nova modalidade</button>
+                <button onclick="abrirCriarModalidade()" style="margin-top:5px;background:#e0f2fe;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">➕ Criar nova modalidade</button>
             </div>
             <div style="margin-bottom:15px;">
                 <label style="font-weight:bold;display:block;margin-bottom:5px;">Horário (ex: 08:00-09:00):</label>
@@ -1701,22 +1270,16 @@ function abrirCriarTurma() {
                 <input type="number" id="novaCapacidade" class="search-input-field" value="10" min="1" max="100" style="width:100%;">
             </div>
             <div style="margin-bottom:15px;">
-                <label style="font-weight:bold;display:block;margin-bottom:5px;"><i data-lucide="user-round" class="ic-sm"></i> Professor responsável:</label>
-                <select id="novoTurmaProfessor" class="form-select-field professor-select-field" onchange="onProfessorSelectChange(this)" style="width:100%;padding:10px;">
-                    ${renderOpcoesProfessor('')}
-                </select>
-            </div>
-            <div style="margin-bottom:15px;">
                 <label style="font-weight:bold;display:block;margin-bottom:5px;">Turno:</label>
                 <select id="novoTurno" class="form-select-field" style="width:100%;">
-                    <option value="manha"><i data-lucide="sunrise" class="ic-sm"></i> Manhã (até 11:59)</option>
-                    <option value="tarde"><i data-lucide="sun" class="ic-sm"></i> Tarde (12:00 - 16:59)</option>
-                    <option value="noite"><i data-lucide="moon" class="ic-sm"></i> Noite (17:00 em diante)</option>
-                    <option value="sabado"><i data-lucide="calendar" class="ic-sm"></i> Sábado</option>
+                    <option value="manha">🌅 Manhã (até 11:59)</option>
+                    <option value="tarde">☀️ Tarde (12:00 - 16:59)</option>
+                    <option value="noite">🌙 Noite (17:00 em diante)</option>
+                    <option value="sabado">📅 Sábado</option>
                 </select>
             </div>
             <div class="form-actions-row" style="margin-top:20px;">
-                <button class="btn-save-modal" onclick="salvarNovaTurma()"><i data-lucide="save" class="ic-sm"></i> Criar Turma</button>
+                <button class="btn-save-modal" onclick="salvarNovaTurma()">💾 Criar Turma</button>
                 <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
             </div>
         </div>
@@ -1743,14 +1306,13 @@ function salvarNovaTurma() {
     document.querySelectorAll('.dias-checkbox-group input[type="checkbox"]:checked').forEach(cb => {
         diasSelecionados.push(cb.value);
     });
-    if (!horario) { alert('Digite o horário!'); return; }
+    if (!horario) { alert('⚠️ Digite o horário!'); return; }
     if (!horario.match(/^\d{2}:\d{2}-\d{2}:\d{2}$/)) { 
-        alert('Formato inválido! Use HH:MM-HH:MM'); 
+        alert('⚠️ Formato inválido! Use HH:MM-HH:MM'); 
         return; 
     }
-    if (diasSelecionados.length === 0) { alert('Selecione pelo menos um dia!'); return; }
-    if (!capacidade || capacidade < 1) { alert('Capacidade inválida!'); return; }
-    const professorSel = document.getElementById('novoTurmaProfessor').value;
+    if (diasSelecionados.length === 0) { alert('⚠️ Selecione pelo menos um dia!'); return; }
+    if (!capacidade || capacidade < 1) { alert('⚠️ Capacidade inválida!'); return; }
     const novoId = Math.max(...horariosConfig.map(h => h.id), 0) + 1;
     const novaTurma = {
         id: novoId,
@@ -1758,14 +1320,13 @@ function salvarNovaTurma() {
         dias: diasSelecionados,
         horario: horario,
         capacidade: capacidade,
-        turno: turno,
-        professor: (professorSel && professorSel !== '__novo__') ? professorSel : ''
+        turno: turno
     };
     horariosConfig.push(novaTurma);
     salvarTurmas();
     renderizarTudo();
     fecharSuperModal();
-    mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Turma de ${modalidade} (${horario}) criada!`);
+    mostrarToast(`✅ Turma de ${modalidade} (${horario}) criada!`);
 }
 
 // ============================================================
@@ -1786,62 +1347,62 @@ function abrirModalHorario(horarioId) {
     if (!modal || !corpo || !titulo) return;
 
     const labelDia = diasFiltro.length > 0 ? `— ${diasFiltro.join(' + ')}` : '';
-    titulo.innerHTML = `<i data-lucide="waves" class="ic-sm"></i> <span id="nomeTurmaDisplay">${horario.modalidade}</span> (${horario.horario}) ${labelDia} <button onclick="toggleEditNomeTurma(${horarioId})" style="background:none;border:1px solid #e4dfd6;border-radius:6px;padding:2px 8px;font-size:0.75rem;cursor:pointer;"><i data-lucide="pencil" class="ic-sm"></i></button>`;
+    titulo.innerHTML = `🏊‍♂️ <span id="nomeTurmaDisplay">${horario.modalidade}</span> (${horario.horario}) ${labelDia} <button onclick="toggleEditNomeTurma(${horarioId})" style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:0.75rem;cursor:pointer;">✏️</button>`;
 
     const capOcup = alunosMatriculados.filter(alunoContaOcupacao).length + listaExp.length;
     const cardsDisponibilidade = gerarCardsDisponibilidade(horario, diasRef || horario.dias);
 
     corpo.innerHTML = `
-        <div style="margin-bottom:20px;background:#f0e9dc;padding:15px;border-radius:10px;border-left:5px solid #96703c;color:#7d5c30;font-weight:600;">
-            ${diasFiltro.length > 0 ? `<i data-lucide="calendar" class="ic-sm"></i> Exibindo: <strong>${diasFiltro.join(' + ')}</strong> | <i data-lucide="users" class="ic-sm"></i> Ocupação: ${capOcup}/${horario.capacidade}` : `<i data-lucide="calendar" class="ic-sm"></i> Dias: ${horario.dias.join(', ')} | <i data-lucide="users" class="ic-sm"></i> Lotação: ${capOcup}/${horario.capacidade}`}
+        <div style="margin-bottom:20px;background:#e0f2fe;padding:15px;border-radius:10px;border-left:5px solid #006994;color:#0369a1;font-weight:600;">
+            ${diasFiltro.length > 0 ? `📅 Exibindo: <strong>${diasFiltro.join(' + ')}</strong> | 👥 Ocupação: ${capOcup}/${horario.capacidade}` : `📅 Dias: ${horario.dias.join(', ')} | 👥 Lotação: ${capOcup}/${horario.capacidade}`}
         </div>
         ${cardsDisponibilidade}
-        <div id="centralFormEdicaoContainer" style="display:none;background:#fffefc;padding:22px;border-radius:12px;margin-bottom:25px;border:2px dashed #96703c;"></div>
+        <div id="centralFormEdicaoContainer" style="display:none;background:#f8fafc;padding:22px;border-radius:12px;margin-bottom:25px;border:2px dashed #006994;"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:flex-start;">
-            <div style="background:white;border:1px solid #e4dfd6;border-radius:12px;padding:20px;">
-                <h3 style="font-size:1.2rem;color:#96703c;border-bottom:3px solid #96703c;padding-bottom:8px;margin-bottom:15px;"><i data-lucide="users" class="ic-sm"></i> Alunos (${alunosMatriculados.length})</h3>
+            <div style="background:white;border:1px solid #cbd5e1;border-radius:12px;padding:20px;">
+                <h3 style="font-size:1.2rem;color:#006994;border-bottom:3px solid #006994;padding-bottom:8px;margin-bottom:15px;">👥 Alunos (${alunosMatriculados.length})</h3>
                 <div style="max-height:450px;overflow-y:auto;">
                     ${alunosMatriculados.map(a => {
                         const fin = verificarVencimento(a.vencimento);
                         const dateClean = limparData(a.vencimento);
                         const statusAtual = a.status || 'ATIVO';
-                        const obsHtml = a.observacao ? `<div style="background:#f7f3ea;border:1px solid #ddc79a;border-radius:6px;padding:6px 10px;font-size:0.82rem;color:#4a3620;margin-top:5px;"><i data-lucide="file-text" class="ic-sm"></i> ${a.observacao}</div>` : '';
+                        const obsHtml = a.observacao ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;font-size:0.82rem;color:#78350f;margin-top:5px;">📝 ${a.observacao}</div>` : '';
                         const diasDoAluno = horario.dias.filter(dia => Number(a[diasMap[dia]]) === Number(horarioId)).map(d => d.substring(0,3)).join(', ');
-                        const botoesExcluir = horario.dias.filter(dia => Number(a[diasMap[dia]]) === Number(horarioId)).map(dia => `<button onclick="excluirAlunoDaTurma(${a.id}, ${horarioId}, '${dia}')" style="background:#f3e3e0;color:#9a5142;border:none;padding:4px 8px;border-radius:6px;font-size:0.7rem;cursor:pointer;" title="Remover da ${dia}"><i data-lucide="trash-2" class="ic-sm"></i> ${dia.substring(0,3)}</button>`).join('');
+                        const botoesExcluir = horario.dias.filter(dia => Number(a[diasMap[dia]]) === Number(horarioId)).map(dia => `<button onclick="excluirAlunoDaTurma(${a.id}, ${horarioId}, '${dia}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 8px;border-radius:6px;font-size:0.7rem;cursor:pointer;" title="Remover da ${dia}">🗑️ ${dia.substring(0,3)}</button>`).join('');
                         return `
-                            <div style="margin-bottom:10px;border-bottom:1px solid #e4dfd6;padding-bottom:10px;">
+                            <div style="margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                                    <div><div style="font-size:1rem;font-weight:bold;">#${a.codigo} - ${a.nome} <span style="font-weight:normal;font-size:0.75rem;background:#f0e9dc;border-radius:8px;padding:1px 7px;"><i data-lucide="calendar" class="ic-sm"></i> ${diasDoAluno || '—'}</span></div>
-                                    <div style="font-size:0.85rem;"><i data-lucide="phone" class="ic-sm"></i> ${a.telefone} | Venc: ${dateClean}</div>
+                                    <div><div style="font-size:1rem;font-weight:bold;">#${a.codigo} - ${a.nome} <span style="font-weight:normal;font-size:0.75rem;background:#e0f2fe;border-radius:8px;padding:1px 7px;">📅 ${diasDoAluno || '—'}</span></div>
+                                    <div style="font-size:0.85rem;">📞 ${a.telefone} | Venc: ${dateClean}</div>
                                     <div>${badgeStatus(statusAtual)}</div>${obsHtml}</div>
                                     <span class="badge ${fin.vencido ? 'badge-vencido' : 'badge-emdia'}">${fin.texto}</span>
                                 </div>
                                 <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px;">
                                     ${botoesExcluir}
-                                    <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed"><i data-lucide="message-circle" class="ic-sm"></i> WhatsApp</a>
-                                    <button onclick="abrirEdicaoCompletaInline(${a.id},${horarioId})" style="background:#f0e9dc;color:#7d5c30;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;"><i data-lucide="pencil" class="ic-sm"></i> Editar</button>
-                                    <button onclick="abrirModalObs(${a.id},${horarioId})" style="background:#f2e8d8;color:#6b4a26;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;"><i data-lucide="file-text" class="ic-sm"></i> Obs</button>
-                                    <button onclick="alternarStatusAluno(${a.id},${horarioId})" style="background:#f6f4f0;color:#1c1a17;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;"><i data-lucide="refresh-cw" class="ic-sm"></i> Status</button>
-                                    <button onclick="excluirAlunoPermanente(${a.id},${horarioId})" style="background:#f3e3e0;color:#9a5142;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;"><i data-lucide="trash-2" class="ic-sm"></i> Excluir</button>
+                                    <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WhatsApp</a>
+                                    <button onclick="abrirEdicaoCompletaInline(${a.id},${horarioId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">✏️ Editar</button>
+                                    <button onclick="abrirModalObs(${a.id},${horarioId})" style="background:#fef9c3;color:#854d0e;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">📝 Obs</button>
+                                    <button onclick="alternarStatusAluno(${a.id},${horarioId})" style="background:#f1f5f9;color:#334155;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🔄 Status</button>
+                                    <button onclick="excluirAlunoPermanente(${a.id},${horarioId})" style="background:#fee2e2;color:#b91c1c;border:none;padding:6px 12px;border-radius:6px;font-weight:bold;font-size:0.75rem;cursor:pointer;">🗑️ Excluir</button>
                                 </div>
                             </div>
                         `;
                     }).join('') || '<p style="text-align:center;padding:20px;">Nenhum aluno.</p>'}
                 </div>
             </div>
-            <div style="background:#f7f3ea;border:1px solid #ddc79a;border-radius:12px;padding:20px;">
-                <h3 style="font-size:1.2rem;color:#7d5c30;border-bottom:3px solid #7d5c30;padding-bottom:8px;margin-bottom:15px;"><i data-lucide="flask-conical" class="ic-sm"></i> Experimentais (${listaExp.length})</h3>
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;">
+                <h3 style="font-size:1.2rem;color:#b45309;border-bottom:3px solid #b45309;padding-bottom:8px;margin-bottom:15px;">🧪 Experimentais (${listaExp.length})</h3>
                 <div style="max-height:450px;overflow-y:auto;">
                     ${listaExp.map(exp => {
                         const faltas = historicoFaltasExperimentais[exp.telefone] || 0;
-                        const alerta = faltas >= 2 ? `<div style="background:#f3e3e0;color:#9a5142;font-size:0.75rem;padding:4px;border-radius:5px;margin-top:4px;"><i data-lucide="triangle-alert" class="ic-sm"></i> Faltou ${faltas}x antes</div>` : '';
+                        const alerta = faltas >= 2 ? `<div style="background:#fee2e2;color:#b91c1c;font-size:0.75rem;padding:4px;border-radius:5px;margin-top:4px;">⚠️ Faltou ${faltas}x antes</div>` : '';
                         return `
-                            <div style="background:white;padding:12px;border-radius:10px;border:1px solid #ddc79a;margin-bottom:10px;">
-                                <div><strong>${exp.nome}</strong><div style="font-size:0.85rem;"><i data-lucide="phone" class="ic-sm"></i> ${exp.telefone}</div>${alerta}<div style="font-size:0.8rem;color:#7d5c30;"><i data-lucide="calendar" class="ic-sm"></i> ${formatarDataBR(exp.dataAgendada)} | ${horariosConfig.find(h=>h.id===exp.horario_id)?.horario || '??'}</div></div>
+                            <div style="background:white;padding:12px;border-radius:10px;border:1px solid #fde68a;margin-bottom:10px;">
+                                <div><strong>${exp.nome}</strong><div style="font-size:0.85rem;">📞 ${exp.telefone}</div>${alerta}<div style="font-size:0.8rem;color:#0369a1;">📅 ${formatarDataBR(exp.dataAgendada)} | ${horariosConfig.find(h=>h.id===exp.horario_id)?.horario || '??'}</div></div>
                                 <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;">
-                                    <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed"><i data-lucide="message-circle" class="ic-sm"></i> WA</a>
-                                    <button onclick="marcarPresencaExp(${exp.id},'compareceu',${horarioId})" style="background:#5f7360;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;"><i data-lucide="check" class="ic-sm"></i> Veio</button>
-                                    <button onclick="marcarPresencaExp(${exp.id},'nao_compareceu',${horarioId})" style="background:#9a5142;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;"><i data-lucide="x" class="ic-sm"></i> Faltou</button>
+                                    <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed">💬 WA</a>
+                                    <button onclick="marcarPresencaExp(${exp.id},'compareceu',${horarioId})" style="background:#10b981;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;">✔️ Veio</button>
+                                    <button onclick="marcarPresencaExp(${exp.id},'nao_compareceu',${horarioId})" style="background:#ef4444;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;">❌ Faltou</button>
                                 </div>
                             </div>
                         `;
@@ -1863,9 +1424,9 @@ function toggleEditNomeTurma(hId) {
         h.modalidade = input.value.trim() || h.modalidade;
         renderizarTudo();
         abrirModalHorario(hId);
-        mostrarToast('<i data-lucide="check" class="ic-sm"></i> Nome da turma atualizado!');
+        mostrarToast('✅ Nome da turma atualizado!');
     } else {
-        span.innerHTML = `<input type="text" value="${h.modalidade}" style="font-size:0.95rem;padding:4px 8px;border-radius:6px;border:2px solid #96703c;width:260px;" onkeydown="if(event.key==='Enter')toggleEditNomeTurma(${hId})" autofocus>`;
+        span.innerHTML = `<input type="text" value="${h.modalidade}" style="font-size:0.95rem;padding:4px 8px;border-radius:6px;border:2px solid #006994;width:260px;" onkeydown="if(event.key==='Enter')toggleEditNomeTurma(${hId})" autofocus>`;
         span.querySelector('input').focus();
     }
 }
@@ -1882,7 +1443,7 @@ async function excluirAlunoDaTurma(id, horarioId, dia) {
     await salvarAluno(aluno);
     renderizarTudo();
     abrirModalHorario(horarioId);
-    mostrarToast(`<i data-lucide="check" class="ic-sm"></i> ${aluno.nome} removido da ${dia}`);
+    mostrarToast(`✅ ${aluno.nome} removido da ${dia}`);
 }
 
 // ============================================================
@@ -1890,11 +1451,11 @@ async function excluirAlunoDaTurma(id, horarioId, dia) {
 // ============================================================
 async function excluirAlunoPermanente(id, hId) {
     const aluno = alunos.find(a => Number(a.id) === Number(id));
-    if (!aluno) { mostrarToast('<i data-lucide="x" class="ic-sm"></i> Aluno não encontrado!', 'erro'); return; }
-    const confirmado = confirm(`EXCLUIR PERMANENTEMENTE?\n\n#${aluno.codigo} - ${aluno.nome}\n\nEsta ação NÃO pode ser desfeita!`);
+    if (!aluno) { mostrarToast('❌ Aluno não encontrado!', 'erro'); return; }
+    const confirmado = confirm(`⚠️ EXCLUIR PERMANENTEMENTE?\n\n#${aluno.codigo} - ${aluno.nome}\n\nEsta ação NÃO pode ser desfeita!`);
     if (!confirmado) return;
     const confirmText = prompt(`Digite "SIM" para confirmar exclusão de ${aluno.nome}:`);
-    if (confirmText !== "SIM") { alert("Cancelado!"); return; }
+    if (confirmText !== "SIM") { alert("❌ Cancelado!"); return; }
     try {
         await excluirAluno(aluno.id);
         const index = alunos.findIndex(a => Number(a.id) === Number(id));
@@ -1902,8 +1463,8 @@ async function excluirAlunoPermanente(id, hId) {
         renderizarTudo();
         renderPainelExperimentaisHoje();
         fecharSuperModal();
-        mostrarToast(`<i data-lucide="check" class="ic-sm"></i> ${aluno.nome} excluído!`);
-    } catch (erro) { mostrarToast(`<i data-lucide="x" class="ic-sm"></i> Erro: ${erro.message}`, 'erro'); }
+        mostrarToast(`✅ ${aluno.nome} excluído!`);
+    } catch (erro) { mostrarToast(`❌ Erro: ${erro.message}`, 'erro'); }
 }
 
 // ============================================================
@@ -1915,10 +1476,10 @@ function abrirModalObs(id, hId) {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    titulo.innerHTML = `<i data-lucide="file-text" class="ic-sm"></i> Observações — ${a.nome}`;
+    titulo.innerHTML = `📝 Observações — ${a.nome}`;
     corpo.innerHTML = `
-        <div style="max-width:500px;"><textarea id="obsTexto" style="width:100%;min-height:120px;padding:12px;border-radius:8px;border:1px solid #e4dfd6;">${a.observacao || ''}</textarea>
-        <div class="form-actions-row" style="margin-top:12px;"><button class="btn-save-modal" onclick="salvarObservacao(${id},${hId || 'null'})"><i data-lucide="save" class="ic-sm"></i> Salvar</button><button class="btn-discard-modal" onclick="${hId ? `abrirModalHorario(${hId})` : 'fecharSuperModal()'}"><i data-lucide="arrow-left" class="ic-sm"></i> Voltar</button></div></div>
+        <div style="max-width:500px;"><textarea id="obsTexto" style="width:100%;min-height:120px;padding:12px;border-radius:8px;border:1px solid #cbd5e1;">${a.observacao || ''}</textarea>
+        <div class="form-actions-row" style="margin-top:12px;"><button class="btn-save-modal" onclick="salvarObservacao(${id},${hId || 'null'})">💾 Salvar</button><button class="btn-discard-modal" onclick="${hId ? `abrirModalHorario(${hId})` : 'fecharSuperModal()'}">⬅️ Voltar</button></div></div>
     `;
     modal.classList.add('active');
 }
@@ -1942,7 +1503,7 @@ function alternarStatusAluno(id, hId) {
     salvarAluno(a);
     renderizarTudo();
     if (hId) abrirModalHorario(hId);
-    mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Status → ${proximo}`);
+    mostrarToast(`✅ Status → ${proximo}`);
 }
 
 // ============================================================
@@ -1962,17 +1523,17 @@ function renderPainelExperimentaisHoje() {
     expHoje.sort((a, b) => (horariosConfig.find(h=>h.id===a.horario_id)?.horario || '').localeCompare(horariosConfig.find(h=>h.id===b.horario_id)?.horario || ''));
     const header = document.getElementById('painelExpCount');
     if (header) header.textContent = expHoje.length;
-    painel.innerHTML = expHoje.length === 0 ? '<div style="text-align:center;padding:20px;"> Sem experimentais hoje!</div>' : expHoje.map(exp => {
+    painel.innerHTML = expHoje.length === 0 ? '<div style="text-align:center;padding:20px;">😊 Sem experimentais hoje!</div>' : expHoje.map(exp => {
         const h = horariosConfig.find(hc => hc.id === exp.horario_id);
         const faltas = historicoFaltasExperimentais[exp.telefone] || 0;
-        const alerta = faltas >= 2 ? `<div style="background:#f3e3e0;color:#9a5142;font-size:0.7rem;padding:4px;border-radius:5px;"><i data-lucide="triangle-alert" class="ic-sm"></i> Faltou ${faltas}x antes</div>` : '';
+        const alerta = faltas >= 2 ? `<div style="background:#fee2e2;color:#b91c1c;font-size:0.7rem;padding:4px;border-radius:5px;">⚠️ Faltou ${faltas}x antes</div>` : '';
         return `
-            <div style="background:white;border:1px solid #e4dfd6;border-radius:10px;padding:12px;margin-bottom:8px;">
-                <div><div style="font-weight:bold;">${exp.nome}</div><div style="font-size:0.8rem;"><i data-lucide="phone" class="ic-sm"></i> ${exp.telefone}</div><div style="font-size:0.75rem;"><i data-lucide="clock" class="ic-sm"></i> ${h ? h.horario : '??'}</div>${alerta}</div>
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:8px;">
+                <div><div style="font-weight:bold;">${exp.nome}</div><div style="font-size:0.8rem;">📞 ${exp.telefone}</div><div style="font-size:0.75rem;">⏰ ${h ? h.horario : '??'}</div>${alerta}</div>
                 <div style="display:flex;gap:5px;margin-top:8px;">
-                    <button onclick="marcarPresencaExpPainel(${exp.id},'compareceu')" style="background:#5f7360;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.7rem;cursor:pointer;"><i data-lucide="check" class="ic-sm"></i> Veio</button>
-                    <button onclick="marcarPresencaExpPainel(${exp.id},'nao_compareceu')" style="background:#9a5142;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.7rem;cursor:pointer;"><i data-lucide="x" class="ic-sm"></i> Faltou</button>
-                    <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 9px;border-radius:6px;font-size:0.7rem;text-decoration:none;"><i data-lucide="message-circle" class="ic-sm"></i> WA</a>
+                    <button onclick="marcarPresencaExpPainel(${exp.id},'compareceu')" style="background:#10b981;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.7rem;cursor:pointer;">✔️ Veio</button>
+                    <button onclick="marcarPresencaExpPainel(${exp.id},'nao_compareceu')" style="background:#ef4444;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.7rem;cursor:pointer;">❌ Faltou</button>
+                    <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 9px;border-radius:6px;font-size:0.7rem;text-decoration:none;">💬 WA</a>
                 </div>
             </div>
         `;
@@ -2004,7 +1565,7 @@ function marcarPresencaExpPainel(id, st) {
             matriculado: false
         });
         setTimeout(() => {
-            if (confirm(`${exp.nome} compareceu. Efetivar matrícula?`)) {
+            if (confirm(`📋 ${exp.nome} compareceu. Efetivar matrícula?`)) {
                 matricularExperimentalInSuper(exp.id);
             }
         }, 100);
@@ -2039,7 +1600,7 @@ function marcarPresencaExp(id, st, hId) {
             matriculado: false
         });
         setTimeout(() => {
-            if (confirm(`${exp.nome} compareceu. Efetivar matrícula?`)) {
+            if (confirm(`📋 ${exp.nome} compareceu. Efetivar matrícula?`)) {
                 matricularExperimentalInSuper(exp.id);
             }
         }, 100);
@@ -2059,7 +1620,7 @@ function abrirEdicaoCompletaInline(id, hId) {
         aluno = alunos.find(a => a.codigo == parseInt(id));
     }
     if (!aluno) {
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> Aluno não encontrado! ID/Código: ' + id, 'erro');
+        mostrarToast('❌ Aluno não encontrado! ID/Código: ' + id, 'erro');
         return;
     }
     const divId = hId ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
@@ -2070,17 +1631,17 @@ function abrirEdicaoCompletaInline(id, hId) {
             const newDiv = document.createElement('div');
             newDiv.id = divId;
             newDiv.style.display = 'none';
-            newDiv.style.background = '#fffefc';
+            newDiv.style.background = '#f8fafc';
             newDiv.style.padding = '22px';
             newDiv.style.borderRadius = '12px';
             newDiv.style.marginBottom = '25px';
-            newDiv.style.border = '2px dashed #96703c';
+            newDiv.style.border = '2px dashed #006994';
             corpo.insertBefore(newDiv, corpo.firstChild);
             div = newDiv;
         }
     }
     if (!div) {
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> Erro ao abrir edição!', 'erro');
+        mostrarToast('❌ Erro ao abrir edição!', 'erro');
         return;
     }
     div.style.display = 'block';
@@ -2092,7 +1653,7 @@ function abrirEdicaoCompletaInline(id, hId) {
         return `
             <div style="margin-bottom:10px;">
                 <label style="font-size:0.8rem;font-weight:bold;display:block;margin-bottom:3px;">${dia}:</label>
-                <select id="editGrade${campo}" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e4dfd6;">
+                <select id="editGrade${campo}" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
                     <option value="">[ Não treina ]</option>
                     ${opcoesDoDia.map(hc => `<option value="${hc.id}" ${valorAtual == hc.id ? 'selected' : ''}>${hc.modalidade} (${hc.horario})</option>`).join('')}
                 </select>
@@ -2101,48 +1662,48 @@ function abrirEdicaoCompletaInline(id, hId) {
     }).join('');
     const statusAtual = aluno.status || 'ATIVO';
     const btnVoltar = hId 
-        ? `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal" style="background:#e4dfd6;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;"><i data-lucide="arrow-left" class="ic-sm"></i> Voltar para a Turma</button>`
-        : `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal" style="background:#e4dfd6;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;"><i data-lucide="arrow-left" class="ic-sm"></i> Cancelar</button>`;
+        ? `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal" style="background:#e2e8f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">⬅️ Voltar para a Turma</button>`
+        : `<button onclick="document.getElementById('${divId}').style.display='none'" class="btn-discard-modal" style="background:#e2e8f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">⬅️ Cancelar</button>`;
     div.innerHTML = `
-        <h3 style="color:#96703c;margin-bottom:15px;font-size:1.2rem;font-weight:bold;border-left:4px solid #96703c;padding-left:8px;"><i data-lucide="pencil" class="ic-sm"></i> Editar Matrícula: #${aluno.codigo} — ${aluno.nome}</h3>
+        <h3 style="color:#006994;margin-bottom:15px;font-size:1.2rem;font-weight:bold;border-left:4px solid #006994;padding-left:8px;">✏️ Editar Matrícula: #${aluno.codigo} — ${aluno.nome}</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px;">
             <div>
-                <label style="font-size:0.8rem;font-weight:bold;color:#1c1a17;">Código:</label>
-                <input type="number" id="editFullCodigo" class="search-input-field" value="${aluno.codigo}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e4dfd6;">
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Código:</label>
+                <input type="number" id="editFullCodigo" class="search-input-field" value="${aluno.codigo}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
             </div>
             <div>
-                <label style="font-size:0.8rem;font-weight:bold;color:#1c1a17;">Nome:</label>
-                <input type="text" id="editFullN" class="search-input-field" value="${aluno.nome}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e4dfd6;">
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Nome:</label>
+                <input type="text" id="editFullN" class="search-input-field" value="${aluno.nome}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
             </div>
             <div>
-                <label style="font-size:0.8rem;font-weight:bold;color:#1c1a17;">Telefone:</label>
-                <input type="text" id="editFullP" class="search-input-field" value="${aluno.telefone}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e4dfd6;">
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Telefone:</label>
+                <input type="text" id="editFullP" class="search-input-field" value="${aluno.telefone}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
             </div>
             <div>
-                <label style="font-size:0.8rem;font-weight:bold;color:#1c1a17;">Vencimento:</label>
-                <input type="text" id="editFullV" class="search-input-field" value="${aluno.vencimento || ''}" placeholder="DD/MM" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e4dfd6;">
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Vencimento:</label>
+                <input type="text" id="editFullV" class="search-input-field" value="${aluno.vencimento || ''}" placeholder="DD/MM" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
             </div>
             <div>
-                <label style="font-size:0.8rem;font-weight:bold;color:#1c1a17;">Modalidade:</label>
-                <select id="editFullMod" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e4dfd6;">
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Modalidade:</label>
+                <select id="editFullMod" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
                     ${modalidadesDisponiveis.map(m => `<option value="${m}" ${aluno.modalidade === m ? 'selected' : ''}>${m}</option>`).join('')}
                 </select>
             </div>
             <div>
-                <label style="font-size:0.8rem;font-weight:bold;color:#1c1a17;">Status:</label>
-                <select id="editFullStatus" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e4dfd6;">
-                    <option value="ATIVO" ${statusAtual === 'ATIVO' ? 'selected' : ''}><i data-lucide="circle" class="ic-sm"></i> ATIVO</option>
-                    <option value="PAUSADO" ${statusAtual === 'PAUSADO' ? 'selected' : ''}>PAUSADO</option>
-                    <option value="TRANCADO" ${statusAtual === 'TRANCADO' ? 'selected' : ''}><i data-lucide="lock" class="ic-sm"></i> TRANCADO</option>
+                <label style="font-size:0.8rem;font-weight:bold;color:#334155;">Status:</label>
+                <select id="editFullStatus" class="form-select-field" style="width:100%;padding:8px;border-radius:6px;border:1px solid #cbd5e1;">
+                    <option value="ATIVO" ${statusAtual === 'ATIVO' ? 'selected' : ''}>🟢 ATIVO</option>
+                    <option value="PAUSADO" ${statusAtual === 'PAUSADO' ? 'selected' : ''}>⏸ PAUSADO</option>
+                    <option value="TRANCADO" ${statusAtual === 'TRANCADO' ? 'selected' : ''}>🔒 TRANCADO</option>
                 </select>
             </div>
         </div>
-        <div style="background:#efece6;padding:15px;border-radius:8px;margin-bottom:15px;">
-            <span style="font-weight:bold;font-size:0.9rem;color:#1c1a17;display:block;margin-bottom:10px;"><i data-lucide="calendar-days" class="ic-sm"></i> Grade Semanal (Turmas que o aluno participa):</span>
+        <div style="background:#edf2f7;padding:15px;border-radius:8px;margin-bottom:15px;">
+            <span style="font-weight:bold;font-size:0.9rem;color:#1e293b;display:block;margin-bottom:10px;">🗓️ Grade Semanal (Turmas que o aluno participa):</span>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">${selectGradeHtml}</div>
         </div>
         <div style="display:flex;gap:12px;justify-content:flex-end;">
-            <button onclick="salvarEdicaoCompleta(${aluno.id},${hId || 'null'})" class="btn-save-modal" style="background:#96703c;color:white;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:bold;"><i data-lucide="save" class="ic-sm"></i> Salvar Alterações</button>
+            <button onclick="salvarEdicaoCompleta(${aluno.id},${hId || 'null'})" class="btn-save-modal" style="background:#006994;color:white;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:bold;">💾 Salvar Alterações</button>
             ${btnVoltar}
         </div>
     `;
@@ -2151,12 +1712,12 @@ function abrirEdicaoCompletaInline(id, hId) {
 
 async function salvarEdicaoCompleta(id, hId) {
     if (id == null || id === undefined) {
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> ID do aluno inválido!', 'erro');
+        mostrarToast('❌ ID do aluno inválido!', 'erro');
         return;
     }
     const aluno = alunos.find(a => Number(a.id) === Number(id));
     if (!aluno) {
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> Aluno não encontrado!', 'erro');
+        mostrarToast('❌ Aluno não encontrado!', 'erro');
         return;
     }
     const novoCodigo = parseInt(document.getElementById('editFullCodigo')?.value);
@@ -2165,12 +1726,12 @@ async function salvarEdicaoCompleta(id, hId) {
     const vencimento = document.getElementById('editFullV')?.value.trim();
     const modalidade = document.getElementById('editFullMod')?.value || aluno.modalidade;
     const statusAluno = document.getElementById('editFullStatus')?.value || aluno.status || 'ATIVO';
-    if (!nome) { mostrarToast('<i data-lucide="triangle-alert" class="ic-sm"></i> Nome é obrigatório!', 'erro'); return; }
-    if (!telefone) { mostrarToast('<i data-lucide="triangle-alert" class="ic-sm"></i> Telefone é obrigatório!', 'erro'); return; }
+    if (!nome) { mostrarToast('⚠️ Nome é obrigatório!', 'erro'); return; }
+    if (!telefone) { mostrarToast('⚠️ Telefone é obrigatório!', 'erro'); return; }
     if (novoCodigo && novoCodigo !== aluno.codigo) {
         const codigoExistente = alunos.find(a => Number(a.codigo) === Number(novoCodigo) && Number(a.id) !== Number(aluno.id));
         if (codigoExistente) {
-            mostrarToast(`<i data-lucide="triangle-alert" class="ic-sm"></i> Código ${novoCodigo} já está em uso por ${codigoExistente.nome}!`, 'erro');
+            mostrarToast(`⚠️ Código ${novoCodigo} já está em uso por ${codigoExistente.nome}!`, 'erro');
             return;
         }
         aluno.codigo = novoCodigo;
@@ -2190,7 +1751,7 @@ async function salvarEdicaoCompleta(id, hId) {
     try {
         await salvarAluno(aluno);
     } catch (erro) {
-        mostrarToast(`<i data-lucide="x" class="ic-sm"></i> Erro ao salvar: ${erro.message}`, 'erro');
+        mostrarToast(`❌ Erro ao salvar: ${erro.message}`, 'erro');
         return;
     }
     const divId = hId && hId !== 'null' ? 'centralFormEdicaoContainer' : 'superFormEdicaoContainer';
@@ -2203,7 +1764,7 @@ async function salvarEdicaoCompleta(id, hId) {
     } else {
         renderStudentTableSuper();
     }
-    mostrarToast(`<i data-lucide="check" class="ic-sm"></i> ${aluno.nome} atualizado com sucesso!`);
+    mostrarToast(`✅ ${aluno.nome} atualizado com sucesso!`);
 }
 
 // ============================================================
@@ -2218,22 +1779,22 @@ function abrirSuperModal(tipo) {
     modal.classList.add('active');
 
     if (tipo === 'vencidos') {
-        titulo.innerHTML = '<i data-lucide="triangle-alert" class="ic-sm"></i> Alunos Vencidos';
+        titulo.innerHTML = '⚠️ Alunos Vencidos';
         corpo.innerHTML = `<div id="superFormEdicaoContainer" style="display:none;"></div><div class="table-container"><table><thead><tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="superVencidosBody"></tbody></table></div>`;
         renderVencidosSuper();
     } else if (tipo === 'alunos') {
-        titulo.innerHTML = '<i data-lucide="users" class="ic-sm"></i> Central de Alunos';
-        corpo.innerHTML = `<div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;"><button class="filter-chip active" onclick="filtrarListaAlunos('todos', this)"><i data-lucide="clipboard-list" class="ic-sm"></i> Todos</button><button class="filter-chip" onclick="filtrarListaAlunos('pausados', this)"><i data-lucide="pause" class="ic-sm"></i> PAUSADOS</button><button class="filter-chip" onclick="filtrarListaAlunos('trancados', this)"><i data-lucide="lock" class="ic-sm"></i> TRANCADOS</button></div><input type="text" id="superStudentSearch" class="search-input-field" style="margin-bottom:15px;" placeholder="Buscar por nome, código ou telefone..." oninput="renderStudentTableSuper()"><div id="superFormEdicaoContainer" style="display:none;"></div><div class="table-container"><table><thead><tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="superStudentTableBody"></tbody></table></div>`;
+        titulo.innerHTML = '👥 Central de Alunos';
+        corpo.innerHTML = `<div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;"><button class="filter-chip active" onclick="filtrarListaAlunos('todos', this)">📋 Todos</button><button class="filter-chip" onclick="filtrarListaAlunos('pausados', this)">⏸ PAUSADOS</button><button class="filter-chip" onclick="filtrarListaAlunos('trancados', this)">🔒 TRANCADOS</button></div><input type="text" id="superStudentSearch" class="search-input-field" style="margin-bottom:15px;" placeholder="🔍 Nome, código ou telefone..." oninput="renderStudentTableSuper()"><div id="superFormEdicaoContainer" style="display:none;"></div><div class="table-container"><table><thead><tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="superStudentTableBody"></tbody></table></div>`;
         window.listaAlunosFiltro = 'todos';
         renderStudentTableSuper();
     } else if (tipo === 'incompletos') {
-        titulo.innerHTML = '<i data-lucide="triangle-alert" class="ic-sm"></i> Alunos sem Dias de Treino';
+        titulo.innerHTML = '⚠️ Alunos sem Dias de Treino';
         corpo.innerHTML = `<div class="table-container"><table><thead><tr><th>Nome</th><th>Vincular Turmas</th><th>Ação</th></tr></thead><tbody id="superIncompletosBody"></tbody></table></div>`;
         renderIncompletosSuper();
     } else if (tipo === 'experimentais_futuros') {
-        titulo.innerHTML = '<i data-lucide="calendar" class="ic-sm"></i> Aulas Experimentais Futuras';
+        titulo.innerHTML = '📅 Aulas Experimentais Futuras';
         corpo.innerHTML = `
-            <input type="text" id="buscarExpFuturo" class="search-input-field" style="margin-bottom:15px;" placeholder="Buscar por nome ou telefone..." oninput="renderExperimentaisFuturos()">
+            <input type="text" id="buscarExpFuturo" class="search-input-field" style="margin-bottom:15px;" placeholder="🔍 Buscar por nome ou telefone..." oninput="renderExperimentaisFuturos()">
             <div class="table-container" style="max-height:500px;overflow-y:auto;">
                 <table style="width:100%;">
                     <thead><tr><th>Data</th><th>Horário</th><th>Nome</th><th>Telefone</th><th>Status</th><th>Ações</th></tr></thead>
@@ -2243,10 +1804,10 @@ function abrirSuperModal(tipo) {
         `;
         renderExperimentaisFuturos();
     } else if (tipo === 'modalidades') {
-        titulo.innerHTML = '<i data-lucide="tag" class="ic-sm"></i> Gerenciar Modalidades';
+        titulo.innerHTML = '🏷️ Gerenciar Modalidades';
         corpo.innerHTML = `
             <div style="margin-bottom:20px;">
-                <button onclick="abrirCriarModalidade()" style="background:#96703c;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;"><i data-lucide="plus" class="ic-sm"></i> Criar Nova Modalidade</button>
+                <button onclick="abrirCriarModalidade()" style="background:#006994;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;">➕ Criar Nova Modalidade</button>
             </div>
             <div class="table-container">
                 <table style="width:100%;">
@@ -2270,18 +1831,18 @@ function abrirCriarModalidade() {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    titulo.innerHTML = '<i data-lucide="plus" class="ic-sm"></i> Criar Nova Modalidade';
+    titulo.innerHTML = '➕ Criar Nova Modalidade';
     corpo.innerHTML = `
         <div style="max-width:400px;margin:0 auto;">
             <div style="margin-bottom:20px;">
                 <label style="font-weight:bold;display:block;margin-bottom:8px;">Nome da Nova Modalidade:</label>
                 <input type="text" id="novaModalidadeNome" class="search-input-field" style="width:100%;padding:12px;" placeholder="Ex: Natação Competição, Alongamento, etc.">
             </div>
-            <div style="margin-bottom:20px;padding:12px;background:#f0e9dc;border-radius:8px;color:#7d5c30;">
-                <i data-lucide="lightbulb" class="ic-sm"></i> A nova modalidade aparecerá em todos os lugares (cadastro de alunos, criação de turmas, filtros).
+            <div style="margin-bottom:20px;padding:12px;background:#e0f2fe;border-radius:8px;color:#0369a1;">
+                💡 A nova modalidade aparecerá em todos os lugares (cadastro de alunos, criação de turmas, filtros).
             </div>
             <div class="form-actions-row" style="display:flex;gap:10px;justify-content:flex-end;">
-                <button class="btn-save-modal" onclick="salvarNovaModalidade()" style="background:#96703c;"><i data-lucide="check" class="ic-sm"></i> Criar Modalidade</button>
+                <button class="btn-save-modal" onclick="salvarNovaModalidade()" style="background:#006994;">✅ Criar Modalidade</button>
                 <button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button>
             </div>
         </div>
@@ -2289,27 +1850,21 @@ function abrirCriarModalidade() {
     modal.classList.add('active');
 }
 
-async function salvarNovaModalidade() {
+function salvarNovaModalidade() {
     const novaModalidade = document.getElementById('novaModalidadeNome').value.trim();
     if (!novaModalidade) {
-        alert('Digite o nome da nova modalidade!');
+        alert('⚠️ Digite o nome da nova modalidade!');
         return;
     }
     if (modalidadesDisponiveis.includes(novaModalidade)) {
-        alert(`A modalidade "${novaModalidade}" já existe!`);
+        alert(`⚠️ A modalidade "${novaModalidade}" já existe!`);
         return;
     }
     modalidadesDisponiveis.push(novaModalidade);
     modalidadesDisponiveis.sort();
-    const ok = await salvarModalidades();
-    if (!ok) {
-        // desfaz se não conseguiu salvar, pra não ficar inconsistente com o banco
-        modalidadesDisponiveis = modalidadesDisponiveis.filter(m => m !== novaModalidade);
-        return;
-    }
     atualizarDropdownsModalidade();
     fecharSuperModal();
-    mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Modalidade "${novaModalidade}" criada com sucesso!`);
+    mostrarToast(`✅ Modalidade "${novaModalidade}" criada com sucesso!`);
 }
 
 function renderModalidadesList() {
@@ -2317,50 +1872,44 @@ function renderModalidadesList() {
     if (!body) return;
     body.innerHTML = modalidadesDisponiveis.map(mod => `
         <tr>
-            <td style="padding:10px;"><i data-lucide="waves" class="ic-sm"></i> ${mod}</td>
+            <td style="padding:10px;">🏊 ${mod}</td>
             <td style="padding:10px;display:flex;gap:6px;flex-wrap:wrap;">
-                <button onclick="abrirEditarModalidade('${mod}')" style="background:#f0e9dc;color:#7d5c30;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;"><i data-lucide="pencil" class="ic-sm"></i> Editar</button>
-                <button onclick="excluirModalidade('${mod}')" style="background:#f3e3e0;color:#9a5142;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;"><i data-lucide="trash-2" class="ic-sm"></i> Excluir</button>
+                <button onclick="abrirEditarModalidade('${mod}')" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;">✏️ Editar</button>
+                <button onclick="excluirModalidade('${mod}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button>
             </td>
         </tr>
     `).join('');
 }
 
-async function excluirModalidade(modalidade) {
+function excluirModalidade(modalidade) {
     if (modalidadesDisponiveis.length <= 1) {
-        alert('Não é possível excluir a única modalidade!');
+        alert('⚠️ Não é possível excluir a única modalidade!');
         return;
     }
-    if (!confirm(`Excluir a modalidade "${modalidade}"?\n\nIsso pode afetar turmas e alunos que usam esta modalidade.`)) return;
+    if (!confirm(`⚠️ Excluir a modalidade "${modalidade}"?\n\nIsso pode afetar turmas e alunos que usam esta modalidade.`)) return;
     const index = modalidadesDisponiveis.indexOf(modalidade);
     if (index !== -1) modalidadesDisponiveis.splice(index, 1);
-    const ok = await salvarModalidades();
-    if (!ok) {
-        // desfaz se não conseguiu salvar
-        if (index !== -1) modalidadesDisponiveis.splice(index, 0, modalidade);
-        return;
-    }
     atualizarDropdownsModalidade();
     renderModalidadesList();
-    mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Modalidade "${modalidade}" excluída!`);
+    mostrarToast(`✅ Modalidade "${modalidade}" excluída!`);
 }
 
 function abrirEditarModalidade(modalidadeAntiga) {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    titulo.innerHTML = `<i data-lucide="pencil" class="ic-sm"></i> Editar Modalidade: ${modalidadeAntiga}`;
+    titulo.innerHTML = `✏️ Editar Modalidade: ${modalidadeAntiga}`;
     corpo.innerHTML = `
         <div style="max-width:400px;margin:0 auto;">
             <div style="margin-bottom:20px;">
                 <label style="font-weight:bold;display:block;margin-bottom:8px;">Novo nome da modalidade:</label>
                 <input type="text" id="editModalidadeNome" class="search-input-field" style="width:100%;padding:12px;" value="${modalidadeAntiga}">
             </div>
-            <div style="margin-bottom:20px;padding:12px;background:#f0e9dc;border-radius:8px;color:#7d5c30;">
-                <i data-lucide="triangle-alert" class="ic-sm"></i> Atenção: Isso vai atualizar todas as turmas e alunos que usam esta modalidade.
+            <div style="margin-bottom:20px;padding:12px;background:#e0f2fe;border-radius:8px;color:#0369a1;">
+                ⚠️ Atenção: Isso vai atualizar todas as turmas e alunos que usam esta modalidade.
             </div>
             <div class="form-actions-row" style="display:flex;gap:10px;justify-content:flex-end;">
-                <button class="btn-save-modal" onclick="salvarEdicaoModalidade('${modalidadeAntiga}')" style="background:#96703c;"><i data-lucide="save" class="ic-sm"></i> Salvar Alterações</button>
+                <button class="btn-save-modal" onclick="salvarEdicaoModalidade('${modalidadeAntiga}')" style="background:#006994;">💾 Salvar Alterações</button>
                 <button class="btn-discard-modal" onclick="fecharSuperModal(); renderModalidadesList();">Cancelar</button>
             </div>
         </div>
@@ -2368,24 +1917,19 @@ function abrirEditarModalidade(modalidadeAntiga) {
     modal.classList.add('active');
 }
 
-async function salvarEdicaoModalidade(modalidadeAntiga) {
+function salvarEdicaoModalidade(modalidadeAntiga) {
     const novoNome = document.getElementById('editModalidadeNome').value.trim();
     if (!novoNome) {
-        alert('Digite o novo nome da modalidade!');
+        alert('⚠️ Digite o novo nome da modalidade!');
         return;
     }
     if (modalidadesDisponiveis.includes(novoNome) && novoNome !== modalidadeAntiga) {
-        alert(`A modalidade "${novoNome}" já existe!`);
+        alert(`⚠️ A modalidade "${novoNome}" já existe!`);
         return;
     }
     const index = modalidadesDisponiveis.indexOf(modalidadeAntiga);
     if (index !== -1) {
         modalidadesDisponiveis[index] = novoNome;
-    }
-    const ok = await salvarModalidades();
-    if (!ok) {
-        if (index !== -1) modalidadesDisponiveis[index] = modalidadeAntiga; // desfaz
-        return;
     }
     horariosConfig.forEach(turma => {
         if (turma.modalidade === modalidadeAntiga) {
@@ -2403,7 +1947,7 @@ async function salvarEdicaoModalidade(modalidadeAntiga) {
     fecharSuperModal();
     renderModalidadesList();
     renderizarTudo();
-    mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Modalidade "${modalidadeAntiga}" alterada para "${novoNome}" com sucesso!`);
+    mostrarToast(`✅ Modalidade "${modalidadeAntiga}" alterada para "${novoNome}" com sucesso!`);
 }
 
 // ============================================================
@@ -2428,7 +1972,7 @@ function renderExperimentaisFuturos() {
     }
     
     if (futuros.length === 0) {
-        body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;"><i data-lucide="inbox" class="ic-sm"></i> Nenhuma aula experimental futura agendada</td></tr>';
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">📭 Nenhuma aula experimental futura agendada</td></tr>';
         return;
     }
     
@@ -2437,16 +1981,16 @@ function renderExperimentaisFuturos() {
         const dataFormatada = exp.dataAgendada ? formatarDataBR(exp.dataAgendada) : '—';
         
         return `
-            <tr style="border-bottom:1px solid #e4dfd6;">
+            <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:12px;"><strong>${dataFormatada}</strong></td>
                 <td style="padding:12px;">${horario ? horario.horario : '??'} - ${exp.dia || ''}</td>
                 <td style="padding:12px;"><strong>${exp.nome}</strong></td>
                 <td style="padding:12px;">${exp.telefone}</td>
-                <td style="padding:12px;"><span style="background:#f2e8d8;color:#7d5c30;padding:4px 8px;border-radius:8px;font-size:0.75rem;"><i data-lucide="calendar" class="ic-sm"></i> Agendado</span></td>
+                <td style="padding:12px;"><span style="background:#fef3c7;color:#b45309;padding:4px 8px;border-radius:20px;font-size:0.75rem;">📅 Agendado</span></td>
                 <td style="padding:12px;display:flex;gap:6px;flex-wrap:wrap;">
-                    <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 10px;border-radius:6px;text-decoration:none;font-size:0.75rem;"><i data-lucide="message-circle" class="ic-sm"></i> WhatsApp</a>
-                    <button onclick="abrirEdicaoExperimental(${exp.id})" style="background:#f0e9dc;color:#7d5c30;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;"><i data-lucide="pencil" class="ic-sm"></i> Editar</button>
-                    <button onclick="cancelarExperimental(${exp.id})" style="background:#f3e3e0;color:#9a5142;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;"><i data-lucide="trash-2" class="ic-sm"></i> Cancelar</button>
+                    <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 10px;border-radius:6px;text-decoration:none;font-size:0.75rem;">💬 WhatsApp</a>
+                    <button onclick="abrirEdicaoExperimental(${exp.id})" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">✏️ Editar</button>
+                    <button onclick="cancelarExperimental(${exp.id})" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">🗑️ Cancelar</button>
                 </td>
             </tr>
         `;
@@ -2459,7 +2003,7 @@ function abrirEdicaoExperimental(expId) {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    titulo.innerHTML = '<i data-lucide="pencil" class="ic-sm"></i> Editar Aula Experimental';
+    titulo.innerHTML = '✏️ Editar Aula Experimental';
     corpo.innerHTML = `
         <div style="max-width:500px;margin:0 auto;">
             <div style="margin-bottom:15px;"><label>Nome:</label><input type="text" id="editExpNome" class="search-input-field" value="${exp.nome}"></div>
@@ -2482,7 +2026,7 @@ function abrirEdicaoExperimental(expId) {
                 </select>
             </div>
             <div class="form-actions-row" style="margin-top:20px;">
-                <button class="btn-save-modal" onclick="salvarEdicaoExperimental(${exp.id})"><i data-lucide="save" class="ic-sm"></i> Salvar</button>
+                <button class="btn-save-modal" onclick="salvarEdicaoExperimental(${exp.id})">💾 Salvar</button>
                 <button class="btn-discard-modal" onclick="fecharSuperModal(); renderExperimentaisFuturos();">Cancelar</button>
             </div>
         </div>
@@ -2546,9 +2090,9 @@ function salvarEdicaoExperimental(expId) {
     const novoTelefone = document.getElementById('editExpTelefone').value.trim();
     const novaData = document.getElementById('editExpData').value;
     const valorHorario = document.getElementById('editExpHorario').value;
-    if (!novoNome || !novoTelefone) { alert('Nome e telefone são obrigatórios!'); return; }
-    if (!novaData) { alert('Selecione a data!'); return; }
-    if (!valorHorario) { alert('Selecione o horário!'); return; }
+    if (!novoNome || !novoTelefone) { alert('⚠️ Nome e telefone são obrigatórios!'); return; }
+    if (!novaData) { alert('⚠️ Selecione a data!'); return; }
+    if (!valorHorario) { alert('⚠️ Selecione o horário!'); return; }
     const [hId, dia] = valorHorario.split('_');
     const modalidade = document.getElementById('editExpModalidade').value;
     exp.nome = novoNome;
@@ -2561,11 +2105,11 @@ function salvarEdicaoExperimental(expId) {
     fecharSuperModal();
     renderExperimentaisFuturos();
     renderizarTudo();
-    mostrarToast('<i data-lucide="check" class="ic-sm"></i> Experimental atualizada!');
+    mostrarToast('✅ Experimental atualizada!');
 }
 
 function cancelarExperimental(expId) {
-    if (!confirm('Cancelar esta aula experimental?')) return;
+    if (!confirm('⚠️ Cancelar esta aula experimental?')) return;
     const exp = experimentais.find(e => e.id === expId);
     if (exp) {
         excluirExperimental(exp.id);
@@ -2575,7 +2119,7 @@ function cancelarExperimental(expId) {
     renderExperimentaisFuturos();
     renderizarTudo();
     renderPainelExperimentaisHoje();
-    mostrarToast('<i data-lucide="check" class="ic-sm"></i> Experimental cancelada!');
+    mostrarToast('✅ Experimental cancelada!');
 }
 
 // ============================================================
@@ -2587,12 +2131,12 @@ function abrirHistoricoExperimentais() {
     const modal = document.getElementById('globalSuperModal');
     const titulo = document.getElementById('superModalTitulo');
     const corpo = document.getElementById('superModalCorpo');
-    titulo.innerHTML = '<i data-lucide="clipboard-list" class="ic-sm"></i> Histórico de Aulas Experimentais';
+    titulo.innerHTML = '📋 Histórico de Aulas Experimentais';
     corpo.innerHTML = `
         <div style="margin-bottom:20px;">
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:15px;">
                 <div style="flex:1;min-width:150px;">
-                    <label style="font-weight:bold;display:block;margin-bottom:5px;"><i data-lucide="calendar" class="ic-sm"></i> Período:</label>
+                    <label style="font-weight:bold;display:block;margin-bottom:5px;">📅 Período:</label>
                     <select id="filtroPeriodoHistorico" class="form-select-field" onchange="renderHistoricoExperimentais()" style="width:100%;padding:10px;">
                         <option value="7">Últimos 7 dias</option>
                         <option value="15">Últimos 15 dias</option>
@@ -2605,23 +2149,23 @@ function abrirHistoricoExperimentais() {
                     </select>
                 </div>
                 <div style="flex:1;min-width:150px;">
-                    <label style="font-weight:bold;display:block;margin-bottom:5px;"><i data-lucide="search" class="ic-sm"></i> Buscar:</label>
+                    <label style="font-weight:bold;display:block;margin-bottom:5px;">🔍 Buscar:</label>
                     <input type="text" id="buscarHistoricoExp" class="search-input-field" placeholder="Nome ou telefone..." oninput="renderHistoricoExperimentais()" style="width:100%;padding:10px;">
                 </div>
                 <div>
-                    <button onclick="exportarHistoricoExperimentais()" style="background:#5f7360;color:white;border:none;padding:10px 15px;border-radius:8px;cursor:pointer;"><i data-lucide="bar-chart-3" class="ic-sm"></i> Exportar CSV</button>
+                    <button onclick="exportarHistoricoExperimentais()" style="background:#10b981;color:white;border:none;padding:10px 15px;border-radius:8px;cursor:pointer;">📊 Exportar CSV</button>
                 </div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;">
-                <button class="filter-chip active" onclick="filtrarStatusHistoricoExp('todos', this)" style="padding:6px 14px;border-radius:8px;border:none;cursor:pointer;background:#96703c;color:white;"><i data-lucide="clipboard-list" class="ic-sm"></i> Todos</button>
-                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('compareceu', this)" style="padding:6px 14px;border-radius:8px;border:none;cursor:pointer;background:#f6f4f0;"><i data-lucide="check" class="ic-sm"></i> Compareceram</button>
-                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('nao_compareceu', this)" style="padding:6px 14px;border-radius:8px;border:none;cursor:pointer;background:#f6f4f0;"><i data-lucide="x" class="ic-sm"></i> Faltaram</button>
-                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('matriculados', this)" style="padding:6px 14px;border-radius:8px;border:none;cursor:pointer;background:#f6f4f0;"><i data-lucide="clipboard-list" class="ic-sm"></i> Efetivaram Matrícula</button>
+                <button class="filter-chip active" onclick="filtrarStatusHistoricoExp('todos', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#006994;color:white;">📋 Todos</button>
+                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('compareceu', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">✅ Compareceram</button>
+                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('nao_compareceu', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">❌ Faltaram</button>
+                <button class="filter-chip" onclick="filtrarStatusHistoricoExp('matriculados', this)" style="padding:6px 14px;border-radius:20px;border:none;cursor:pointer;background:#f1f5f9;">📋 Efetivaram Matrícula</button>
             </div>
         </div>
         <div class="table-container" style="max-height:500px;overflow-y:auto;">
             <table style="width:100%;border-collapse:collapse;">
-                <thead style="position:sticky;top:0;background:#f6f4f0;">
+                <thead style="position:sticky;top:0;background:#f1f5f9;">
                     <tr>
                         <th style="padding:12px;text-align:left;">Data</th>
                         <th style="padding:12px;text-align:left;">Horário</th>
@@ -2634,7 +2178,7 @@ function abrirHistoricoExperimentais() {
                 <tbody id="historicoExperimentaisBody"></tbody>
             </table>
         </div>
-        <div style="margin-top:15px;padding:12px;background:#f6f4f0;border-radius:8px;display:flex;justify-content:space-between;flex-wrap:wrap;font-size:0.85rem;" id="historicoResumo">
+        <div style="margin-top:15px;padding:12px;background:#f1f5f9;border-radius:8px;display:flex;justify-content:space-between;flex-wrap:wrap;font-size:0.85rem;" id="historicoResumo">
             Carregando...
         </div>
     `;
@@ -2646,10 +2190,10 @@ function filtrarStatusHistoricoExp(status, btn) {
     filtroStatusHistoricoExp = status;
     const container = btn.parentElement;
     container.querySelectorAll('.filter-chip').forEach(b => {
-        b.style.background = '#f6f4f0';
-        b.style.color = '#1c1a17';
+        b.style.background = '#f1f5f9';
+        b.style.color = '#334155';
     });
-    btn.style.background = '#96703c';
+    btn.style.background = '#006994';
     btn.style.color = 'white';
     renderHistoricoExperimentais();
 }
@@ -2748,47 +2292,47 @@ async function renderHistoricoExperimentais() {
     const resumo = document.getElementById('historicoResumo');
     if (resumo) {
         resumo.innerHTML = `
-            <span><i data-lucide="bar-chart-3" class="ic-sm"></i> Total: <strong>${total}</strong></span>
-            <span><i data-lucide="check" class="ic-sm"></i> Compareceram: <strong style="color:#4d604e;">${compareceram}</strong></span>
-            <span><i data-lucide="x" class="ic-sm"></i> Faltaram: <strong style="color:#9a5142;">${faltaram}</strong></span>
-            <span><i data-lucide="clipboard-list" class="ic-sm"></i> Matriculados: <strong style="color:#7d5c30;">${matriculados}</strong></span>
-            <span><i data-lucide="target" class="ic-sm"></i> Taxa de Conversão: <strong style="color:#96703c;">${taxaConversao}%</strong></span>
+            <span>📊 Total: <strong>${total}</strong></span>
+            <span>✅ Compareceram: <strong style="color:#15803d;">${compareceram}</strong></span>
+            <span>❌ Faltaram: <strong style="color:#b91c1c;">${faltaram}</strong></span>
+            <span>📋 Matriculados: <strong style="color:#0369a1;">${matriculados}</strong></span>
+            <span>🎯 Taxa de Conversão: <strong style="color:#006994;">${taxaConversao}%</strong></span>
         `;
     }
     if (todos.length === 0) {
-        body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;"><i data-lucide="inbox" class="ic-sm"></i> Nenhuma aula experimental encontrada neste período</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">📭 Nenhuma aula experimental encontrada neste período</td></tr>';
         return;
     }
     body.innerHTML = todos.map(item => {
         let statusHtml = '';
         const resultado = item.resultado || '';
         if (resultado === 'compareceu') {
-            statusHtml = '<span style="background:#e8ede8;color:#4d604e;padding:4px 10px;border-radius:8px;font-size:0.75rem;"><i data-lucide="check" class="ic-sm"></i> Compareceu</span>';
+            statusHtml = '<span style="background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:20px;font-size:0.75rem;">✅ Compareceu</span>';
         } else if (resultado === 'nao_compareceu') {
-            statusHtml = '<span style="background:#f3e3e0;color:#9a5142;padding:4px 10px;border-radius:8px;font-size:0.75rem;"><i data-lucide="x" class="ic-sm"></i> Faltou</span>';
+            statusHtml = '<span style="background:#fee2e2;color:#b91c1c;padding:4px 10px;border-radius:20px;font-size:0.75rem;">❌ Faltou</span>';
         } else {
-            statusHtml = '<span style="background:#f2e8d8;color:#7d5c30;padding:4px 10px;border-radius:8px;font-size:0.75rem;"><i data-lucide="calendar" class="ic-sm"></i> Agendado</span>';
+            statusHtml = '<span style="background:#fef3c7;color:#b45309;padding:4px 10px;border-radius:20px;font-size:0.75rem;">📅 Agendado</span>';
         }
         if (item.matriculado) {
-            statusHtml += ' <span style="background:#f0e9dc;color:#3a3630;padding:4px 10px;border-radius:8px;font-size:0.75rem;"><i data-lucide="clipboard-list" class="ic-sm"></i> Matriculado</span>';
+            statusHtml += ' <span style="background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:20px;font-size:0.75rem;">📋 Matriculado</span>';
         }
         const dataFormatada = item.data && item.data.includes('-') ? formatarDataBR(item.data) : (item.data || '—');
         const telefone = item.telefone || '';
         const id = item.id || '';
         const origem = item.origem || 'historico';
         return `
-            <tr style="border-bottom:1px solid #e4dfd6;">
+            <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:12px;">${dataFormatada}</td>
                 <td style="padding:12px;">${item.horario}</td>
                 <td style="padding:12px;"><strong>${item.nome}</strong></td>
                 <td style="padding:12px;">${telefone}</td>
                 <td style="padding:12px;">${statusHtml}</td>
                 <td style="padding:12px;display:flex;gap:4px;flex-wrap:wrap;">
-                    <button onclick="editarStatusExperimental('${id}', 'compareceu', '${origem}')" style="background:#5f7360;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;"><i data-lucide="check" class="ic-sm"></i></button>
-                    <button onclick="editarStatusExperimental('${id}', 'nao_compareceu', '${origem}')" style="background:#9a5142;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;"><i data-lucide="x" class="ic-sm"></i></button>
-                    <button onclick="editarMatriculaExperimental('${id}', '${origem}')" style="background:#96703c;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;"><i data-lucide="clipboard-list" class="ic-sm"></i></button>
-                    <button onclick="excluirExperimentalHistorico('${id}', '${origem}')" style="background:#f3e3e0;color:#9a5142;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;" title="Excluir"><i data-lucide="trash-2" class="ic-sm"></i></button>
-                    ${telefone ? `<a href="https://wa.me/55${String(telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:0.7rem;"><i data-lucide="message-circle" class="ic-sm"></i></a>` : ''}
+                    <button onclick="editarStatusExperimental('${id}', 'compareceu', '${origem}')" style="background:#10b981;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;">✅</button>
+                    <button onclick="editarStatusExperimental('${id}', 'nao_compareceu', '${origem}')" style="background:#ef4444;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;">❌</button>
+                    <button onclick="editarMatriculaExperimental('${id}', '${origem}')" style="background:#006994;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;">📋</button>
+                    <button onclick="excluirExperimentalHistorico('${id}', '${origem}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;" title="Excluir">🗑️</button>
+                    ${telefone ? `<a href="https://wa.me/55${String(telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:0.7rem;">💬</a>` : ''}
                 </td>
             </tr>
         `;
@@ -2797,7 +2341,7 @@ async function renderHistoricoExperimentais() {
 
 async function editarStatusExperimental(id, novoStatus, origem) {
     if (!id) {
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> ID não encontrado!', 'erro');
+        mostrarToast('❌ ID não encontrado!', 'erro');
         return;
     }
     try {
@@ -2807,15 +2351,15 @@ async function editarStatusExperimental(id, novoStatus, origem) {
                 .update({ resultado: novoStatus })
                 .eq('id', id);
             if (error) throw error;
-            mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Status alterado para ${novoStatus === 'compareceu' ? 'Compareceu' : 'Faltou'}!`);
+            mostrarToast(`✅ Status alterado para ${novoStatus === 'compareceu' ? 'Compareceu' : 'Faltou'}!`);
         } else if (origem === 'experimental') {
             const exp = experimentais.find(e => e.id == id);
             if (exp) {
                 exp.status = novoStatus;
                 await salvarExperimental(exp);
-                mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Status alterado para ${novoStatus === 'compareceu' ? 'Compareceu' : 'Faltou'}!`);
+                mostrarToast(`✅ Status alterado para ${novoStatus === 'compareceu' ? 'Compareceu' : 'Faltou'}!`);
             } else {
-                mostrarToast('<i data-lucide="x" class="ic-sm"></i> Experimental não encontrado!', 'erro');
+                mostrarToast('❌ Experimental não encontrado!', 'erro');
                 return;
             }
         }
@@ -2824,13 +2368,13 @@ async function editarStatusExperimental(id, novoStatus, origem) {
         renderPainelExperimentaisHoje();
     } catch (erro) {
         console.error('❌ Erro ao editar status:', erro);
-        mostrarToast(`<i data-lucide="x" class="ic-sm"></i> Erro: ${erro.message}`, 'erro');
+        mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
     }
 }
 
 async function editarMatriculaExperimental(id, origem) {
     if (!id) {
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> ID não encontrado!', 'erro');
+        mostrarToast('❌ ID não encontrado!', 'erro');
         return;
     }
     try {
@@ -2847,14 +2391,14 @@ async function editarMatriculaExperimental(id, origem) {
                 .update({ matriculado: novoStatus })
                 .eq('id', id);
             if (updateError) throw updateError;
-            mostrarToast(`<i data-lucide="check" class="ic-sm"></i> ${novoStatus ? 'Matrícula efetivada' : 'Matrícula removida'}!`);
+            mostrarToast(`✅ ${novoStatus ? 'Matrícula efetivada' : 'Matrícula removida'}!`);
         } else if (origem === 'experimental') {
             const exp = experimentais.find(e => e.id == id);
             if (exp) {
                 await matricularExperimentalInSuper(exp.id);
                 return;
             } else {
-                mostrarToast('<i data-lucide="x" class="ic-sm"></i> Experimental não encontrado!', 'erro');
+                mostrarToast('❌ Experimental não encontrado!', 'erro');
                 return;
             }
         }
@@ -2862,7 +2406,7 @@ async function editarMatriculaExperimental(id, origem) {
         renderizarTudo();
     } catch (erro) {
         console.error('❌ Erro ao editar matrícula:', erro);
-        mostrarToast(`<i data-lucide="x" class="ic-sm"></i> Erro: ${erro.message}`, 'erro');
+        mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
     }
 }
 
@@ -2893,15 +2437,15 @@ function exportarHistoricoExperimentais() {
     a.download = `historico_experimentais_${dataAtual}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    mostrarToast('<i data-lucide="check" class="ic-sm"></i> Histórico exportado!');
+    mostrarToast('✅ Histórico exportado!');
 }
 
 async function excluirExperimentalHistorico(id, origem) {
     if (!id) {
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> ID não encontrado!', 'erro');
+        mostrarToast('❌ ID não encontrado!', 'erro');
         return;
     }
-    if (!confirm('Tem certeza que deseja excluir este registro do histórico?\n\nEsta ação NÃO pode ser desfeita!')) {
+    if (!confirm('⚠️ Tem certeza que deseja excluir este registro do histórico?\n\nEsta ação NÃO pode ser desfeita!')) {
         return;
     }
     try {
@@ -2911,16 +2455,16 @@ async function excluirExperimentalHistorico(id, origem) {
                 .delete()
                 .eq('id', id);
             if (error) throw error;
-            mostrarToast('<i data-lucide="check" class="ic-sm"></i> Registro excluído do histórico!');
+            mostrarToast('✅ Registro excluído do histórico!');
         } else if (origem === 'experimental') {
             const exp = experimentais.find(e => e.id == id);
             if (exp) {
                 await excluirExperimental(id);
                 const index = experimentais.findIndex(e => e.id == id);
                 if (index !== -1) experimentais.splice(index, 1);
-                mostrarToast('<i data-lucide="check" class="ic-sm"></i> Experimental excluído!');
+                mostrarToast('✅ Experimental excluído!');
             } else {
-                mostrarToast('<i data-lucide="x" class="ic-sm"></i> Experimental não encontrado!', 'erro');
+                mostrarToast('❌ Experimental não encontrado!', 'erro');
                 return;
             }
         }
@@ -2929,7 +2473,7 @@ async function excluirExperimentalHistorico(id, origem) {
         renderPainelExperimentaisHoje();
     } catch (erro) {
         console.error('❌ Erro ao excluir:', erro);
-        mostrarToast(`<i data-lucide="x" class="ic-sm"></i> Erro: ${erro.message}`, 'erro');
+        mostrarToast(`❌ Erro: ${erro.message}`, 'erro');
     }
 }
 
@@ -2972,10 +2516,10 @@ function renderStudentTableSuper() {
                 <td style="padding:8px;">${badgeStatus(a.status)}</td>
                 <td style="padding:8px;">${dParticipa.join(', ') || 'Nenhum'}</td>
                 <td style="padding:8px;display:flex;gap:6px;flex-wrap:wrap;">
-                    <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed" style="padding:5px 8px;font-size:0.7rem;"><i data-lucide="message-circle" class="ic-sm"></i> WA</a>
-                    <button onclick="abrirEdicaoCompletaInline(${a.id},null)" style="background:#f0e9dc;color:#7d5c30;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;"><i data-lucide="pencil" class="ic-sm"></i> Editar</button>
-                    <button onclick="abrirModalObs(${a.id},null)" style="background:#f2e8d8;color:#6b4a26;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;"><i data-lucide="file-text" class="ic-sm"></i> Obs</button>
-                    <button onclick="excluirAlunoPermanente(${a.id},null)" style="background:#f3e3e0;color:#9a5142;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;"><i data-lucide="trash-2" class="ic-sm"></i> Excluir</button>
+                    <a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" class="btn-whatsapp-speed" style="padding:5px 8px;font-size:0.7rem;">💬 WA</a>
+                    <button onclick="abrirEdicaoCompletaInline(${a.id},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">✏️ Editar</button>
+                    <button onclick="abrirModalObs(${a.id},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">📝 Obs</button>
+                    <button onclick="excluirAlunoPermanente(${a.id},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;font-weight:bold;font-size:0.7rem;cursor:pointer;">🗑️ Excluir</button>
                 </td>
             </tr>
         `;
@@ -2989,7 +2533,7 @@ function renderVencidosSuper() {
         if (a.status === 'TRANCADO' || a.status === 'PAUSADO') return false;
         return verificarVencimento(a.vencimento).vencido;
     });
-    if (vencidos.length === 0) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;"><i data-lucide="check" class="ic-sm"></i> Nenhum aluno vencido!</td></tr>'; return; }
+    if (vencidos.length === 0) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;">✅ Nenhum aluno vencido!</td></tr>'; return; }
     body.innerHTML = vencidos.map(a => {
         const fin = verificarVencimento(a.vencimento);
         const dateClean = limparData(a.vencimento);
@@ -2997,7 +2541,7 @@ function renderVencidosSuper() {
         if (a.seg) dParticipa.push("Seg"); if (a.ter) dParticipa.push("Ter");
         if (a.qua) dParticipa.push("Qua"); if (a.qui) dParticipa.push("Qui");
         if (a.sex) dParticipa.push("Sex"); if (a.sab) dParticipa.push("Sáb");
-        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" style="color:#25d366;"><i data-lucide="message-circle" class="ic-sm"></i> ${a.telefone}</a></td><td><span class="badge badge-vencido">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td><button onclick="abrirEdicaoCompletaInline(${a.id},null)" style="background:#f0e9dc;color:#7d5c30;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;"><i data-lucide="pencil" class="ic-sm"></i> Editar</button><button onclick="abrirModalObs(${a.id},null)" style="background:#f2e8d8;color:#6b4a26;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;"><i data-lucide="file-text" class="ic-sm"></i> Obs</button><button onclick="excluirAlunoPermanente(${a.id},null)" style="background:#f3e3e0;color:#9a5142;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;"><i data-lucide="trash-2" class="ic-sm"></i> Excluir</button></td></tr>`;
+        return `<tr><td>#${a.codigo}</td><td><strong>${a.nome}</strong></td><td><a href="https://wa.me/55${String(a.telefone).replace(/\D/g,'')}" target="_blank" style="color:#25d366;">💬 ${a.telefone}</a></td><td><span class="badge badge-vencido">${dateClean}</span></td><td>${badgeStatus(a.status)}</td><td>${dParticipa.join(', ') || 'Nenhum'}</td><td><button onclick="abrirEdicaoCompletaInline(${a.id},null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">✏️ Editar</button><button onclick="abrirModalObs(${a.id},null)" style="background:#fef9c3;color:#854d0e;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">📝 Obs</button><button onclick="excluirAlunoPermanente(${a.id},null)" style="background:#fee2e2;color:#b91c1c;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;">🗑️ Excluir</button></td></tr>`;
     }).join('');
 }
 
@@ -3012,7 +2556,7 @@ function renderIncompletosSuper() {
             const turmasCompativeis = horariosConfig.filter(h => h.modalidade === a.modalidade && h.dias.includes(dia));
             return `<div style="display:flex;align-items:center;gap:5px;"><span style="font-size:0.7rem;width:40px;">${dia.substring(0,3)}:</span><select class="inc-select-${a.id}-${campo}" style="flex:1;"><option value="">--</option>${turmasCompativeis.map(h => `<option value="${h.id}">${h.horario}</option>`).join('')}</select></div>`;
         }).join('');
-        return `<tr><td>${a.nome}</td><td><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">${gradeHtml}</div></td><td><button class="btn-save" data-id="${a.id}"><i data-lucide="save" class="ic-sm"></i> Salvar</button></td></tr>`;
+        return `<tr><td>${a.nome}</td><td><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">${gradeHtml}</div></td><td><button class="btn-save" data-id="${a.id}">💾 Salvar</button></td></tr>`;
     }).join('');
     document.querySelectorAll('.btn-save').forEach(btn => btn.addEventListener('click', function() { vincularIncompleto(this.getAttribute('data-id')); }));
 }
@@ -3043,18 +2587,18 @@ function abrirFormularioSobreposto(tipo) {
     modal.classList.add('active');
 
     if (tipo === 'cadastro') {
-        titulo.innerHTML = '<i data-lucide="clipboard-list" class="ic-sm"></i> Matricular Novo Aluno';
+        titulo.innerHTML = '📋 Matricular Novo Aluno';
         const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const diasMapLocal = { 'Segunda': 'seg', 'Terça': 'ter', 'Quarta': 'qua', 'Quinta': 'qui', 'Sexta': 'sex', 'Sábado': 'sab' };
         const selectGradeHtml = diasSemana.map(dia => `<div><label>${dia}:</label><select id="cadGrade${diasMapLocal[dia]}" class="form-select-field" onchange="atualizarCardsCadastro()"><option value="">[ Não treina ]</option></select><div id="cardDisponibilidade${diasMapLocal[dia]}" style="font-size:0.7rem;"></div></div>`).join('');
         corpo.innerHTML = `
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;"><div><label>Código:</label><input type="number" id="fabCodigo" class="search-input-field"></div><div><label>Nome:</label><input type="text" id="fName" class="search-input-field"></div><div><label>Telefone:</label><input type="text" id="fPhone" class="search-input-field"></div><div><label>Vencimento:</label><input type="text" id="fVenc" class="search-input-field" value="${formatarData()}"></div><div style="grid-column:1/-1;"><label>Modalidade:</label><select id="fMod" class="form-select-field modalidade-select" onchange="filtrarTurmasPorModalidade()">${modalidadesDisponiveis.map(m => `<option value="${m}">${m}</option>`).join('')}</select></div></div>
-            <div style="background:#efece6;padding:15px;border-radius:8px;margin:15px 0;"><span style="font-weight:bold;"><i data-lucide="calendar-days" class="ic-sm"></i> Vincular Turmas:</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px;">${selectGradeHtml}</div></div>
-            <div class="form-actions-row"><button class="btn-save-modal" onclick="salvarMatriculaFab()"><i data-lucide="save" class="ic-sm"></i> Matricular</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
+            <div style="background:#edf2f7;padding:15px;border-radius:8px;margin:15px 0;"><span style="font-weight:bold;">🗓️ Vincular Turmas:</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px;">${selectGradeHtml}</div></div>
+            <div class="form-actions-row"><button class="btn-save-modal" onclick="salvarMatriculaFab()">💾 Matricular</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
         `;
         filtrarTurmasPorModalidade();
     } else if (tipo === 'experimental') {
-        titulo.innerHTML = '<i data-lucide="flask-conical" class="ic-sm"></i> Agendar Experimental';
+        titulo.innerHTML = '🧪 Agendar Experimental';
         const modalidades = [...new Set(horariosConfig.map(h => h.modalidade))];
         corpo.innerHTML = `
             <div><div><label>Nome:</label><input type="text" id="fExpN" class="search-input-field"></div>
@@ -3066,7 +2610,7 @@ function abrirFormularioSobreposto(tipo) {
                 <div><label>Horário:</label><select id="fExpH" class="form-select-field" disabled><option value="">-- Selecione --</option></select></div>
             </div>
             <div id="expOcupacaoInfo" style="margin-top:12px;padding:10px;border-radius:8px;display:none;"></div>
-            <div class="form-actions-row" style="margin-top:20px;"><button class="btn-save-modal" style="background:#7d5c30;" onclick="salvarExpFab()"><i data-lucide="save" class="ic-sm"></i> Agendar</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
+            <div class="form-actions-row" style="margin-top:20px;"><button class="btn-save-modal" style="background:#b45309;" onclick="salvarExpFab()">💾 Agendar</button><button class="btn-discard-modal" onclick="fecharSuperModal()">Cancelar</button></div>
         `;
     }
 }
@@ -3084,11 +2628,11 @@ function atualizarCardsCadastro() {
             if (horario) {
                 const ocupacao = getOcupacaoHorarioDia(horarioId, [diasNomes[idx]]);
                 const capacidade = horario.capacidade;
-                let cor = '#5f7360';
-                if (ocupacao >= capacidade) cor = '#9a5142';
-                else if (ocupacao >= capacidade * 0.7) cor = '#a37a3f';
-                cardDiv.innerHTML = `<span style="color:${cor};"><i data-lucide="bar-chart-3" class="ic-sm"></i> ${ocupacao}/${capacidade}</span>`;
-                if (ocupacao >= capacidade) cardDiv.innerHTML += ` <span style="color:#9a5142;"><i data-lucide="triangle-alert" class="ic-sm"></i> Lotada!</span>`;
+                let cor = '#10b981';
+                if (ocupacao >= capacidade) cor = '#ef4444';
+                else if (ocupacao >= capacidade * 0.7) cor = '#f59e0b';
+                cardDiv.innerHTML = `<span style="color:${cor};">📊 ${ocupacao}/${capacidade}</span>`;
+                if (ocupacao >= capacidade) cardDiv.innerHTML += ` <span style="color:#ef4444;">⚠️ Lotada!</span>`;
             }
         } else if (cardDiv) cardDiv.innerHTML = '';
     });
@@ -3139,9 +2683,9 @@ function filtrarExpHorarios() {
         if (horario) {
             const ocupacao = getOcupacaoHorarioDia(parseInt(hId), [diaSel]);
             infoDiv.style.display = 'block';
-            infoDiv.style.background = '#f0e9dc';
-            infoDiv.innerHTML = `<i data-lucide="bar-chart-3" class="ic-sm"></i> Ocupação: ${ocupacao}/${horario.capacidade}`;
-            if (ocupacao >= horario.capacidade) infoDiv.innerHTML += ` <i data-lucide="triangle-alert" class="ic-sm"></i> Turma LOTADA!`;
+            infoDiv.style.background = '#e0f2fe';
+            infoDiv.innerHTML = `📊 Ocupação: ${ocupacao}/${horario.capacidade}`;
+            if (ocupacao >= horario.capacidade) infoDiv.innerHTML += ` ⚠️ Turma LOTADA!`;
         }
     };
 }
@@ -3156,19 +2700,19 @@ async function salvarMatriculaFab() {
     const modalidade = document.getElementById('fMod').value;
     const vencimento = document.getElementById('fVenc').value;
     
-    if (!codigo) { alert('Digite o código do aluno!'); return; }
-    if (!nome) { alert('Digite o nome do aluno!'); return; }
-    if (!telefone) { alert('Digite o telefone do aluno!'); return; }
+    if (!codigo) { alert('⚠️ Digite o código do aluno!'); return; }
+    if (!nome) { alert('⚠️ Digite o nome do aluno!'); return; }
+    if (!telefone) { alert('⚠️ Digite o telefone do aluno!'); return; }
     
     const codigoNumero = parseInt(codigo);
     if (isNaN(codigoNumero)) {
-        alert('Código inválido! Digite apenas números.');
+        alert('⚠️ Código inválido! Digite apenas números.');
         return;
     }
     
     const codigoExistente = alunos.find(a => Number(a.codigo) === Number(codigoNumero));
     if (codigoExistente) { 
-        alert(`Código ${codigoNumero} já está em uso por ${codigoExistente.nome}!`); 
+        alert(`⚠️ Código ${codigoNumero} já está em uso por ${codigoExistente.nome}!`); 
         return; 
     }
     
@@ -3204,10 +2748,10 @@ async function salvarMatriculaFab() {
         renderizarTudo();
         renderPainelExperimentaisHoje();
         fecharSuperModal();
-        mostrarToast(`<i data-lucide="check" class="ic-sm"></i> ${nome} matriculado com sucesso! (Código: ${codigoNumero})`);
+        mostrarToast(`✅ ${nome} matriculado com sucesso! (Código: ${codigoNumero})`);
     } catch (erro) {
         console.error('❌ Erro no cadastro:', erro);
-        alert(`Erro ao salvar aluno: ${erro.message || 'Erro desconhecido'}`);
+        alert(`❌ Erro ao salvar aluno: ${erro.message || 'Erro desconhecido'}`);
     }
 }
 
@@ -3218,11 +2762,11 @@ function salvarExpFab() {
     const valor = document.getElementById('fExpH').value;
     
     if (!nome || !telefone || !valor) { 
-        alert('Preencha todos os campos!'); 
+        alert('⚠️ Preencha todos os campos!'); 
         return; 
     }
     if (!data) { 
-        alert('Selecione a data!'); 
+        alert('⚠️ Selecione a data!'); 
         return; 
     }
     
@@ -3239,7 +2783,7 @@ function salvarExpFab() {
         modalidade: modalidade || ''
     };
     
-    mostrarToast('<i data-lucide="loader-circle" class="ic-sm"></i> Salvando...', 'sucesso');
+    mostrarToast('⏳ Salvando...', 'sucesso');
     
     salvarExperimental(novoExp)
         .then((expSalvo) => {
@@ -3247,14 +2791,14 @@ function salvarExpFab() {
             renderizarTudo();
             renderPainelExperimentaisHoje();
             fecharSuperModal();
-            mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Experimental agendada para ${formatarDataBR(data)}!`, 'sucesso');
+            mostrarToast(`✅ Experimental agendada para ${formatarDataBR(data)}!`, 'sucesso');
             if (document.getElementById('experimentaisFuturosBody')) {
                 renderExperimentaisFuturos();
             }
         })
         .catch((erro) => {
             console.error("❌ Falha ao salvar:", erro);
-            mostrarToast('<i data-lucide="x" class="ic-sm"></i> Erro ao salvar experimental!', 'erro');
+            mostrarToast('❌ Erro ao salvar experimental!', 'erro');
         });
 }
 
@@ -3330,7 +2874,7 @@ function exportarCSV() {
     a.download = `aquacontrol_completo_${dataAtual}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    mostrarToast('<i data-lucide="check" class="ic-sm"></i> CSV completo exportado com ' + alunos.length + ' alunos!');
+    mostrarToast('✅ CSV completo exportado com ' + alunos.length + ' alunos!');
 }
 
 function exportarRelatorioResumido() {
@@ -3384,7 +2928,7 @@ function exportarRelatorioResumido() {
     a.download = `relatorio_aquacontrol_${dataAtual}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    mostrarToast('<i data-lucide="check" class="ic-sm"></i> Relatório exportado com sucesso!');
+    mostrarToast('✅ Relatório exportado com sucesso!');
 }
 
 async function verificarSalvamento() {
@@ -3408,34 +2952,33 @@ async function verificarSalvamento() {
             turmasFirebase = turmas.length;
         }
         console.log("📊 Turmas no Supabase:", turmasFirebase);
-        let msg = `<i data-lucide="bar-chart-3" class="ic-sm"></i> Alunos: ${alunos.length} (memória) vs ${alunosFirebase} (Supabase)`;
+        let msg = `📊 Alunos: ${alunos.length} (memória) vs ${alunosFirebase} (Supabase)`;
         if (alunos.length === alunosFirebase) {
-            msg += ' <i data-lucide="check" class="ic-sm"></i> OK';
+            msg += ' ✅ OK';
             mostrarToast(msg, 'sucesso');
         } else {
-            msg += ' <i data-lucide="triangle-alert" class="ic-sm"></i> DIFERENÇA!';
+            msg += ' ⚠️ DIFERENÇA!';
             mostrarToast(msg, 'erro');
         }
-        let msgTurmas = `<i data-lucide="bar-chart-3" class="ic-sm"></i> Turmas: ${horariosConfig.length} (memória) vs ${turmasFirebase} (Supabase)`;
+        let msgTurmas = `📊 Turmas: ${horariosConfig.length} (memória) vs ${turmasFirebase} (Supabase)`;
         if (horariosConfig.length === turmasFirebase) {
-            msgTurmas += ' <i data-lucide="check" class="ic-sm"></i> OK';
+            msgTurmas += ' ✅ OK';
             mostrarToast(msgTurmas, 'sucesso');
         } else {
-            msgTurmas += ' <i data-lucide="triangle-alert" class="ic-sm"></i> DIFERENÇA!';
+            msgTurmas += ' ⚠️ DIFERENÇA!';
             mostrarToast(msgTurmas, 'erro');
         }
         console.log("✅ Verificação concluída!");
     } catch (erro) {
         console.error("❌ Erro ao verificar:", erro);
-        mostrarToast('<i data-lucide="x" class="ic-sm"></i> Erro ao verificar dados!', 'erro');
+        mostrarToast('❌ Erro ao verificar dados!', 'erro');
     }
 }
 
 async function salvarTudo() {
     const btn = document.getElementById('btnSalvarTudo');
     if (btn) {
-        btn.innerHTML = '<i data-lucide="loader-circle" class="ic-sm"></i> Salvando...';
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        btn.textContent = '⏳ Salvando...';
         btn.classList.add('salvando');
     }
     let sucesso = true;
@@ -3474,14 +3017,13 @@ async function salvarTudo() {
     }
     
     if (btn) {
-        btn.innerHTML = '<i data-lucide="save" class="ic-sm"></i> SALVAR TUDO';
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        btn.textContent = '💾 SALVAR TUDO';
         btn.classList.remove('salvando');
         if (sucesso) {
             btn.classList.add('salvo');
-            mostrarToast('<i data-lucide="check" class="ic-sm"></i> Todos os dados salvos com sucesso!', 'sucesso');
+            mostrarToast('✅ Todos os dados salvos com sucesso!', 'sucesso');
         } else {
-            mostrarToast('<i data-lucide="x" class="ic-sm"></i> Erro ao salvar alguns dados!', 'erro');
+            mostrarToast('❌ Erro ao salvar alguns dados!', 'erro');
         }
         setTimeout(() => btn.classList.remove('salvo'), 3000);
     }
@@ -3499,7 +3041,7 @@ function corrigirAlunosComCodigoInvalido() {
         }
     });
     if (corrigidos > 0) {
-        mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Corrigidos ${corrigidos} alunos com código inválido!`);
+        mostrarToast(`✅ Corrigidos ${corrigidos} alunos com código inválido!`);
         renderizarTudo();
         renderStudentTableSuper();
     } else {
@@ -3510,8 +3052,7 @@ function corrigirAlunosComCodigoInvalido() {
 function toggleTheme() {
     const isDark = document.body.classList.toggle('dark');
     localStorage.setItem('aqua_theme', isDark ? 'dark' : 'light');
-    document.getElementById('themeIcon').innerHTML = isDark ? '<i data-lucide="sun" class="ic-sm"></i>' : '<i data-lucide="moon" class="ic-sm"></i>';
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
 }
 
 (function() { 
@@ -3526,7 +3067,6 @@ window.onload = function() {
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("appContainer").style.display = "block";
         carregarDados();
-        inserirBotaoReposicao();
     }
     // Auto-save a cada 1 hora (configurado no CACHE_CONFIG)
     // O startAutoSave é chamado dentro de carregarDados()
@@ -3537,19 +3077,6 @@ window.onload = function() {
         renderizarTudo(); 
     }, 30000);
 };
-
-// Insere o botão "Marcar Reposição" na barra de ações, ao lado do botão de criar turma
-function inserirBotaoReposicao() {
-    const btnCriarTurma = document.querySelector('[onclick="abrirCriarTurma()"]');
-    if (!btnCriarTurma || document.getElementById('btnMarcarReposicao')) return;
-    const btnReposicao = document.createElement('button');
-    btnReposicao.id = 'btnMarcarReposicao';
-    btnReposicao.innerHTML = '<i data-lucide="refresh-cw" class="ic-sm"></i> Marcar Reposição';
-    btnReposicao.onclick = abrirMarcarReposicao;
-    btnReposicao.style.cssText = btnCriarTurma.style.cssText || 'background:#3a3630;color:white;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:bold;';
-    btnReposicao.style.background = '#3a3630';
-    btnCriarTurma.insertAdjacentElement('afterend', btnReposicao);
-}
 
 console.log(`🏊 AQUACONTROL v${SISTEMA_VERSAO} - Carregado com sucesso!`);
 console.log(`📌 Data: ${new Date().toLocaleString()}`);
