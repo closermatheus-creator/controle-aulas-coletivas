@@ -12,60 +12,63 @@
 }
 
 :root {
-    /* Paleta principal */
-    --ink: #1c1a17;
-    --ink-soft: #3a3630;
-    --bronze: #96703c;
-    --bronze-hover: #7d5c30;
-    --bronze-light: rgba(150, 112, 60, 0.08);
-    --bronze-medium: rgba(150, 112, 60, 0.16);
-    --brick: #9a5142;
-    --brick-light: rgba(154, 81, 66, 0.08);
-    --sage: #5f7360;
-    --sage-light: rgba(95, 115, 96, 0.1);
-    --ochre: #a37a3f;
-    --ochre-light: rgba(163, 122, 63, 0.1);
+    /* Paleta principal — Azul Aqua + Vermelho (marca original, refinada) */
+    --ink: #0D1117;
+    --ink-soft: #151A21;
+    --bronze: #009FE3;
+    --bronze-hover: #006FA6;
+    --bronze-light: rgba(0, 159, 227, 0.1);
+    --bronze-medium: rgba(0, 159, 227, 0.18);
+    --brick: #ED1C35;
+    --brick-light: rgba(237, 28, 53, 0.1);
+    --sage: #16A34A;
+    --sage-light: rgba(22, 163, 74, 0.1);
+    --ochre: #F59E0B;
+    --ochre-light: rgba(245, 158, 11, 0.1);
 
     /* Tema Claro */
-    --bg: #f6f4f0;
-    --surface: #fffefc;
-    --surface-hover: #efece6;
-    --text: #1c1a17;
-    --text-secondary: #6b645a;
-    --text-muted: #a49c8f;
-    --border: #e4dfd6;
-    --shadow: 0 1px 2px rgba(28, 26, 23, 0.04), 0 8px 24px rgba(28, 26, 23, 0.05);
-    --shadow-hover: 0 2px 4px rgba(28, 26, 23, 0.05), 0 16px 32px rgba(28, 26, 23, 0.08);
+    --bg: #F7FAFC;
+    --surface: #FFFFFF;
+    --card: #FFFFFF;
+    --surface-hover: #EDF2F7;
+    --text: #111827;
+    --text-secondary: #4B5563;
+    --text-muted: #9CA3AF;
+    --border: #E2E8F0;
+    --shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 8px 24px rgba(17, 24, 39, 0.05);
+    --shadow-hover: 0 2px 4px rgba(17, 24, 39, 0.06), 0 16px 32px rgba(17, 24, 39, 0.1);
     --radius: 10px;
     --radius-sm: 7px;
     --transition: all 0.18s ease;
 
     /* Compat — nomes antigos usados em vários lugares do CSS/JS */
-    --azul-claro: var(--bronze);
+    --azul-claro: #19B5F1;
     --azul-claro-hover: var(--bronze-hover);
     --azul-claro-light: var(--bronze-light);
     --azul-claro-medium: var(--bronze-medium);
     --vermelho: var(--brick);
-    --vermelho-hover: #824437;
+    --vermelho-hover: #B81227;
     --vermelho-light: var(--brick-light);
-    --azul-escuro: var(--ink);
-    --azul-escuro-light: rgba(28, 26, 23, 0.04);
-    --branco: #fffefc;
+    --azul-escuro: var(--bronze-hover);
+    --azul-escuro-light: rgba(0, 111, 166, 0.05);
+    --branco: #FFFFFF;
 }
 
 /* TEMA ESCURO */
 body.dark {
-    --bg: #171512;
-    --surface: #201d19;
-    --surface-hover: #29251f;
-    --text: #f2ede4;
-    --text-secondary: #a89f92;
-    --text-muted: #756c60;
-    --border: #322d26;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.25);
-    --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.25), 0 16px 32px rgba(0, 0, 0, 0.3);
-    --bronze: #c19a5f;
-    --bronze-hover: #d4ad72;
+    --bg: #050505;
+    --surface: #0D1117;
+    --card: #151A21;
+    --surface-hover: #1B222B;
+    --text: #FFFFFF;
+    --text-secondary: #A7B0BA;
+    --text-muted: #6B7280;
+    --border: #252B33;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.35), 0 16px 32px rgba(0, 0, 0, 0.4);
+    --bronze: #19B5F1;
+    --bronze-hover: #009FE3;
+    --brick: #FF334A;
     --azul-escuro-light: rgba(255, 255, 255, 0.04);
 }
 
@@ -272,7 +275,7 @@ svg[data-lucide], i[data-lucide], .ic {
 }
 
 .widget {
-    background: var(--surface);
+    background: var(--card);
     padding: 20px 20px;
     text-align: left;
     transition: var(--transition);
@@ -578,7 +581,7 @@ body.dark .btn-select.active {
 }
 
 .card {
-    background: var(--surface);
+    background: var(--card);
     border-radius: var(--radius);
     overflow: hidden;
     border: 1px solid var(--border);
@@ -651,7 +654,7 @@ body.dark .btn-select.active {
    PAINEL LATERAL — EXPERIMENTAIS
    ============================================================ */
 .painel-exp-hoje {
-    background: var(--surface);
+    background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 18px;
@@ -768,7 +771,7 @@ body.dark .btn-select.active {
     display: flex;
 }
 .super-modal-content {
-    background: var(--surface);
+    background: var(--card);
     border-radius: var(--radius);
     width: 90%;
     max-width: 1200px;
@@ -825,7 +828,7 @@ body.dark .btn-select.active {
 .table-container {
     width: 100%;
     overflow-x: auto;
-    background: var(--surface);
+    background: var(--card);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
 }
