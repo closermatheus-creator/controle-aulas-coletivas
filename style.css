@@ -1,8 +1,8 @@
 /* ============================================================
    ESTILOS GLOBAIS — AQUACONTROL
-   Identidade: minimalista, adulta, editorial.
-   Paleta: grafite + bronze envelhecido sobre fundo em papel.
-   Tipografia: Fraunces (display/serif) + Inter (interface).
+   Identidade: minimalista, adulta.
+   Paleta: azul aqua + vermelho (marca original, tons mais escuros).
+   Tipografia: Inter (identidade original mantida).
    ============================================================ */
 * {
     margin: 0;
@@ -15,16 +15,16 @@
     /* Paleta principal — Azul Aqua + Vermelho (marca original, refinada) */
     --ink: #0D1117;
     --ink-soft: #151A21;
-    --bronze: #009FE3;
-    --bronze-hover: #006FA6;
-    --bronze-light: rgba(0, 159, 227, 0.1);
-    --bronze-medium: rgba(0, 159, 227, 0.18);
+    --bronze: #006FA6;
+    --bronze-hover: #00567F;
+    --bronze-light: rgba(0, 111, 166, 0.16);
+    --bronze-medium: rgba(0, 111, 166, 0.28);
     --brick: #ED1C35;
-    --brick-light: rgba(237, 28, 53, 0.1);
+    --brick-light: rgba(237, 28, 53, 0.16);
     --sage: #16A34A;
-    --sage-light: rgba(22, 163, 74, 0.1);
+    --sage-light: rgba(22, 163, 74, 0.16);
     --ochre: #F59E0B;
-    --ochre-light: rgba(245, 158, 11, 0.1);
+    --ochre-light: rgba(245, 158, 11, 0.16);
 
     /* Tema Claro */
     --bg: #F7FAFC;
@@ -71,7 +71,6 @@ body.dark {
     --brick: #FF334A;
     --azul-escuro-light: rgba(255, 255, 255, 0.04);
 }
-
 body {
     background: var(--bg);
     padding-bottom: 60px;
@@ -141,7 +140,7 @@ svg[data-lucide], i[data-lucide], .ic {
     display: flex;
     align-items: baseline;
     gap: 3px;
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Inter', sans-serif;
 }
 
 .logo-text .aqua {
@@ -153,8 +152,7 @@ svg[data-lucide], i[data-lucide], .ic {
 
 .logo-text .control {
     font-size: 1.35rem;
-    font-weight: 500;
-    font-style: italic;
+    font-weight: 700;
     color: var(--bronze);
     letter-spacing: -0.2px;
 }
@@ -282,7 +280,7 @@ svg[data-lucide], i[data-lucide], .ic {
 }
 
 .widget .val {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1.9rem;
     font-weight: 500;
     color: var(--ink);
@@ -610,7 +608,7 @@ body.dark .btn-select.active {
 }
 
 .card-header h3 {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1.02rem;
     font-weight: 500;
     color: var(--text);
@@ -792,7 +790,7 @@ body.dark .btn-select.active {
     flex-shrink: 0;
 }
 .super-modal-header h3 {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1.15rem;
     color: var(--text);
     font-weight: 500;
@@ -977,7 +975,7 @@ tr:hover td { background: var(--bg); }
 }
 .login-logo svg { width: 34px; height: 34px; stroke-width: 1.4; }
 .login-brand {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1.7rem;
     font-weight: 500;
     color: var(--ink);
@@ -985,7 +983,7 @@ tr:hover td { background: var(--bg); }
 }
 body.dark .login-brand { color: var(--text); }
 .login-brand .aqua { color: var(--text); }
-.login-brand .control { color: var(--bronze); font-style: italic; }
+.login-brand .control { color: var(--bronze); font-weight: 700; }
 
 .login-card p {
     font-size: 0.8rem;
