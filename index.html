@@ -249,7 +249,12 @@
                     <div class="cardsGrid" id="cardsGrid"></div>
                 </div>
                 <div class="painel-exp-hoje">
-                    <h4><i data-lucide="flask-conical" class="ic-sm"></i> Experimentais Hoje <span class="painel-exp-count" id="painelExpCount">0</span></h4>
+                    <h4><i data-lucide="flask-conical" class="ic-sm"></i> Aulas Experimentais <span class="painel-exp-count" id="painelExpCount">0</span></h4>
+                    <div class="painel-exp-filtros" id="painelExpFiltros">
+                        <button class="painel-exp-filtro active" data-periodo="hoje" onclick="filtrarPainelExp('hoje', this)">Hoje</button>
+                        <button class="painel-exp-filtro" data-periodo="amanha" onclick="filtrarPainelExp('amanha', this)">Amanhã</button>
+                        <button class="painel-exp-filtro" data-periodo="todas" onclick="filtrarPainelExp('todas', this)">Todas</button>
+                    </div>
                     <div id="painelExpHoje">
                         <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">Carregando...</div>
                     </div>
