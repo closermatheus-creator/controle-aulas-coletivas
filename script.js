@@ -1948,27 +1948,63 @@ function alternarStatusAluno(id, hId) {
 // ============================================================
 // PAINEL EXPERIMENTAIS DO DIA (MANTIDO IGUAL)
 // ============================================================
+function filtrarPainelExp(periodo, btnEl) {
+    window.painelExpFiltro = periodo;
+    document.querySelectorAll('#painelExpFiltros .painel-exp-filtro').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+    renderPainelExperimentaisHoje();
+}
+
 function renderPainelExperimentaisHoje() {
     const painel = document.getElementById('painelExpHoje');
     if (!painel) return;
+    const periodo = window.painelExpFiltro || 'hoje';
+
+    const hojeDate = new Date();
     const hojeStr = formatarDataISO();
-    const expHoje = experimentais.filter(e => {
+    const amanhaDate = new Date(hojeDate);
+    amanhaDate.setDate(amanhaDate.getDate() + 1);
+    const amanhaStr = `${amanhaDate.getFullYear()}-${String(amanhaDate.getMonth()+1).padStart(2,'0')}-${String(amanhaDate.getDate()).padStart(2,'0')}`;
+    const semanaAmanha = diasPtBr[amanhaDate.getDay()];
+    const semanaHoje = diasPtBr[hojeDate.getDay()];
+
+    let expLista = experimentais.filter(e => {
         if (e.status !== 'agendado') return false;
-        if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
         const h = horariosConfig.find(hc => hc.id === e.horario_id);
-        const hojeSemana = diasPtBr[new Date().getDay()];
-        return h && h.dias.includes(hojeSemana);
+
+        if (periodo === 'hoje') {
+            if (e.dataAgendada && e.dataAgendada !== hojeStr) return false;
+            return h && h.dias.includes(semanaHoje);
+        }
+        if (periodo === 'amanha') {
+            if (e.dataAgendada) return e.dataAgendada === amanhaStr;
+            return h && h.dias.includes(semanaAmanha);
+        }
+        // 'todas': qualquer experimental agendada, hoje em diante (as sem data são recorrentes)
+        if (e.dataAgendada) return e.dataAgendada >= hojeStr;
+        return true;
     });
-    expHoje.sort((a, b) => (horariosConfig.find(h=>h.id===a.horario_id)?.horario || '').localeCompare(horariosConfig.find(h=>h.id===b.horario_id)?.horario || ''));
+
+    expLista.sort((a, b) => {
+        const dataA = a.dataAgendada || '';
+        const dataB = b.dataAgendada || '';
+        if (dataA !== dataB) return dataA.localeCompare(dataB);
+        return (horariosConfig.find(h=>h.id===a.horario_id)?.horario || '').localeCompare(horariosConfig.find(h=>h.id===b.horario_id)?.horario || '');
+    });
+
     const header = document.getElementById('painelExpCount');
-    if (header) header.textContent = expHoje.length;
-    painel.innerHTML = expHoje.length === 0 ? '<div style="text-align:center;padding:20px;"> Sem experimentais hoje!</div>' : expHoje.map(exp => {
+    if (header) header.textContent = expLista.length;
+
+    const mensagemVazia = periodo === 'hoje' ? 'Sem experimentais hoje!' : periodo === 'amanha' ? 'Sem experimentais amanhã!' : 'Nenhuma aula experimental agendada!';
+
+    painel.innerHTML = expLista.length === 0 ? `<div style="text-align:center;padding:20px;"> ${mensagemVazia}</div>` : expLista.map(exp => {
         const h = horariosConfig.find(hc => hc.id === exp.horario_id);
         const faltas = historicoFaltasExperimentais[exp.telefone] || 0;
         const alerta = faltas >= 2 ? `<div style="background:#FDE2E4;color:#ED1C35;font-size:0.7rem;padding:4px;border-radius:5px;"><i data-lucide="triangle-alert" class="ic-sm"></i> Faltou ${faltas}x antes</div>` : '';
+        const dataLinha = periodo !== 'hoje' ? `<div style="font-size:0.75rem;"><i data-lucide="calendar" class="ic-sm"></i> ${exp.dataAgendada ? formatarDataBR(exp.dataAgendada) : (h ? h.dias.join(', ') : '')}</div>` : '';
         return `
             <div style="background:white;border:1px solid #E2E8F0;border-radius:10px;padding:12px;margin-bottom:8px;">
-                <div><div style="font-weight:bold;">${exp.nome}</div><div style="font-size:0.8rem;"><i data-lucide="phone" class="ic-sm"></i> ${exp.telefone}</div><div style="font-size:0.75rem;"><i data-lucide="clock" class="ic-sm"></i> ${h ? h.horario : '??'}</div>${alerta}</div>
+                <div><div style="font-weight:bold;">${exp.nome}</div><div style="font-size:0.8rem;"><i data-lucide="phone" class="ic-sm"></i> ${exp.telefone}</div>${dataLinha}<div style="font-size:0.75rem;"><i data-lucide="clock" class="ic-sm"></i> ${h ? h.horario : '??'}</div>${alerta}</div>
                 <div style="display:flex;gap:5px;margin-top:8px;">
                     <button onclick="marcarPresencaExpPainel(${exp.id},'compareceu')" style="background:#16A34A;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.7rem;cursor:pointer;"><i data-lucide="check" class="ic-sm"></i> Veio</button>
                     <button onclick="marcarPresencaExpPainel(${exp.id},'nao_compareceu')" style="background:#ED1C35;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.7rem;cursor:pointer;"><i data-lucide="x" class="ic-sm"></i> Faltou</button>
@@ -2219,8 +2255,9 @@ function abrirSuperModal(tipo) {
 
     if (tipo === 'vencidos') {
         titulo.innerHTML = '<i data-lucide="triangle-alert" class="ic-sm"></i> Alunos Vencidos';
-        corpo.innerHTML = `<div id="superFormEdicaoContainer" style="display:none;"></div><div class="table-container"><table><thead><tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="superVencidosBody"></tbody></table></div>`;
+        corpo.innerHTML = `<div style="position:relative;margin-bottom:15px;"><i data-lucide="search" class="ic-sm" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"></i><input type="text" id="superVencidosSearch" class="search-input-field" style="padding-left:36px;width:100%;" placeholder="Buscar por nome, código ou telefone..." oninput="renderVencidosSuper()"></div><div id="superFormEdicaoContainer" style="display:none;"></div><div class="table-container"><table><thead><tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="superVencidosBody"></tbody></table></div>`;
         renderVencidosSuper();
+        if (window.lucide) lucide.createIcons();
     } else if (tipo === 'alunos') {
         titulo.innerHTML = '<i data-lucide="users" class="ic-sm"></i> Central de Alunos';
         corpo.innerHTML = `<div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;"><button class="filter-chip active" onclick="filtrarListaAlunos('todos', this)"><i data-lucide="clipboard-list" class="ic-sm"></i> Todos</button><button class="filter-chip" onclick="filtrarListaAlunos('pausados', this)"><i data-lucide="pause" class="ic-sm"></i> PAUSADOS</button><button class="filter-chip" onclick="filtrarListaAlunos('trancados', this)"><i data-lucide="lock" class="ic-sm"></i> TRANCADOS</button></div><input type="text" id="superStudentSearch" class="search-input-field" style="margin-bottom:15px;" placeholder="Buscar por nome, código ou telefone..." oninput="renderStudentTableSuper()"><div id="superFormEdicaoContainer" style="display:none;"></div><div class="table-container"><table><thead><tr><th>Código</th><th>Nome</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="superStudentTableBody"></tbody></table></div>`;
@@ -2985,11 +3022,14 @@ function renderStudentTableSuper() {
 function renderVencidosSuper() {
     const body = document.getElementById('superVencidosBody');
     if (!body) return;
+    const txt = document.getElementById('superVencidosSearch')?.value.toLowerCase() || '';
     const vencidos = alunos.filter(a => {
         if (a.status === 'TRANCADO' || a.status === 'PAUSADO') return false;
-        return verificarVencimento(a.vencimento).vencido;
+        if (!verificarVencimento(a.vencimento).vencido) return false;
+        if (!txt) return true;
+        return String(a.nome).toLowerCase().includes(txt) || String(a.telefone).includes(txt) || String(a.codigo).includes(txt);
     });
-    if (vencidos.length === 0) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;"><i data-lucide="check" class="ic-sm"></i> Nenhum aluno vencido!</td></tr>'; return; }
+    if (vencidos.length === 0) { body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;">${txt ? '<i data-lucide=\"search-x\" class=\"ic-sm\"></i> Nenhum aluno vencido encontrado' : '<i data-lucide=\"check\" class=\"ic-sm\"></i> Nenhum aluno vencido!'}</td></tr>`; return; }
     body.innerHTML = vencidos.map(a => {
         const fin = verificarVencimento(a.vencimento);
         const dateClean = limparData(a.vencimento);
