@@ -2005,9 +2005,10 @@ function renderPainelExperimentaisHoje() {
         return `
             <div style="background:white;border:1px solid #E2E8F0;border-radius:10px;padding:12px;margin-bottom:8px;">
                 <div><div style="font-weight:bold;">${exp.nome}</div><div style="font-size:0.8rem;"><i data-lucide="phone" class="ic-sm"></i> ${exp.telefone}</div>${dataLinha}<div style="font-size:0.75rem;"><i data-lucide="clock" class="ic-sm"></i> ${h ? h.horario : '??'}</div>${alerta}</div>
-                <div style="display:flex;gap:5px;margin-top:8px;">
+                <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;">
                     <button onclick="marcarPresencaExpPainel(${exp.id},'compareceu')" style="background:#16A34A;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.7rem;cursor:pointer;"><i data-lucide="check" class="ic-sm"></i> Veio</button>
                     <button onclick="marcarPresencaExpPainel(${exp.id},'nao_compareceu')" style="background:#ED1C35;color:white;border:none;padding:5px 9px;border-radius:6px;font-size:0.7rem;cursor:pointer;"><i data-lucide="x" class="ic-sm"></i> Faltou</button>
+                    <button onclick="abrirEdicaoExperimental(${exp.id})" style="background:#E0F4FC;color:#006FA6;border:none;padding:5px 9px;border-radius:6px;font-size:0.7rem;cursor:pointer;"><i data-lucide="pencil" class="ic-sm"></i> Editar</button>
                     <a href="https://wa.me/55${String(exp.telefone).replace(/\D/g,'')}" target="_blank" style="background:#25d366;color:white;padding:5px 9px;border-radius:6px;font-size:0.7rem;text-decoration:none;"><i data-lucide="message-circle" class="ic-sm"></i> WA</a>
                 </div>
             </div>
@@ -2598,6 +2599,7 @@ function salvarEdicaoExperimental(expId) {
     fecharSuperModal();
     renderExperimentaisFuturos();
     renderizarTudo();
+    renderPainelExperimentaisHoje();
     mostrarToast('<i data-lucide="check" class="ic-sm"></i> Experimental atualizada!');
 }
 
