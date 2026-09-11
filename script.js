@@ -1248,6 +1248,21 @@ function horarioParaMinutos(horStr) {
     return p[0] * 60 + p[1];
 }
 
+// ============================================================
+// Contagem CORRETA de matriculados por turma: conta cada aluno ativo
+// UMA vez por turma, mesmo que a turma se repita em vários dias da
+// semana (ex: Segunda/Quarta/Sexta é 1 turma só, não 3).
+// Usado tanto nos widgets do topo quanto no KPI por professor —
+// fonte única, pra nunca mais desalinhar.
+// ============================================================
+function contarMatriculadosTurma(horarioId) {
+    const diasValores = Object.values(diasMap);
+    return alunos.filter(a => {
+        if (!alunoContaOcupacao(a)) return false;
+        return diasValores.some(campo => Number(a[campo]) === Number(horarioId));
+    }).length;
+}
+
 function verificarVencimento(dataVenc) {
     if (!dataVenc) return { vencido: false, texto: "Sem data" };
     let dataStr = String(dataVenc);
@@ -1292,23 +1307,20 @@ function contarAlunosUnicos() {
     return ativos.length;
 }
 
-function contarMatriculasPorTurno() {
-    let manha = 0, tarde = 0, noite = 0, sabado = 0;
-    alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO').forEach(a => {
-        ['seg','ter','qua','qui','sex','sab'].forEach(d => {
-            const hId = a[d];
-            if (hId) {
-                const h = horariosConfig.find(hc => hc.id == hId);
-                if (h) {
-                    if (h.turno === 'manha') manha++;
-                    else if (h.turno === 'tarde') tarde++;
-                    else if (h.turno === 'noite') noite++;
-                    else if (h.turno === 'sabado') sabado++;
-                }
-            }
-        });
+// Ocupação correta por turno, reaproveitada pelos widgets e pelo relatório exportado.
+function calcularOcupacaoPorTurno() {
+    const porTurno = { manha: { cap: 0, mat: 0 }, tarde: { cap: 0, mat: 0 }, noite: { cap: 0, mat: 0 }, sabado: { cap: 0, mat: 0 } };
+    let capTotal = 0, matriculadosTotal = 0;
+    horariosConfig.forEach(h => {
+        const mat = contarMatriculadosTurma(h.id);
+        capTotal += h.capacidade;
+        matriculadosTotal += mat;
+        if (porTurno[h.turno]) {
+            porTurno[h.turno].cap += h.capacidade;
+            porTurno[h.turno].mat += mat;
+        }
     });
-    return { manha, tarde, noite, sabado };
+    return { porTurno, capTotal, matriculadosTotal };
 }
 
 function atualizarWidgets() {
@@ -1319,22 +1331,45 @@ function atualizarWidgets() {
         if (verificarVencimento(a.vencimento).vencido) vencidos++;
         else emDia++;
     });
-    const matriculas = contarMatriculasPorTurno();
-    const totalMatriculas = matriculas.manha + matriculas.tarde + matriculas.noite + matriculas.sabado;
-    const capTotal = horariosConfig.reduce((s, h) => s + h.capacidade, 0);
-    const pctOcupacao = capTotal > 0 ? Math.round((totalMatriculas / capTotal) * 100) : 0;
+
+    const { porTurno, capTotal, matriculadosTotal } = calcularOcupacaoPorTurno();
+    const vagasLivres = Math.max(capTotal - matriculadosTotal, 0);
+    const pctOcupacao = capTotal > 0 ? Math.round((matriculadosTotal / capTotal) * 100) : 0;
+
     const widget = document.getElementById('macroStatsWidget');
-    if (!widget) return;
-    widget.innerHTML = `
-        <div class="widget aluno-counter"><div class="val">${totalAlunos}</div><div class="lbl"><i data-lucide="target" class="ic-sm"></i> Total Alunos</div><div class="sub">Alunos únicos ativos</div></div>
-        <div class="widget vencidos-border"><div class="val" style="color:#ED1C35;">${vencidos}</div><div class="lbl"><i data-lucide="triangle-alert" class="ic-sm"></i> Vencidos</div><div class="sub">Planos Atrasados</div></div>
-        <div class="widget emdia-border"><div class="val" style="color:#16A34A;">${emDia}</div><div class="lbl"><i data-lucide="check" class="ic-sm"></i> Em Dia</div><div class="sub">Planos Ativos</div></div>
-        <div class="widget"><div class="val">${matriculas.manha}</div><div class="lbl"><i data-lucide="sunrise" class="ic-sm"></i> Manhã</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${matriculas.tarde}</div><div class="lbl"><i data-lucide="sun" class="ic-sm"></i> Tarde</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${matriculas.noite}</div><div class="lbl"><i data-lucide="moon" class="ic-sm"></i> Noite</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${matriculas.sabado}</div><div class="lbl"><i data-lucide="calendar" class="ic-sm"></i> Sábados</div><div class="sub">Matrículas</div></div>
-        <div class="widget"><div class="val">${pctOcupacao}%</div><div class="lbl"><i data-lucide="bar-chart-3" class="ic-sm"></i> Ocupação</div><div class="progress-mini"><div class="progress-mini-fill" style="width:${pctOcupacao}%"></div></div></div>
-    `;
+    if (widget) {
+        widget.innerHTML = `
+            <div class="widget aluno-counter"><div class="val">${capTotal}</div><div class="lbl"><i data-lucide="layout-grid" class="ic-sm"></i> Capacidade Total</div><div class="sub">Vagas em todas as turmas</div></div>
+            <div class="widget"><div class="val">${matriculadosTotal}</div><div class="lbl"><i data-lucide="users" class="ic-sm"></i> Matriculados</div><div class="sub">Ocupando vaga em turma</div></div>
+            <div class="widget"><div class="val" style="color:#16A34A;">${vagasLivres}</div><div class="lbl"><i data-lucide="door-open" class="ic-sm"></i> Vagas Livres</div><div class="sub">Disponíveis pra matrícula</div></div>
+            <div class="widget"><div class="val">${pctOcupacao}%</div><div class="lbl"><i data-lucide="bar-chart-3" class="ic-sm"></i> % Preenchida</div><div class="progress-mini"><div class="progress-mini-fill" style="width:${Math.min(pctOcupacao,100)}%"></div></div></div>
+            <div class="widget"><div class="val">${totalAlunos}</div><div class="lbl"><i data-lucide="target" class="ic-sm"></i> Total Alunos</div><div class="sub">Alunos únicos ativos</div></div>
+            <div class="widget vencidos-border"><div class="val" style="color:#ED1C35;">${vencidos}</div><div class="lbl"><i data-lucide="triangle-alert" class="ic-sm"></i> Vencidos</div><div class="sub">Planos Atrasados</div></div>
+            <div class="widget emdia-border"><div class="val" style="color:#16A34A;">${emDia}</div><div class="lbl"><i data-lucide="check" class="ic-sm"></i> Em Dia</div><div class="sub">Planos Ativos</div></div>
+        `;
+    }
+
+    // Segunda linha, menor: ocupação por turno (mesma contagem correta, agrupada)
+    const widgetTurno = document.getElementById('turnoStatsWidget');
+    if (widgetTurno) {
+        const linhas = [
+            ['manha', 'sunrise', 'Manhã'],
+            ['tarde', 'sun', 'Tarde'],
+            ['noite', 'moon', 'Noite'],
+            ['sabado', 'calendar', 'Sábado'],
+        ];
+        widgetTurno.innerHTML = linhas.map(([chave, icone, label]) => {
+            const t = porTurno[chave];
+            const pct = t.cap > 0 ? Math.round((t.mat / t.cap) * 100) : 0;
+            return `
+                <div class="turno-mini-card">
+                    <div class="turno-mini-label"><i data-lucide="${icone}" class="ic-sm"></i> ${label}</div>
+                    <div class="turno-mini-val">${t.mat}<span>/${t.cap}</span></div>
+                    <div class="progress-mini"><div class="progress-mini-fill" style="width:${Math.min(pct,100)}%"></div></div>
+                </div>
+            `;
+        }).join('');
+    }
 }
 
 // ============================================================
@@ -1344,7 +1379,6 @@ function renderKpiProfessores() {
     const container = document.getElementById('kpiProfessoresContainer');
     if (!container) return;
 
-    const diasValores = Object.values(diasMap); // ['seg','ter','qua','qui','sex','sab']
     const porProfessor = {};
 
     horariosConfig.forEach(h => {
@@ -1352,12 +1386,7 @@ function renderKpiProfessores() {
         if (!porProfessor[prof]) porProfessor[prof] = { turmas: 0, capacidade: 0, matriculas: 0 };
         porProfessor[prof].turmas++;
         porProfessor[prof].capacidade += h.capacidade;
-
-        const matriculados = alunos.filter(a => {
-            if (!alunoContaOcupacao(a)) return false;
-            return diasValores.some(campo => Number(a[campo]) === Number(h.id));
-        }).length;
-        porProfessor[prof].matriculas += matriculados;
+        porProfessor[prof].matriculas += contarMatriculadosTurma(h.id);
     });
 
     // Sem professor por último, o resto ordenado por maior capacidade
@@ -1387,6 +1416,20 @@ function renderKpiProfessores() {
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
+
+// ============================================================
+// EFEITO VISUAL: sombra na busca quando ela gruda no topo ao rolar
+// ============================================================
+function initStickySearchObserver() {
+    const sentinel = document.getElementById('stickySentinel');
+    const alvo = document.getElementById('filterRowSticky');
+    if (!sentinel || !alvo || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => {
+        alvo.classList.toggle('is-stuck', !entry.isIntersecting);
+    }, { threshold: 0, rootMargin: '-75px 0px 0px 0px' });
+    observer.observe(sentinel);
+}
+document.addEventListener('DOMContentLoaded', initStickySearchObserver);
 
 function mostrarToast(msg, tipo = 'sucesso') {
     let t = document.getElementById('toastGlobal');
@@ -3474,7 +3517,7 @@ function exportarCSV() {
 
 function exportarRelatorioResumido() {
     const totalAlunos = contarAlunosUnicos();
-    const matriculas = contarMatriculasPorTurno();
+    const { porTurno, capTotal, matriculadosTotal } = calcularOcupacaoPorTurno();
     const vencidos = alunos.filter(a => a.status !== 'TRANCADO' && a.status !== 'PAUSADO' && verificarVencimento(a.vencimento).vencido).length;
     const emDia = totalAlunos - vencidos;
     const resumo = [
@@ -3485,11 +3528,16 @@ function exportarRelatorioResumido() {
         ['Total de Alunos Únicos:', totalAlunos],
         ['Alunos em Dia:', emDia],
         ['Alunos Vencidos:', vencidos],
-        ['Matrículas Manhã:', matriculas.manha],
-        ['Matrículas Tarde:', matriculas.tarde],
-        ['Matrículas Noite:', matriculas.noite],
-        ['Matrículas Sábado:', matriculas.sabado],
-        ['Total de Matrículas:', matriculas.manha + matriculas.tarde + matriculas.noite + matriculas.sabado],
+        ['Capacidade Total:', capTotal],
+        ['Matriculados (turmas):', matriculadosTotal],
+        ['Vagas Livres:', Math.max(capTotal - matriculadosTotal, 0)],
+        ['% Preenchida:', capTotal > 0 ? Math.round((matriculadosTotal / capTotal) * 100) + '%' : '0%'],
+        [''],
+        ['POR TURNO (matriculados / capacidade)'],
+        ['Manhã:', `${porTurno.manha.mat} / ${porTurno.manha.cap}`],
+        ['Tarde:', `${porTurno.tarde.mat} / ${porTurno.tarde.cap}`],
+        ['Noite:', `${porTurno.noite.mat} / ${porTurno.noite.cap}`],
+        ['Sábado:', `${porTurno.sabado.mat} / ${porTurno.sabado.cap}`],
         [''],
         ['ALUNOS DETALHADOS'],
         ['Código', 'Nome', 'Telefone', 'Modalidade', 'Vencimento', 'Status', 'Dias']
