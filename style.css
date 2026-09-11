@@ -332,6 +332,115 @@ body.dark .widget .val { color: var(--text); }
 }
 
 /* ============================================================
+   KPI POR PROFESSOR
+   ============================================================ */
+.kpi-professores-section {
+    margin-bottom: 28px;
+}
+.kpi-professores-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.kpi-professores-header h4 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+}
+.btn-aplicar-turno {
+    background: var(--bronze-light);
+    color: var(--bronze);
+    border: 1px solid var(--bronze-medium);
+}
+.btn-aplicar-turno:hover {
+    background: var(--bronze-medium);
+}
+
+.kpi-professores-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+}
+
+.kpi-professor-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: var(--transition);
+}
+.kpi-professor-card:hover {
+    background: var(--surface-hover);
+}
+.kpi-professor-card.sem-professor {
+    border-style: dashed;
+    opacity: 0.75;
+}
+
+.kpi-professor-nome {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 10px;
+}
+.kpi-professor-card.sem-professor .kpi-professor-nome {
+    color: var(--text-muted);
+}
+
+.kpi-professor-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 4px;
+}
+.kpi-professor-stats > div {
+    display: flex;
+    flex-direction: column;
+}
+.kpi-professor-val {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.1;
+}
+body.dark .kpi-professor-val { color: var(--text); }
+.kpi-professor-lbl {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+}
+
+.kpi-professor-card .progress-mini {
+    background: var(--border);
+    height: 3px;
+    border-radius: 2px;
+    margin-top: 12px;
+    overflow: hidden;
+}
+.kpi-professor-card .progress-mini-fill {
+    height: 100%;
+    background: var(--bronze);
+    width: 0%;
+    transition: width 0.6s ease;
+}
+
+@media (max-width: 768px) {
+    .kpi-professores-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .kpi-professores-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ============================================================
    FILTROS
    ============================================================ */
 .filter-panel {
