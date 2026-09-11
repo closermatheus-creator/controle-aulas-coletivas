@@ -154,6 +154,7 @@
 
             <!-- WIDGETS -->
             <div class="summary-widgets" id="macroStatsWidget"></div>
+            <div class="turno-stats-row" id="turnoStatsWidget"></div>
 
             <!-- KPI POR PROFESSOR -->
             <div class="kpi-professores-section">
@@ -166,7 +167,8 @@
 
             <!-- FILTROS -->
             <div class="filter-panel">
-                <div class="filter-row-top">
+                <div id="stickySentinel" style="height:1px;"></div>
+                <div class="filter-row-top filter-row-sticky" id="filterRowSticky">
                     <div class="filter-group flex-main">
                         <div class="filter-label"><i data-lucide="search" class="ic-sm"></i> Buscar horário ou aluno</div>
                         <input type="text" id="searchBar" class="search-input-field"
