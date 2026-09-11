@@ -1095,6 +1095,51 @@ async function salvarTurmas() {
 }
 
 // ============================================================
+// REGRA DE TURNO → PROFESSOR (cadastrada pelo dono, 2026-09-11)
+// Grupos de modalidade: só as modalidades listadas aqui entram na regra.
+// Turnos não listados pra um grupo (ex: "tarde" e "sabado" em Personal Class)
+// ficam de fora — não mexe no que já está atribuído manualmente pra esses casos.
+// ============================================================
+const REGRA_TURNO_PROFESSOR = {
+    "Natação e Hidroginástica": {
+        modalidades: ["Natação Adulto", "Natação Baby", "Natação Infantil Nível 1", "Natação Infantil Nível 2", "Natação Infantil Nível 3", "Hidroginástica"],
+        turnos: { manha: "KELVISSON", tarde: "ANDRE", noite: "KELVISSON", sabado: "JUNIOR" }
+    },
+    "Personal Class": {
+        modalidades: ["Personal Class"],
+        turnos: { manha: "DENIA", noite: "ANA MOURA" }
+    }
+};
+
+// Aplica a regra de turno em todas as turmas que casarem (modalidade + turno definidos na regra),
+// sobrescrevendo o professor atual (inclusive turmas que já tinham alguém definido manualmente).
+async function aplicarProfessoresPorTurno() {
+    if (!confirm('Isso vai sobrescrever o professor de TODAS as turmas que casarem com a regra de turno (mesmo as que já têm professor definido). Confirma?')) return;
+
+    let alteradas = 0;
+    horariosConfig.forEach(h => {
+        for (const grupo of Object.values(REGRA_TURNO_PROFESSOR)) {
+            if (!grupo.modalidades.includes(h.modalidade)) continue;
+            const professorDoTurno = grupo.turnos[h.turno];
+            if (!professorDoTurno) continue; // turno não coberto pela regra pra esse grupo — não mexe
+            if (h.professor !== professorDoTurno) {
+                h.professor = professorDoTurno;
+                alteradas++;
+            }
+        }
+    });
+
+    const ok = await salvarTurmas();
+    if (ok) {
+        mostrarToast(`<i data-lucide="check" class="ic-sm"></i> Regra de turno aplicada — ${alteradas} turma(s) atualizada(s).`);
+    } else {
+        mostrarToast('<i data-lucide="x" class="ic-sm"></i> Erro ao salvar. Tente novamente.', 'erro');
+    }
+    renderizarTudo();
+    renderKpiProfessores();
+}
+
+// ============================================================
 // AUTO-SAVE INTELIGENTE (A CADA 1 HORA)
 // ============================================================
 let autoSaveTimer = null;
@@ -1292,6 +1337,57 @@ function atualizarWidgets() {
     `;
 }
 
+// ============================================================
+// KPI POR PROFESSOR
+// ============================================================
+function renderKpiProfessores() {
+    const container = document.getElementById('kpiProfessoresContainer');
+    if (!container) return;
+
+    const diasValores = Object.values(diasMap); // ['seg','ter','qua','qui','sex','sab']
+    const porProfessor = {};
+
+    horariosConfig.forEach(h => {
+        const prof = (h.professor && h.professor.trim()) ? h.professor.trim() : '— Sem professor —';
+        if (!porProfessor[prof]) porProfessor[prof] = { turmas: 0, capacidade: 0, matriculas: 0 };
+        porProfessor[prof].turmas++;
+        porProfessor[prof].capacidade += h.capacidade;
+
+        const matriculados = alunos.filter(a => {
+            if (!alunoContaOcupacao(a)) return false;
+            return diasValores.some(campo => Number(a[campo]) === Number(h.id));
+        }).length;
+        porProfessor[prof].matriculas += matriculados;
+    });
+
+    // Sem professor por último, o resto ordenado por maior capacidade
+    const entradas = Object.entries(porProfessor).sort((a, b) => {
+        if (a[0] === '— Sem professor —') return 1;
+        if (b[0] === '— Sem professor —') return -1;
+        return b[1].capacidade - a[1].capacidade;
+    });
+
+    container.innerHTML = entradas.map(([nome, d]) => {
+        const pct = d.capacidade > 0 ? Math.round((d.matriculas / d.capacidade) * 100) : 0;
+        const livres = Math.max(d.capacidade - d.matriculas, 0);
+        const semProfessor = nome === '— Sem professor —';
+        return `
+            <div class="kpi-professor-card${semProfessor ? ' sem-professor' : ''}">
+                <div class="kpi-professor-nome"><i data-lucide="${semProfessor ? 'circle-alert' : 'user-round'}" class="ic-sm"></i> ${nome}</div>
+                <div class="kpi-professor-stats">
+                    <div><span class="kpi-professor-val">${d.turmas}</span><span class="kpi-professor-lbl">turmas</span></div>
+                    <div><span class="kpi-professor-val">${d.matriculas}</span><span class="kpi-professor-lbl">matriculados</span></div>
+                    <div><span class="kpi-professor-val">${livres}</span><span class="kpi-professor-lbl">vagas livres</span></div>
+                    <div><span class="kpi-professor-val">${pct}%</span><span class="kpi-professor-lbl">ocupação</span></div>
+                </div>
+                <div class="progress-mini"><div class="progress-mini-fill" style="width:${Math.min(pct, 100)}%"></div></div>
+            </div>
+        `;
+    }).join('');
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 function mostrarToast(msg, tipo = 'sucesso') {
     let t = document.getElementById('toastGlobal');
     if (!t) { t = document.createElement('div'); t.id = 'toastGlobal'; t.className = 'toast'; document.body.appendChild(t); }
@@ -1320,6 +1416,7 @@ function renderizarTudo() {
     const grid = document.getElementById('cardsGrid');
     if (!grid) return;
     atualizarWidgets();
+    renderKpiProfessores();
 
     const query = document.getElementById('searchBar')?.value.toLowerCase() || '';
     const diasFiltro = activeFilters.dias;
