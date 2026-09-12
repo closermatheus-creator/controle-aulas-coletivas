@@ -584,9 +584,10 @@ async function carregarExperimentais(forceRefresh = false) {
         const { data, error } = await supabaseClient
             .from('experimentais_futuros')
             .select('*')
+            .eq('status', 'agendado') // só o que ainda está pendente — resolvidas já saem daqui (ver excluirExperimental em marcarPresencaExp)
             .order('data_agendada', { ascending: true })
             .order('id', { ascending: false })
-            .limit(200); // Limite de segurança
+            .limit(500); // folga bem maior que o necessário, agora que a tabela não acumula mais lixo
         
         if (error) {
             console.error("❌ Erro ao carregar:", error);
@@ -2198,7 +2199,10 @@ function marcarPresencaExpPainel(id, st) {
             }
         }, 100);
     }
-    salvarExperimental(exp);
+    // Já foi arquivado em historico_experimentais acima — não faz sentido continuar
+    // ocupando espaço em experimentais_futuros (que deveria ter só os pendentes).
+    excluirExperimental(exp.id);
+    experimentais = experimentais.filter(e => e.id !== exp.id);
     renderizarTudo();
     renderPainelExperimentaisHoje();
 }
@@ -2233,7 +2237,8 @@ function marcarPresencaExp(id, st, hId) {
             }
         }, 100);
     }
-    salvarExperimental(exp);
+    excluirExperimental(exp.id);
+    experimentais = experimentais.filter(e => e.id !== exp.id);
     renderizarTudo();
     renderPainelExperimentaisHoje();
     abrirModalHorario(hId);
