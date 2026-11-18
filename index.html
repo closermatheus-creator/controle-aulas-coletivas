@@ -1,302 +1,36 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>AquaControl — Controle de Turmas</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Tipografia: Inter (identidade original mantida) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Ícones -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        /* PAINEL LATERAL */
-        .painel-exp-hoje {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 18px;
-            position: sticky;
-            top: 20px;
-            max-height: calc(100vh - 100px);
-            overflow-y: auto;
-        }
-        .painel-exp-hoje h4 {
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--text-secondary);
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 10px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .painel-exp-count {
-            background: var(--ink);
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
-            font-weight: 600;
-        }
-
-        /* Badges de status — tons neutros */
-        .badge-status-ativo { background: var(--sage-light); color: var(--sage); }
-        .badge-status-pausado { background: var(--ochre-light); color: var(--ochre); }
-        .badge-status-trancado { background: var(--brick-light); color: var(--brick); }
-
-        /* Container para botões de ação */
-        .action-buttons-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-            align-items: center;
-        }
-
-        /* Checkbox group para dias */
-        .dias-checkbox-group {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 8px;
-        }
-        .dias-checkbox-group label {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.78rem;
-            background: var(--bg);
-            padding: 5px 12px;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--border);
-            cursor: pointer;
-        }
-
-        /* Botão Salvar Tudo */
-        .btn-save-all {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* Indicador de salvamento automático */
-        .auto-save-indicator {
-            font-size: 0.7rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        /* Todos os botões de ação secundária (histórico, CSV, relatório, verificar)
-           ficam neutros — sem cor codificada, diferenciados só pelo ícone */
-        .btn-historico-exp,
-        .btn-export-csv,
-        .btn-relatorio,
-        .btn-verificar {
-            background: var(--surface) !important;
-            color: var(--text-secondary) !important;
-            border-color: var(--border) !important;
-        }
-        .btn-historico-exp:hover,
-        .btn-export-csv:hover,
-        .btn-relatorio:hover,
-        .btn-verificar:hover {
-            border-color: var(--bronze) !important;
-            color: var(--bronze) !important;
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AquaControl mudou de endereço</title>
+<meta http-equiv="refresh" content="5; url=https://app.iaparhub.com.br/">
+<meta name="robots" content="noindex">
+<style>
+  :root { --azul:#0a5cff; --azul2:#0047d6; --fundo:#f2f5fb; --texto:#071a3d; --cinza:#5b6785; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:16px;
+         background:var(--fundo); color:var(--texto); font-family:Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .caixa { max-width:440px; width:100%; background:#fff; border-radius:12px; padding:32px 26px;
+           box-shadow:0 8px 30px rgba(7,26,61,.08); text-align:center; }
+  h1 { font-size:20px; margin:0 0 10px; }
+  p { font-size:14px; line-height:1.55; color:var(--cinza); margin:0 0 18px; }
+  a.botao { display:inline-block; background:var(--azul); color:#fff; text-decoration:none; font-weight:600;
+            font-size:14px; padding:12px 22px; border-radius:8px; }
+  a.botao:hover { background:var(--azul2); }
+  small { display:block; margin-top:16px; font-size:12px; color:var(--cinza); }
+</style>
 </head>
 <body>
-    <!-- LOGIN -->
-    <div id="loginScreen" class="login-screen">
-        <div class="login-card">
-            <div class="login-logo"><i data-lucide="waves"></i></div>
-            <div class="login-brand">Aqua<span class="control">Control</span></div>
-            <p>Digite a senha de acesso da recepção</p>
-            <input type="password" id="passwordInput" class="login-input" placeholder="••••••••" onkeypress="handleKeyPress(event)">
-            <button class="btn-login" onclick="checkPassword()">Entrar no Sistema</button>
-            <div id="loginError" class="login-error"><i data-lucide="triangle-alert" class="ic-sm"></i> Senha incorreta!</div>
-        </div>
-    </div>
-
-    <!-- APP -->
-    <div id="appContainer" style="display:none;">
-        <div class="header">
-            <div class="logo">
-                <div class="logo-icon"><i data-lucide="waves"></i></div>
-                <div>
-                    <div class="logo-text">
-                        <span class="aqua">Aqua</span><span class="control">Control</span>
-                    </div>
-                    <div class="logo-sub">Gestão de Horários</div>
-                </div>
-            </div>
-            <div class="header-controls">
-                <button class="btn-theme-toggle" onclick="toggleTheme()" id="themeToggleBtn">
-                    <span id="themeIcon"><i data-lucide="moon"></i></span>
-                </button>
-                <button onclick="exportarCSV()" class="btn-csv"><i data-lucide="download" class="ic-sm"></i> Exportar CSV</button>
-                <span id="googleStatus" class="status"><i data-lucide="loader-circle" class="ic-sm"></i> Carregando...</span>
-                <button onclick="logout()" class="btn-logout">Sair</button>
-            </div>
-        </div>
-
-        <div class="container">
-            <div id="loadingBanner" class="loading-banner"><i data-lucide="refresh-cw" class="ic-sm"></i> Sincronizando com o Supabase...</div>
-
-            <!-- WIDGETS -->
-            <div class="summary-widgets" id="macroStatsWidget"></div>
-            <div class="turno-stats-row" id="turnoStatsWidget"></div>
-
-            <!-- KPI POR PROFESSOR -->
-            <div class="kpi-professores-section">
-                <div class="kpi-professores-header">
-                    <h4><i data-lucide="users-round" class="ic-sm"></i> Por Professor</h4>
-                    <button onclick="aplicarProfessoresPorTurno()" class="btn-action-tab btn-aplicar-turno"><i data-lucide="wand-sparkles" class="ic-sm"></i> Aplicar regra de turno</button>
-                </div>
-                <div class="kpi-professores-grid" id="kpiProfessoresContainer"></div>
-            </div>
-
-            <!-- FILTROS -->
-            <div class="filter-panel">
-                <div id="stickySentinel" style="height:1px;"></div>
-                <div class="filter-row-top filter-row-sticky" id="filterRowSticky">
-                    <div class="filter-group flex-main">
-                        <div class="filter-label"><i data-lucide="search" class="ic-sm"></i> Buscar horário ou aluno</div>
-                        <input type="text" id="searchBar" class="search-input-field"
-                            placeholder="Nome, código, telefone, modalidade ou horário..."
-                            oninput="renderizarTudo()">
-                    </div>
-                </div>
-
-                <div class="filter-group row-spacing">
-                    <div class="filter-label">Dia da semana</div>
-                    <div class="filter-options" id="filterDias">
-                        <button class="btn-select active" onclick="filtrarDiaHub('TODOS', this)">Todos</button>
-                        <button class="btn-select btn-hoje-destaque" onclick="filtrarDiaHub('HOJE', this)"><i data-lucide="calendar" class="ic-sm"></i> Hoje</button>
-                        <button class="btn-select" onclick="filtrarDiaHub('Segunda', this)">Seg</button>
-                        <button class="btn-select" onclick="filtrarDiaHub('Terça', this)">Ter</button>
-                        <button class="btn-select" onclick="filtrarDiaHub('Quarta', this)">Qua</button>
-                        <button class="btn-select" onclick="filtrarDiaHub('Quinta', this)">Qui</button>
-                        <button class="btn-select" onclick="filtrarDiaHub('Sexta', this)">Sex</button>
-                        <button class="btn-select" onclick="filtrarDiaHub('Sábado', this)">Sáb</button>
-                    </div>
-                </div>
-
-                <div class="filter-group row-spacing">
-                    <div class="filter-label">Modalidade</div>
-                    <div class="filter-options" id="filterModalities">
-                        <button class="btn-select active" onclick="filtrarModalidadeHub('TODAS', this)">Todas</button>
-                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Adulto', this)">Adulto</button>
-                        <button class="btn-select" onclick="filtrarModalidadeHub('Hidroginástica', this)">Hidro</button>
-                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 1', this)">Inf N1</button>
-                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 2', this)">Inf N2</button>
-                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Infantil Nível 3', this)">Inf N3</button>
-                        <button class="btn-select" onclick="filtrarModalidadeHub('Natação Baby', this)">Baby</button>
-                        <button class="btn-select" onclick="filtrarModalidadeHub('Personal Class', this)">Personal</button>
-                    </div>
-                </div>
-
-                <div class="filter-row-bottom">
-                    <div class="filter-group">
-                        <div class="filter-label">Turno</div>
-                        <div class="filter-options" id="filterTurno">
-                            <button class="btn-select active" onclick="filtrarTurnoHub('TODOS', this)">Todos</button>
-                            <button class="btn-select" onclick="filtrarTurnoHub('manha', this)">Manhã</button>
-                            <button class="btn-select" onclick="filtrarTurnoHub('tarde', this)">Tarde</button>
-                            <button class="btn-select" onclick="filtrarTurnoHub('noite', this)">Noite</button>
-                            <button class="btn-select" onclick="filtrarTurnoHub('sabado', this)">Sábado</button>
-                        </div>
-                    </div>
-                    <div class="filter-group">
-                        <div class="filter-label">Ocupação</div>
-                        <div class="filter-options" id="filterOcupacao">
-                            <button class="btn-select active" onclick="filtrarOcupacaoHub('TODOS', this)">Todos</button>
-                            <button class="btn-select" onclick="filtrarOcupacaoHub('COM_ALUNOS', this)">Com alunos</button>
-                            <button class="btn-select" onclick="filtrarOcupacaoHub('VENCIDOS', this)">Vencidos</button>
-                            <button class="btn-select" onclick="filtrarOcupacaoHub('COM_VAGAS', this)">Com vagas</button>
-                            <button class="btn-select" onclick="filtrarOcupacaoHub('LOTADAS', this)">Lotadas</button>
-                            <button class="btn-select" onclick="filtrarOcupacaoHub('VAZIAS', this)">Vazias</button>
-                            <button class="btn-select" onclick="filtrarOcupacaoHub('COM_EXPERIMENTAIS', this)">Experimentais</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- AÇÕES RÁPIDAS - LINHA 1 -->
-            <div class="action-tabs-row">
-                <button onclick="abrirSuperModal('alunos')" class="btn-action-tab btn-blue-highlight"><i data-lucide="users" class="ic-sm"></i> Buscar / Editar Alunos</button>
-                <button onclick="abrirSuperModal('vencidos')" class="btn-action-tab"><i data-lucide="triangle-alert" class="ic-sm"></i> Alunos Vencidos</button>
-                <button onclick="abrirSuperModal('incompletos')" class="btn-action-tab"><i data-lucide="circle-alert" class="ic-sm"></i> Alunos Incompletos</button>
-                <button onclick="abrirSuperModal('experimentais_futuros')" class="btn-action-tab"><i data-lucide="flask-conical" class="ic-sm"></i> Experimentais Futuras</button>
-                <button onclick="abrirSuperModal('modalidades')" class="btn-action-tab"><i data-lucide="tag" class="ic-sm"></i> Gerenciar Modalidades</button>
-                <button onclick="abrirSuperModal('historico_experimentais')" class="btn-action-tab btn-historico-exp"><i data-lucide="bar-chart-3" class="ic-sm"></i> Histórico de Experimentais</button>
-            </div>
-
-            <!-- AÇÕES RÁPIDAS - LINHA 2 -->
-            <div class="action-buttons-row">
-                <button onclick="abrirCriarTurma()" class="btn-create-turma"><i data-lucide="plus" class="ic-sm"></i> Criar Nova Turma</button>
-                <button onclick="exportarCSV()" class="btn-action-tab btn-export-csv"><i data-lucide="download" class="ic-sm"></i> Exportar CSV Completo</button>
-                <button onclick="exportarRelatorioResumido()" class="btn-action-tab btn-relatorio"><i data-lucide="bar-chart-3" class="ic-sm"></i> Relatório Resumido</button>
-                <button onclick="verificarSalvamento()" class="btn-action-tab btn-verificar"><i data-lucide="search-check" class="ic-sm"></i> Verificar Salvamento</button>
-                <button onclick="salvarTudo()" class="btn-save-all" id="btnSalvarTudo"><i data-lucide="save" class="ic-sm"></i> Salvar Tudo</button>
-                <span class="auto-save-indicator" id="autoSaveIndicator">
-                    <span class="status-dot saved" id="autoSaveDot"></span>
-                    <span id="autoSaveText">Salvo automaticamente</span>
-                </span>
-            </div>
-
-            <!-- GRID + PAINEL LATERAL -->
-            <div class="dashboard-layout">
-                <div class="turmas-grid">
-                    <div class="cardsGrid" id="cardsGrid"></div>
-                </div>
-                <div class="painel-exp-hoje">
-                    <h4><i data-lucide="flask-conical" class="ic-sm"></i> Aulas Experimentais <span class="painel-exp-count" id="painelExpCount">0</span></h4>
-                    <div class="painel-exp-filtros" id="painelExpFiltros">
-                        <button class="painel-exp-filtro active" data-periodo="hoje" onclick="filtrarPainelExp('hoje', this)">Hoje</button>
-                        <button class="painel-exp-filtro" data-periodo="amanha" onclick="filtrarPainelExp('amanha', this)">Amanhã</button>
-                        <button class="painel-exp-filtro" data-periodo="todas" onclick="filtrarPainelExp('todas', this)">Todas</button>
-                    </div>
-                    <div id="painelExpHoje">
-                        <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">Carregando...</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- FAB -->
-    <div class="fab-container" id="fabContainer">
-        <button class="fab-main" onclick="toggleFabMenu()"><i data-lucide="plus"></i></button>
-        <div class="fab-menu" id="fabMenu">
-            <button class="fab-item" onclick="abrirFormularioSobreposto('cadastro')"><i data-lucide="clipboard-list" class="ic-sm"></i> Matricular Aluno</button>
-            <button class="fab-item" onclick="abrirFormularioSobreposto('experimental')"><i data-lucide="flask-conical" class="ic-sm"></i> Nova Experimental</button>
-        </div>
-    </div>
-
-    <!-- SUPER MODAL -->
-    <div id="globalSuperModal" class="super-modal" onclick="fecharSuperModal(event)">
-        <div class="super-modal-content" onclick="event.stopPropagation()">
-            <div class="super-modal-header">
-                <h3 id="superModalTitulo">Carregando...</h3>
-                <button class="super-modal-close" onclick="fecharSuperModal()"><i data-lucide="x" class="ic-sm"></i></button>
-            </div>
-            <div class="super-modal-body" id="superModalCorpo"></div>
-        </div>
-    </div>
-
-    <!-- SUPABASE SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="script.js"></script>
-    <script src="aquacontrol-452.js"></script>
+  <div class="caixa">
+    <h1>O AquaControl agora fica dentro do ParHub</h1>
+    <p>Turmas, alunos, pagamentos, experimentais e conversas estão todos no mesmo lugar.
+       Entre com o seu e-mail e senha do ParHub: a tela <b>Academia</b> abre direto.</p>
+    <a class="botao" href="https://app.iaparhub.com.br/">Abrir o sistema novo</a>
+    <small>Você será levado automaticamente em 5 segundos.</small>
+  </div>
+  <script>
+    setTimeout(function () { window.location.replace("https://app.iaparhub.com.br/"); }, 5000);
+  </script>
 </body>
 </html>
