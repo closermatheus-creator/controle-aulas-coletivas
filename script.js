@@ -1,4 +1,265 @@
 // ============================================================
+// AQUACONTROL — banco na VPS do ParHub (pedido #600, 19/11/2026)
+// Esta parte roda antes do resto do script.js (que é o mesmo de antes; só o endereço do banco mudou). Ela:
+//  1. troca o endereço do banco: Supabase → VPS (o mesmo banco que a tela Academia do ParHub usa);
+//  2. faz o papel do "tempo real" do Supabase: confere as mudanças a cada 4 s e a tela se atualiza sozinha
+//     (aluno, turma, experimental, reposição, histórico — feitos aqui, no ParHub ou pela IA do WhatsApp);
+//  3. ao salvar turmas, modalidades ou professores, junta com o que outro computador / o ParHub mudou no meio tempo;
+//  4. só abre depois que o banco da VPS foi copiado e ligado (antes disso mostra "em atualização").
+// ============================================================
+(function () {
+    'use strict';
+    var VPS_URL = 'https://api.iaparhub.com.br/aquacontrol';
+    var VERSAO = '600.20261119';
+    var A_CADA_VISIVEL = 4000, A_CADA_ESCONDIDO = 30000, CONFERE_ATIVO = 60000;
+
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+        console.error('AquaControl #600: a biblioteca do banco não carregou.');
+        return;
+    }
+
+    // Dados guardados no navegador vinham do Supabase: a primeira leitura passa a ser sempre do banco.
+    try {
+        ['cache_alunos', 'cache_turmas', 'cache_experimentais', 'cache_historico', 'cache_modalidades', 'cache_professores', 'cache_reposicoes']
+            .forEach(function (k) { localStorage.removeItem(k); });
+    } catch (e) { /* navegador sem localStorage */ }
+
+    var cliente = null;
+    var ultimo = null;          // última mudança já vista
+    var assinaturas = [];       // { tabela, evento, fn(payload) } — as do script.js / aquacontrol-452.js
+    var proprias = [];          // { tabela, fn(linhas) } — as deste arquivo
+    var timer = null, rodando = false, iniciado = false, bloqueado = false, ultimoConfereAtivo = 0;
+
+    var criarOriginal = window.supabase.createClient;
+    window.supabase.createClient = function (url, chave, opcoes) {
+        cliente = criarOriginal.call(window.supabase, VPS_URL, chave, opcoes);
+        cliente.channel = criarCanal;
+        buscarUltimo();
+        window.aquaVps = { versao: VERSAO, url: VPS_URL, conferirAgora: function () { agendar(0); } };
+        return cliente;
+    };
+
+    // ---------- 2. "Tempo real" por conferência ----------
+    function criarCanal() {
+        var canal = {
+            on: function (tipo, filtro, fn) {
+                if (tipo === 'postgres_changes' && filtro && filtro.table && typeof fn === 'function') {
+                    assinaturas.push({ tabela: filtro.table, evento: String(filtro.event || '*').toUpperCase(), fn: fn });
+                }
+                return canal;
+            },
+            subscribe: function (cb) {
+                iniciar();
+                if (typeof cb === 'function') setTimeout(function () { cb('SUBSCRIBED'); }, 0);
+                return canal;
+            },
+            unsubscribe: function () { return Promise.resolve('ok'); }
+        };
+        return canal;
+    }
+
+    async function buscarUltimo() {
+        try {
+            var r = await cliente.from('espelho_mudancas').select('id').order('id', { ascending: false }).limit(1);
+            if (!r.error) ultimo = (r.data && r.data.length) ? r.data[0].id : 0;
+        } catch (e) { /* tenta de novo na conferência */ }
+    }
+
+    function iniciar() {
+        if (iniciado) return;
+        iniciado = true;
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) agendar(0); });
+        window.addEventListener('focus', function () { agendar(0); });
+        agendar(0);
+    }
+
+    function agendar(ms) {
+        if (bloqueado) return;
+        clearTimeout(timer);
+        timer = setTimeout(conferir, ms);
+    }
+
+    async function conferir() {
+        if (rodando || bloqueado) return;
+        rodando = true;
+        try {
+            if (ultimo === null) {
+                await buscarUltimo();
+            } else {
+                var r = await cliente.from('espelho_mudancas').select('id,tabela,evento,registro')
+                    .gt('id', ultimo).order('id', { ascending: true }).limit(500);
+                if (r.error) throw r.error;
+                if (r.data && r.data.length) {
+                    ultimo = r.data[r.data.length - 1].id;
+                    await despachar(r.data);
+                }
+            }
+            if (Date.now() - ultimoConfereAtivo > CONFERE_ATIVO) {
+                ultimoConfereAtivo = Date.now();
+                if ((await situacaoBanco()) === 'nao') { bloquear(); return; }
+            }
+        } catch (e) {
+            console.warn('AquaControl #600: conferência de mudanças falhou, tento de novo.', e && e.message ? e.message : e);
+        } finally {
+            rodando = false;
+            agendar(document.hidden ? A_CADA_ESCONDIDO : A_CADA_VISIVEL);
+        }
+    }
+
+    async function despachar(linhas) {
+        var porTabela = {};
+        linhas.forEach(function (l) { (porTabela[l.tabela] = porTabela[l.tabela] || []).push(l); });
+        for (var tabela in porTabela) {
+            var lista = porTabela[tabela];
+            var eventos = {};
+            lista.forEach(function (l) { eventos[l.evento] = true; });
+            var ultimoEv = lista[lista.length - 1];
+            var payload = { schema: 'public', table: tabela, eventType: ultimoEv.evento, commit_timestamp: new Date().toISOString(),
+                            new: { id: ultimoEv.registro }, old: { id: ultimoEv.registro } };
+            for (var i = 0; i < assinaturas.length; i++) {
+                var a = assinaturas[i];
+                if (a.tabela !== tabela || (a.evento !== '*' && !eventos[a.evento])) continue;
+                try { await a.fn(payload); } catch (e) { console.warn('AquaControl #600: atualização da tela falhou', e); }
+            }
+            for (var j = 0; j < proprias.length; j++) {
+                if (proprias[j].tabela !== tabela) continue;
+                try { await proprias[j].fn(lista); } catch (e) { console.warn('AquaControl #600: atualização da tela falhou', e); }
+            }
+        }
+    }
+
+    function existe(nome) { return typeof window[nome] === 'function'; }
+    function redesenhar() {
+        if (existe('renderizarTudo')) renderizarTudo();
+        if (existe('renderPainelExperimentaisHoje')) renderPainelExperimentaisHoje();
+        if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
+    }
+
+    // O que o script.js não escutava: turmas/modalidades/professores, histórico e experimental apagada (resultado dado no ParHub).
+    proprias.push({ tabela: 'config', fn: async function (lista) {
+        var chaves = {};
+        lista.forEach(function (l) { chaves[l.registro] = true; });
+        if (chaves.turmas && existe('carregarTurmas')) { await carregarTurmas(true); base.turmas = copia(horariosConfig); }
+        if (chaves.modalidades && existe('carregarModalidades')) { await carregarModalidades(true); base.modalidades = copia(modalidadesDisponiveis); }
+        if (chaves.professores && existe('carregarProfessores')) { await carregarProfessores(true); base.professores = copia(professoresDisponiveis); }
+        redesenhar();
+    } });
+    proprias.push({ tabela: 'historico_experimentais', fn: async function () {
+        if (existe('carregarHistoricoExperimental')) await carregarHistoricoExperimental(true);
+        if (existe('carregarFaltas452')) await carregarFaltas452();
+        redesenhar();
+    } });
+    proprias.push({ tabela: 'experimentais_futuros', fn: async function (lista) {
+        if (!lista.some(function (l) { return l.evento === 'DELETE'; })) return; // INSERT/UPDATE o script.js já trata
+        if (existe('carregarExperimentais')) await carregarExperimentais(true);
+        redesenhar();
+    } });
+
+    // ---------- 4. Só abre com o banco da VPS ligado ----------
+    async function situacaoBanco() {
+        try {
+            var r = await cliente.from('espelho_estado').select('valor').eq('chave', 'ativo');
+            if (r.error) return 'erro';
+            return (r.data && r.data.length) ? r.data[0].valor : 'nao';
+        } catch (e) { return 'erro'; }
+    }
+
+    function aviso(titulo, texto) {
+        var id = 'aviso600';
+        if (document.getElementById(id)) return;
+        var d = document.createElement('div');
+        d.id = id;
+        d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(7,26,61,.55);display:flex;align-items:center;justify-content:center;padding:16px;font-family:Inter,system-ui,sans-serif';
+        d.innerHTML = '<div style="background:#fff;color:#071a3d;max-width:420px;width:100%;border-radius:12px;padding:28px 24px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.2)">' +
+            '<h2 style="font-size:18px;margin:0 0 10px">' + titulo + '</h2><p style="font-size:14px;line-height:1.5;color:#5b6785;margin:0 0 18px">' + texto + '</p>' +
+            '<button onclick="location.reload()" style="background:#0a5cff;color:#fff;border:0;border-radius:8px;padding:10px 20px;font-weight:600;cursor:pointer">Tentar de novo</button></div>';
+        document.body.appendChild(d);
+    }
+
+    function bloquear() {
+        bloqueado = true;
+        clearTimeout(timer);
+        aviso('AquaControl em atualização', 'O sistema está sendo atualizado. Use a tela Academia do ParHub (app.iaparhub.com.br) ou tente de novo em alguns minutos.');
+    }
+
+    // ---------- 3. Juntar listas salvas ao mesmo tempo em dois lugares ----------
+    var base = { turmas: null, modalidades: null, professores: null };
+    function copia(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
+    function chaveDe(item) { return (item && typeof item === 'object') ? String(item.id) : JSON.stringify(item); }
+
+    // base = como estava quando este computador leu; local = como ficou aqui; remoto = como está no banco agora.
+    function juntar(baseL, local, remoto) {
+        var mapa = function (l) { var m = {}; (l || []).forEach(function (x) { m[chaveDe(x)] = x; }); return m; };
+        var b = mapa(baseL), l = mapa(local), r = mapa(remoto);
+        var saida = (remoto || []).filter(function (x) {
+            var k = chaveDe(x);
+            return !(k in b && !(k in l)); // apagado aqui
+        }).map(function (x) {
+            var k = chaveDe(x);
+            if (k in b && k in l && JSON.stringify(l[k]) !== JSON.stringify(b[k])) return l[k]; // mudado aqui
+            return x;
+        });
+        (local || []).forEach(function (x) {
+            var k = chaveDe(x);
+            if (!(k in b) && !(k in r)) saida.push(x); // criado aqui
+        });
+        return saida;
+    }
+
+    function envolverSalvar(nomeFn, chave, nomeLista, pegar) {
+        if (!existe(nomeFn)) return;
+        var original = window[nomeFn];
+        window[nomeFn] = async function () {
+            try {
+                var r = await cliente.from('config').select('valor').eq('chave', chave);
+                if (!r.error && r.data && r.data.length && base[nomeLista]) {
+                    var remoto = typeof r.data[0].valor === 'string' ? JSON.parse(r.data[0].valor) : r.data[0].valor;
+                    if (Array.isArray(remoto) && JSON.stringify(remoto) !== JSON.stringify(base[nomeLista])) {
+                        var lista = pegar();
+                        var junto = juntar(base[nomeLista], lista, remoto);
+                        lista.splice.apply(lista, [0, lista.length].concat(junto));
+                        if (existe('mostrarToast')) mostrarToast('A lista tinha mudado em outro lugar (ParHub ou outro computador): juntei as duas mudanças.');
+                    }
+                }
+            } catch (e) { console.warn('AquaControl #600: não consegui conferir a lista antes de salvar', e); }
+            var ok = await original.apply(this, arguments);
+            if (ok !== false) base[nomeLista] = copia(pegar());
+            return ok;
+        };
+    }
+
+    function envolverCarregar(nomeFn, nomeLista, pegar) {
+        if (!existe(nomeFn)) return;
+        var original = window[nomeFn];
+        window[nomeFn] = async function () {
+            var res = await original.apply(this, arguments);
+            base[nomeLista] = copia(pegar());
+            return res;
+        };
+    }
+
+    // Roda antes do window.onload do script.js (que é quem chama carregarDados).
+    window.addEventListener('load', function () {
+        envolverCarregar('carregarTurmas', 'turmas', function () { return horariosConfig; });
+        envolverCarregar('carregarModalidades', 'modalidades', function () { return modalidadesDisponiveis; });
+        envolverCarregar('carregarProfessores', 'professores', function () { return professoresDisponiveis; });
+        envolverSalvar('salvarTurmas', 'turmas', 'turmas', function () { return horariosConfig; });
+        envolverSalvar('salvarModalidades', 'modalidades', 'modalidades', function () { return modalidadesDisponiveis; });
+        envolverSalvar('salvarProfessores', 'professores', 'professores', function () { return professoresDisponiveis; });
+
+        if (existe('carregarDados')) {
+            var carregarDadosAntes = window.carregarDados;
+            window.carregarDados = async function () {
+                if (cliente && (await situacaoBanco()) === 'nao') { bloquear(); return; }
+                ultimoConfereAtivo = Date.now();
+                return carregarDadosAntes.apply(this, arguments);
+            };
+        }
+        console.log('AquaControl #600 (' + VERSAO + '): banco na VPS do ParHub — ' + VPS_URL);
+    });
+})();
+
+// ============================================================
 // AQUACONTROL v7.2 — SUPABASE VERSION (CACHE OTIMIZADO)
 // ============================================================
 
@@ -26,7 +287,7 @@ if (typeof lucide !== 'undefined') {
 // ============================================================
 // CONFIGURAÇÃO DO SUPABASE (NOVA)
 // ============================================================
-const SUPABASE_URL = "https://tibkrjcwtcinedijfuvt.supabase.co";
+const SUPABASE_URL = "https://api.iaparhub.com.br/aquacontrol"; // #600: banco na VPS do ParHub (antes: Supabase)
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpYmtyamN3dGNpbmVkaWpmdXZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMDMwNzIsImV4cCI6MjA5ODY3OTA3Mn0.Rp4YlmeR0oWDPm7mWS3RyCHlq43W9twRz0vXk4S-M7E";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
