@@ -2625,7 +2625,7 @@ async function salvarEdicaoCompleta(id, hId) {
     if (novoCodigo && novoCodigo !== aluno.codigo) {
         const codigoExistente = alunos.find(a => Number(a.codigo) === Number(novoCodigo) && Number(a.id) !== Number(aluno.id));
         if (codigoExistente) {
-            mostrarToast(`<i data-lucide="triangle-alert" class="ic-sm"></i> Código ${novoCodigo} já está em uso por ${codigoExistente.nome}!`, 'erro');
+            oferecerEditarCodigoEmUso(codigoExistente, novoCodigo);
             return;
         }
         aluno.codigo = novoCodigo;
@@ -3609,6 +3609,14 @@ function filtrarExpHorarios() {
 // ============================================================
 // SALVAR MATRÍCULA E EXPERIMENTAL (MANTIDOS IGUAIS)
 // ============================================================
+// Código repetido: avisa quem está usando e oferece abrir o cadastro dele para corrigir
+function oferecerEditarCodigoEmUso(dono, codigo) {
+    const ok = confirm(`Código ${codigo} já está em uso por "${dono.nome}" (telefone ${dono.telefone || 'sem telefone'}).\n\nSe o código dele estiver errado, você pode corrigir agora.\n\nAbrir o cadastro de "${dono.nome}" para editar o código?`);
+    if (!ok) return;
+    abrirSuperModal('alunos');
+    abrirEdicaoCompletaInline(dono.id, null);
+}
+
 async function salvarMatriculaFab() {
     const codigo = document.getElementById('fabCodigo').value;
     const nome = document.getElementById('fName').value.trim();
@@ -3628,7 +3636,7 @@ async function salvarMatriculaFab() {
     
     const codigoExistente = alunos.find(a => Number(a.codigo) === Number(codigoNumero));
     if (codigoExistente) { 
-        alert(`Código ${codigoNumero} já está em uso por ${codigoExistente.nome}!`); 
+        oferecerEditarCodigoEmUso(codigoExistente, codigoNumero);
         return; 
     }
     
